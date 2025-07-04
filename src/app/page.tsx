@@ -106,12 +106,13 @@ const Home = () => {
           if (file) {
             const formData = new FormData();
             formData.append("file", file);
-            // use all but first part of the prefix, as thats ../
-            const prefixParts = breadcrumbs.slice(1);
-            const prefix = prefixParts.join("/");
-            console.log("Uploading file with prefix:", prefix);
-            if (prefix && prefix.endsWith("/")) {
-              formData.append("prefix", `${prefix}`);
+            // get last part of the breadcrumbs
+            const lastBreadcrumb = breadcrumbs[breadcrumbs.length - 1];
+            console.log("Uploading file with prefix:", lastBreadcrumb);
+            if (lastBreadcrumb !== "../") {
+              formData.append("prefix", lastBreadcrumb);
+            } else {
+              formData.append("prefix", prefix);
             }
 
             fetchApi({
