@@ -28,6 +28,7 @@ const fetchApi = async <T>(
     if (response.data && response.data.success) {
       return {
         success: true,
+        status: response.status,
         message: response.data.message,
         data: response.data.data as T,
       };
@@ -38,11 +39,13 @@ const fetchApi = async <T>(
       error: response.data?.error ?? "Unknown error",
       error_message: response.data?.error_message ?? "Unexpected error occurred",
       error_code: response.data?.error_code ?? 0,
+      status: response.status,
     };
   } catch (err: unknown) {
     const axiosError = err as AxiosError;
     return {
       success: false,
+      status: axiosError.response?.status ?? 500,
       error: "request_failed",
       error_message: axiosError.message ?? "Request failed unexpectedly",
       error_code: -1,
