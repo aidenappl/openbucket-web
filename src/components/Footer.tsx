@@ -2,7 +2,7 @@ import Link from "next/link";
 
 const Footer = () => {
   return (
-    <footer className="bg-[var(--background-dark)] text-white py-4">
+    <footer className="bg-[var(--background-dark)] text-white py-4 min-h-[50px]">
       <div className="px-10 max-w-[var(--max-page-width)] mx-auto text-center">
         <div className="flex justify-between">
           <p className="text-[var(--text-light-secondary)]">

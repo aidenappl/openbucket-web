@@ -1,15 +1,60 @@
 "use client";
 
+import Button from "@/components/Button";
+import Checkbox, { CheckboxState } from "@/components/Checkbox";
+import MajorButton from "@/components/MajorButton";
 import { fetchApi } from "@/tools/axios.tools";
-import Link from "next/link";
+import {
+  faArrowUpRight,
+  faCloudUpload,
+  faDownload,
+  faFolderPlus,
+  faShare,
+  faTrash,
+} from "@fortawesome/pro-solid-svg-icons";
 import { useEffect, useRef, useState } from "react";
+
+const ROOT_FOLDER = "All Files";
 
 const Home = () => {
   const [folders, setFolders] = useState<null | string[]>(null);
   const [objects, setObjects] = useState<null | string[]>(null);
   const [prefix, setPrefix] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [breadcrumbs, setBreadcrumbs] = useState<string[]>(["../"]);
+  const [breadcrumbs, setBreadcrumbs] = useState<string[]>([ROOT_FOLDER]);
+  const [selectedObjects, setSelectedObjects] = useState<
+    Record<string, boolean>
+  >({});
+
+  const totalItems = [...(folders || []), ...(objects || [])];
+  const selectedCount = totalItems.filter(
+    (item) => selectedObjects[item]
+  ).length;
+
+  const masterCheckboxState: CheckboxState =
+    selectedCount === 0
+      ? "unchecked"
+      : selectedCount === totalItems.length
+      ? "checked"
+      : "indeterminate";
+
+  const toggleAll = () => {
+    const newState = masterCheckboxState !== "checked";
+
+    const allItems = [...(folders || []), ...(objects || [])];
+    const newSelection = Object.fromEntries(
+      allItems.map((item) => [item, newState])
+    );
+
+    setSelectedObjects(newSelection);
+  };
+
+  const toggleObject = (key: string) => {
+    setSelectedObjects((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
 
   const listFolders = async (prefix: string): Promise<string[] | null> => {
     if (prefix == "/") {
@@ -86,148 +131,207 @@ const Home = () => {
   }, []);
 
   return (
-    <div>
-      <h1 className="text-lg pb-10">Welcome to OpenBucket</h1>
-      {breadcrumbs.length > 1 && (
-        <button
-          className="px-4 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors cursor-pointer"
-          onClick={async () => {
-            deleteFolder();
-          }}
-        >
-          Delete Folder
-        </button>
-      )}
-      <button
-        className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors cursor-pointer"
-        onClick={async () => {
-          document.getElementById("fileInput")?.click();
-        }}
-      >
-        Upload File
-      </button>
-      <button
-        className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors cursor-pointer"
-        onClick={async () => {
-          const folderName = prompt("Enter folder name:");
-          if (folderName) {
-            // Create the new folder
-            if (folderName.trim() === "") {
-              alert("Folder name cannot be empty.");
-              return;
-            }
-            const response = await fetchApi({
-              url: "/aplb/folder",
-              method: "POST",
-              data: { folder: folderName },
-            });
-            if (response.success) {
-              // Refresh the folder list
-              initialize();
-            } else {
-              console.error("Failed to create folder:", response);
-            }
-          }
-        }}
-      >
-        New Folder
-      </button>
-      <input
-        type="file"
-        ref={fileInputRef}
-        id="fileInput"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) {
-            const formData = new FormData();
-            formData.append("file", file);
-            // use all but first part of the prefix, as thats ../
-            const prefixParts = breadcrumbs.slice(1);
-            const prefix = prefixParts.join("/");
-            console.log("Uploading file with prefix:", prefix);
-            if (prefix && prefix.endsWith("/")) {
-              formData.append("prefix", `${prefix}`);
-            }
-
-            fetchApi({
-              url: "/aplb/object",
-              method: "PUT",
-              data: formData,
-              headers: {
-                "Content-Type": undefined, // let Axios remove the default and set it correctly
-              },
-            }).then((response) => {
-              if (response.success) {
-                initialize(prefix);
-                if (fileInputRef.current) {
-                  fileInputRef.current.value = "";
+    <main className="w-full h-[calc(100vh-80px)]">
+      <div className="flex flex-col gap-5">
+        <div className="grid grid-cols-2 w-fit gap-x-3">
+          <MajorButton
+            label="Upload or Drop"
+            faIcon={faCloudUpload}
+            onClick={() => {
+              fileInputRef.current?.click();
+            }}
+          />
+          <MajorButton
+            label="Create Folder"
+            variant="light"
+            faIcon={faFolderPlus}
+            onClick={async () => {
+              const folderName = prompt("Enter folder name:");
+              if (folderName) {
+                // Create the new folder
+                if (folderName.trim() === "") {
+                  alert("Folder name cannot be empty.");
+                  return;
                 }
-              } else {
-                console.error("Upload failed:", response);
-                if (fileInputRef.current) {
-                  fileInputRef.current.value = "";
+                const response = await fetchApi({
+                  url: "/aplb/folder",
+                  method: "POST",
+                  data: { folder: folderName },
+                });
+                if (response.success) {
+                  // Refresh the folder list
+                  initialize();
+                } else {
+                  console.error("Failed to create folder:", response);
                 }
               }
-            });
-          }
-        }}
-      />
-      <div className="w-full h-fit bg-gray-200 rounded-md p-3 mb-10">
-        <div className="flex flex-wrap gap-2">
-          {breadcrumbs.map((breadcrumb, index) => (
-            <span
-              key={index}
-              className="cursor-pointer text-blue-600 hover:underline"
-              onClick={() => {
-                if (breadcrumb == "../") {
-                  setBreadcrumbs(["../"]);
-                  setPrefix("");
-                  initialize("/");
-                } else {
-                  setBreadcrumbs((prev) => prev.slice(0, index + 1));
-                  setPrefix(breadcrumb);
-                  initialize(breadcrumb);
-                }
-              }}
-            >
-              {breadcrumb}
-            </span>
-          ))}
+            }}
+          />
         </div>
-        {folders ? (
-          folders.map((folder, index) => (
-            <div
-              key={index}
-              className="cursor-pointer"
-              onClick={() => {
-                setPrefix(folder);
-                setBreadcrumbs((prev) => [...prev, folder]);
-                initialize(folder);
-              }}
-            >
-              <h2 className="select-none">{folder}</h2>
+
+        <div className="bg-white w-full p-4 border border-gray-200 shadow-sm rounded-md">
+          {/* Breadcrumbs & Controls */}
+          <div className="flex justify-between items-center mb-3">
+            {/* Left Breadcrumbs */}
+            <div>
+              {breadcrumbs.map((crumb, index) => (
+                <span
+                  key={crumb}
+                  className="text-md text-gray-700 font-semibold cursor-pointer select-none"
+                  onClick={() => {
+                    // Update breadcrumbs
+                    const newBreadcrumbs = breadcrumbs.slice(0, index + 1);
+                    setBreadcrumbs(newBreadcrumbs);
+                    // Update prefix
+                    const newPrefix = newBreadcrumbs.slice(1).join("/") + "/";
+                    setPrefix(newPrefix);
+                    // Fetch new data
+                    initialize(newPrefix);
+                  }}
+                >
+                  {crumb}
+                  {index < breadcrumbs.length - 1 ? " / " : ""}
+                </span>
+              ))}
             </div>
-          ))
-        ) : (
-          <p>Loading folders...</p>
-        )}
-        {objects ? (
-          objects.map((object, index) => (
-            <div key={index} className="cursor-pointer">
-              <Link
-                href={`object/${object}`}
-                className="select-none text-blue-600 font-medium"
-              >
-                {object}
-              </Link>
+            {/* Right Controls */}
+            <div></div>
+          </div>
+
+          {/* Controls */}
+          <div className="flex justify-between items-center my-3">
+            {/* Left Controls */}
+            <div className="flex gap-2">
+              <Button faIcon={faArrowUpRight}>Share Selected</Button>
+              <Button variant="light" faIcon={faDownload}>
+                Download
+              </Button>
+              <Button variant="light" faIcon={faTrash}>
+                Delete
+              </Button>
             </div>
-          ))
-        ) : (
-          <p>Loading objects...</p>
-        )}
+            {/* Right Data */}
+            <div>
+              <p className="text-sm text-gray-800" hidden={selectedCount === 0}>
+                {selectedCount} selected
+              </p>
+            </div>
+          </div>
+          {/* Files Table */}
+          <div className="border border-gray-200">
+            {/* Table Header */}
+            <div className="grid grid-cols-[40px_1fr_1fr_1fr] text-sm font-semibold border-b border-gray-300 h-[40px] items-center px-3">
+              <Checkbox state={masterCheckboxState} onToggle={toggleAll} />
+              <div>Name</div>
+              <div>Size</div>
+              <div>Actions</div>
+            </div>
+            {/* Table Objects/Folders */}
+            <div>
+              {folders && folders.length > 0
+                ? folders.map((folder) => (
+                    <div
+                      key={folder}
+                      className="grid text-sm px-3  border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
+                      onClick={() => {
+                        console.log("Clicked on folder:", folder);
+                        // Update breadcrumbs
+                        setBreadcrumbs((prev) => [...prev, folder]);
+                        // Update prefix
+                        const newPrefix = `${prefix}${folder}/`;
+                        setPrefix(newPrefix);
+                        // Fetch new data
+                        initialize(newPrefix);
+                      }}
+                    >
+                      <Checkbox
+                        state={
+                          selectedObjects[folder] ? "checked" : "unchecked"
+                        }
+                        onToggle={() => toggleObject(folder)}
+                      />
+                      <div>{folder}</div>
+                      <div>Size</div>
+                      <div>Actions</div>
+                    </div>
+                  ))
+                : null}
+              {objects && objects.length > 0
+                ? objects.map((object) => (
+                    <div
+                      key={object}
+                      className="grid text-sm px-3 border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
+                      onClick={() => {
+                        console.log("Clicked on object:", object);
+                        window.location.href = `/object/${encodeURIComponent(
+                          object
+                        )}`;
+                      }}
+                    >
+                      <Checkbox
+                        state={
+                          selectedObjects[object] ? "checked" : "unchecked"
+                        }
+                        onToggle={() => toggleObject(object)}
+                      />
+                      <div>{object}</div>
+                      <div>Size</div>
+                      <div>Actions</div>
+                    </div>
+                  ))
+                : null}
+              {folders &&
+              folders.length === 0 &&
+              objects &&
+              objects.length === 0 ? (
+                <div className="text-sm text-gray-500 p-3">No items found.</div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+        <input
+          type="file"
+          ref={fileInputRef}
+          id="fileInput"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const formData = new FormData();
+              formData.append("file", file);
+              // use all but first part of the prefix, as thats ROOT_FOLDER
+              const prefixParts = breadcrumbs.slice(1);
+              const prefix = prefixParts.join("/");
+              console.log("Uploading file with prefix:", prefix);
+              if (prefix && prefix.endsWith("/")) {
+                formData.append("prefix", `${prefix}`);
+              }
+
+              fetchApi({
+                url: "/aplb/object",
+                method: "PUT",
+                data: formData,
+                headers: {
+                  "Content-Type": undefined, // let Axios remove the default and set it correctly
+                },
+              }).then((response) => {
+                if (response.success) {
+                  initialize(prefix);
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = "";
+                  }
+                } else {
+                  console.error("Upload failed:", response);
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = "";
+                  }
+                }
+              });
+            }
+          }}
+        />
       </div>
-    </div>
+    </main>
   );
 };
 

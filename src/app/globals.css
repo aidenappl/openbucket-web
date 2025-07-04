@@ -2,10 +2,9 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f0eee6;
+  --background: #f6f6f6;
   --foreground: #171717;
   --background-dark: #141413;
-  --text-light-secondary: #b0aea5;
 }
 
 @theme static {
