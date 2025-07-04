@@ -54,6 +54,32 @@ const Home = () => {
     setObjects(objects || []);
   };
 
+  const deleteFolder = async () => {
+    if (breadcrumbs.length <= 1) {
+      alert("You cannot delete the root folder.");
+      return;
+    }
+    const folderToDelete = breadcrumbs[breadcrumbs.length - 1];
+    const confirmDelete = confirm(
+      `Are you sure you want to delete the folder "${folderToDelete}"? This action cannot be undone.`
+    );
+    if (!confirmDelete) {
+      return;
+    }
+
+    const response = await fetchApi({
+      url: `/aplb/folder`,
+      method: "DELETE",
+      params: { folder: folderToDelete },
+    });
+    if (response.success) {
+      // Refresh the folder list
+      initialize();
+    } else {
+      console.error("Failed to delete folder:", response);
+    }
+  };
+
   useEffect(() => {
     // Initialize the page
     initialize();
@@ -62,6 +88,16 @@ const Home = () => {
   return (
     <div>
       <h1 className="text-lg pb-10">Welcome to OpenBucket</h1>
+      {breadcrumbs.length > 1 && (
+        <button
+          className="px-4 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors cursor-pointer"
+          onClick={async () => {
+            deleteFolder();
+          }}
+        >
+          Delete Folder
+        </button>
+      )}
       <button
         className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors cursor-pointer"
         onClick={async () => {
