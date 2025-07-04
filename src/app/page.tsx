@@ -8,10 +8,13 @@ import {
   faArrowUpRight,
   faCloudUpload,
   faDownload,
+  faFile,
+  faFolder,
   faFolderPlus,
   faShare,
   faTrash,
 } from "@fortawesome/pro-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useRef, useState } from "react";
 
 const ROOT_FOLDER = "All Files";
@@ -99,12 +102,7 @@ const Home = () => {
     setObjects(objects || []);
   };
 
-  const deleteFolder = async () => {
-    if (breadcrumbs.length <= 1) {
-      alert("You cannot delete the root folder.");
-      return;
-    }
-    const folderToDelete = breadcrumbs[breadcrumbs.length - 1];
+  const deleteFolder = async (folderToDelete: string) => {
     const confirmDelete = confirm(
       `Are you sure you want to delete the folder "${folderToDelete}"? This action cannot be undone.`
     );
@@ -122,6 +120,27 @@ const Home = () => {
       initialize();
     } else {
       console.error("Failed to delete folder:", response);
+    }
+  };
+
+  const deleteObject = async (objectToDelete: string) => {
+    const confirmDelete = confirm(
+      `Are you sure you want to delete the object "${objectToDelete}"? This action cannot be undone.`
+    );
+    if (!confirmDelete) {
+      return;
+    }
+
+    const response = await fetchApi({
+      url: `/aplb/object`,
+      method: "DELETE",
+      params: { key: objectToDelete },
+    });
+    if (response.success) {
+      // Refresh the folder list
+      initialize();
+    } else {
+      console.error("Failed to delete object:", response);
     }
   };
 
@@ -206,7 +225,36 @@ const Home = () => {
               <Button variant="light" faIcon={faDownload}>
                 Download
               </Button>
-              <Button variant="light" faIcon={faTrash}>
+              <Button
+                variant="light"
+                faIcon={faTrash}
+                onClick={() => {
+                  // get from selectedObjects
+                  const selectedFolders = Object.keys(selectedObjects).filter(
+                    (key) => selectedObjects[key] && folders?.includes(key)
+                  );
+                  // get objects from selectedObjects
+                  const selectedObjectsList = Object.keys(
+                    selectedObjects
+                  ).filter(
+                    (key) => selectedObjects[key] && objects?.includes(key)
+                  );
+                  if (
+                    selectedFolders.length === 0 &&
+                    selectedObjectsList.length === 0
+                  ) {
+                    alert("No folders or objects selected for deletion.");
+                    return;
+                  }
+                  for (const folder of selectedFolders) {
+                    deleteFolder(folder);
+                  }
+
+                  for (const object of selectedObjectsList) {
+                    deleteObject(object);
+                  }
+                }}
+              >
                 Delete
               </Button>
             </div>
@@ -238,7 +286,7 @@ const Home = () => {
                         // Update breadcrumbs
                         setBreadcrumbs((prev) => [...prev, folder]);
                         // Update prefix
-                        const newPrefix = `${prefix}${folder}/`;
+                        const newPrefix = `${folder}`;
                         setPrefix(newPrefix);
                         // Fetch new data
                         initialize(newPrefix);
@@ -250,7 +298,13 @@ const Home = () => {
                         }
                         onToggle={() => toggleObject(folder)}
                       />
-                      <div>{folder}</div>
+                      <div className="flex gap-2 items-center">
+                        <FontAwesomeIcon
+                          icon={faFolder}
+                          className="text-gray-500 cursor-pointer"
+                        />
+                        {folder}
+                      </div>
                       <div>Size</div>
                       <div>Actions</div>
                     </div>
@@ -274,7 +328,13 @@ const Home = () => {
                         }
                         onToggle={() => toggleObject(object)}
                       />
-                      <div>{object}</div>
+                      <div className="flex gap-2 items-center">
+                        <FontAwesomeIcon
+                          icon={faFile}
+                          className="text-gray-500 cursor-pointer"
+                        />
+                        {object}
+                      </div>
                       <div>Size</div>
                       <div>Actions</div>
                     </div>
@@ -299,9 +359,8 @@ const Home = () => {
             if (file) {
               const formData = new FormData();
               formData.append("file", file);
-              // use all but first part of the prefix, as thats ROOT_FOLDER
-              const prefixParts = breadcrumbs.slice(1);
-              const prefix = prefixParts.join("/");
+              // get the last prefix from breadcrumbs
+              const prefix = breadcrumbs[breadcrumbs.length - 1];
               console.log("Uploading file with prefix:", prefix);
               if (prefix && prefix.endsWith("/")) {
                 formData.append("prefix", `${prefix}`);
