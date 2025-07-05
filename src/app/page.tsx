@@ -236,6 +236,7 @@ const Home = () => {
 
           <div hidden={format !== "grid"}>
             <h1>Grid</h1>
+            <GridItem/>
           </div>
 
           {/* LIST FORMAT */}
