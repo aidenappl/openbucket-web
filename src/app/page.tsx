@@ -234,7 +234,12 @@ const Home = () => {
             </div>
           </div>
 
-          <div hidden={format === "grid"}>
+          <div hidden={format !== "grid"}>
+            <h1>Grid</h1>
+          </div>
+
+          {/* LIST FORMAT */}
+          <div hidden={format !== "list"}>
             {/* Controls */}
             <div className="flex justify-between items-center my-3">
               {/* Left Controls */}
