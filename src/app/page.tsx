@@ -2,6 +2,7 @@
 
 import Button from "@/components/Button";
 import Checkbox, { CheckboxState } from "@/components/Checkbox";
+import GridItem from "@/components/GridItem";
 import MajorButton from "@/components/MajorButton";
 import ToggleOption from "@/components/ToggleOption";
 import ToggleSelector from "@/components/ToggleSelector";
@@ -236,7 +237,7 @@ const Home = () => {
 
           <div hidden={format !== "grid"}>
             <h1>Grid</h1>
-            <GridItem/>
+            <GridItem />
           </div>
 
           {/* LIST FORMAT */}
