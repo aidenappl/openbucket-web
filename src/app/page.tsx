@@ -304,12 +304,20 @@ const Home = () => {
             <div className="flex justify-between items-center my-3">
               {/* Left Controls */}
               <div className="flex gap-2">
-                <Button faIcon={faArrowUpRight}>Share Selected</Button>
-                <Button variant="light" faIcon={faDownload}>
+                <Button faIcon={faArrowUpRight} active={selectedCount > 0}>
+                  Share Selected
+                </Button>
+                <Button
+                  variant="light"
+                  active={selectedCount > 0}
+                  faIcon={faDownload}
+                >
                   Download
                 </Button>
                 <Button
                   variant="light"
+                  active={selectedCount > 0}
+                  hoverVariant="danger"
                   faIcon={faTrash}
                   onClick={() => {
                     // get from selectedObjects
