@@ -9,6 +9,7 @@ import ToggleSelector from "@/components/ToggleSelector";
 import { fetchApi } from "@/tools/axios.tools";
 import {
   faArrowUpRight,
+  faChevronRight,
   faCloudUpload,
   faDownload,
   faFile,
@@ -24,7 +25,7 @@ import { useEffect, useRef, useState } from "react";
 const ROOT_FOLDER = "All Files";
 
 const Home = () => {
-  const [format, setFormat] = useState<"grid" | "list">("list");
+  const [format, setFormat] = useState<"grid" | "list">("grid");
   const [folders, setFolders] = useState<null | string[]>(null);
   const [objects, setObjects] = useState<null | string[]>(null);
   const [prefix, setPrefix] = useState<string>("");
@@ -197,47 +198,104 @@ const Home = () => {
           {/* Breadcrumbs & Controls */}
           <div className="flex justify-between items-center mb-3">
             {/* Left Breadcrumbs */}
-            <div>
-              {breadcrumbs.map((crumb, index) => (
-                <span
-                  key={crumb}
-                  className="text-md text-gray-700 font-semibold cursor-pointer select-none"
-                  onClick={() => {
-                    // Update breadcrumbs
-                    const newBreadcrumbs = breadcrumbs.slice(0, index + 1);
-                    setBreadcrumbs(newBreadcrumbs);
-                    // Update prefix
-                    const newPrefix = newBreadcrumbs.slice(1).join("/") + "/";
-                    setPrefix(newPrefix);
-                    // Fetch new data
-                    initialize(newPrefix);
-                  }}
-                >
-                  {crumb}
-                  {index < breadcrumbs.length - 1 ? " / " : ""}
-                </span>
-              ))}
+            <div className="flex items-center gap-1 text-md text-gray-700 font-semibold select-none">
+              {breadcrumbs.map((fullPath, index) => {
+                const isLast = index === breadcrumbs.length - 1;
+
+                // Display name = last non-empty part
+                const parts = fullPath.split("/").filter(Boolean);
+                const displayName =
+                  index === 0 ? "All Files" : parts[parts.length - 1];
+
+                return (
+                  <span key={fullPath} className="flex items-center gap-1">
+                    <span
+                      className={`cursor-pointer hover:underline ${
+                        isLast ? "text-gray-900" : ""
+                      }`}
+                      onClick={() => {
+                        if (fullPath === ROOT_FOLDER) {
+                          setBreadcrumbs([ROOT_FOLDER]);
+                          setPrefix("");
+                          initialize("/");
+                          return;
+                        }
+                        setBreadcrumbs(breadcrumbs.slice(0, index + 1));
+                        const newPrefix = index === 0 ? "" : fullPath;
+                        setPrefix(newPrefix);
+                        initialize(newPrefix);
+                      }}
+                    >
+                      {displayName}
+                    </span>
+                    {!isLast && (
+                      <FontAwesomeIcon
+                        icon={faChevronRight}
+                        className="text-gray-400 text-sm"
+                      />
+                    )}
+                  </span>
+                );
+              })}
             </div>
             {/* Right Controls */}
             <div>
               <ToggleSelector
+                value={format === "grid" ? 1 : 0}
                 onChange={(index) => {
                   setFormat(index === 0 ? "list" : "grid");
                 }}
               >
-                <ToggleOption>
+                <ToggleOption key={"list"}>
                   <FontAwesomeIcon icon={faListCheck} />
                 </ToggleOption>
-                <ToggleOption>
+                <ToggleOption key={"grid"}>
                   <FontAwesomeIcon icon={faGrid2} />
                 </ToggleOption>
               </ToggleSelector>
             </div>
           </div>
 
+          {/* GRID FORMAT */}
           <div hidden={format !== "grid"}>
-            <h1>Grid</h1>
-            <GridItem />
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-x-4 gap-y-4 px-0">
+              {folders && folders.length > 0
+                ? folders.map((folder) => (
+                    <GridItem
+                      key={folder}
+                      title={folder}
+                      subtitle="x items"
+                      icon={faFolder}
+                      onClick={() => {
+                        console.log("Clicked on folder:", folder);
+                        // Update breadcrumbs
+                        setBreadcrumbs((prev) => [...prev, folder]);
+                        // Update prefix
+                        const newPrefix = `${folder}`;
+                        setPrefix(newPrefix);
+                        // Fetch new data
+                        initialize(newPrefix);
+                      }}
+                    />
+                  ))
+                : null}
+              {objects && objects.length > 0
+                ? objects.map((object) => (
+                    <GridItem
+                      key={object}
+                      title={object}
+                      subtitle="x items"
+                      icon={faFile}
+                      onClick={() => {
+                        console.log("Clicked on object:", object);
+                        window.location.href = `/object/${encodeURIComponent(
+                          object
+                        )}`;
+                      }}
+                    />
+                  ))
+                : null}
+            </div>
           </div>
 
           {/* LIST FORMAT */}

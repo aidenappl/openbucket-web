@@ -1,18 +1,57 @@
-type GridItemProps = {};
+import { IconProp } from "@fortawesome/fontawesome-svg-core";
+import {
+  faEllipsisV,
+  faQuestionCircle,
+} from "@fortawesome/pro-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-const GridItem = ({}: GridItemProps) => {
+type GridItemProps = {
+  title: string;
+  subtitle?: string;
+  icon?: IconProp;
+  onClick?: () => void;
+};
+
+const GridItem = ({ title, subtitle, icon, onClick }: GridItemProps) => {
   return (
-    <div>
+    <div
+      className="bg-[#f6f6f6] rounded-md w-full flex flex-col h-[150px] border border-gray-200 overflow-hidden select-none cursor-pointer"
+      onClick={onClick}
+    >
       {/* Icon/Image Preview */}
-      <div></div>
+      <div className="flex w-full h-full items-center justify-center text-slate-800">
+        {icon ? (
+          <FontAwesomeIcon className="text-5xl" icon={icon} />
+        ) : (
+          <FontAwesomeIcon className="text-5xl" icon={faQuestionCircle} />
+        )}
+      </div>
       {/* Information Ticker */}
-      <div>
+      <div className="flex w-full h-[50px] bg-white items-center p-3 justify-between">
         {/* Icon */}
-        <div></div>
+        <div className="pr-3 text-slate-800 flex-shrink-0">
+          {icon ? (
+            <FontAwesomeIcon className="text-2xl" icon={icon} />
+          ) : (
+            <FontAwesomeIcon className="text-2xl" icon={faQuestionCircle} />
+          )}
+        </div>
+
         {/* Information */}
-        <div></div>
+        <div className="flex flex-col text-sm leading-none gap-0.5 flex-grow overflow-hidden">
+          <span className="font-medium truncate">{title}</span>
+          {subtitle && (
+            <span className="text-gray-500 truncate">{subtitle}</span>
+          )}
+        </div>
+
         {/* Controls */}
-        <div></div>
+        <div className="w-[15px] h-[30px] flex items-center justify-end flex-shrink-0 group">
+          <FontAwesomeIcon
+            icon={faEllipsisV}
+            className="text-gray-400 group-hover:text-gray-800 cursor-pointer"
+          />
+        </div>
       </div>
     </div>
   );
