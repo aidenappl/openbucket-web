@@ -15,7 +15,7 @@ type GridItemProps = {
 const GridItem = ({ title, subtitle, icon, onClick }: GridItemProps) => {
   return (
     <div
-      className="bg-[#f6f6f6] rounded-md w-full flex flex-col h-[150px] border border-gray-200 overflow-hidden select-none cursor-pointer"
+      className="cursor-pointer hover:bg-[#eeeeee] hover:shadow-sm transition-[0.2s] bg-[#f6f6f6] rounded-md w-full flex flex-col h-[150px] md:h-[175px] lg:h-[200px] border border-gray-200 overflow-hidden select-none cursor-pointer"
       onClick={onClick}
     >
       {/* Icon/Image Preview */}
