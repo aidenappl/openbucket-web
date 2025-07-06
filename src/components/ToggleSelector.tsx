@@ -1,4 +1,6 @@
-import React, { cloneElement, ReactElement, useState } from "react";
+"use client";
+
+import React, { cloneElement, ReactElement, useEffect, useState } from "react";
 import { ToggleOptionProps } from "./ToggleOption";
 
 type ToggleSelectorProps = {
@@ -13,6 +15,11 @@ const ToggleSelector = ({
   value = 0,
 }: ToggleSelectorProps) => {
   const [activeIndex, setActiveIndex] = useState(value);
+
+  useEffect(() => {
+    setActiveIndex(value);
+  }, [value]);
+
   return (
     <div className="flex border border-gray-200 overflow-hidden rounded-sm cursor-pointer text-sm">
       {children.map((child, index) =>

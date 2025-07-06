@@ -25,7 +25,7 @@ import { useEffect, useRef, useState } from "react";
 const ROOT_FOLDER = "All Files";
 
 const Home = () => {
-  const [format, setFormat] = useState<"grid" | "list">("grid");
+  const [format, setFormat] = useState<"grid" | "list" | null>(null); // null = not ready
   const [folders, setFolders] = useState<null | string[]>(null);
   const [objects, setObjects] = useState<null | string[]>(null);
   const [prefix, setPrefix] = useState<string>("");
@@ -34,6 +34,12 @@ const Home = () => {
   const [selectedObjects, setSelectedObjects] = useState<
     Record<string, boolean>
   >({});
+
+  useEffect(() => {
+    if (format) {
+      localStorage.setItem("viewFormat", format);
+    }
+  }, [format]);
 
   const totalItems = [...(folders || []), ...(objects || [])];
   const selectedCount = totalItems.filter(
@@ -100,6 +106,8 @@ const Home = () => {
   };
 
   const initialize = async (overPrefix?: string) => {
+    const saved = localStorage.getItem("viewFormat") as "grid" | "list";
+    setFormat(saved || "list");
     setObjects(null);
     setFolders(null);
     const folders = await listFolders(overPrefix || prefix);
@@ -241,7 +249,7 @@ const Home = () => {
             {/* Right Controls */}
             <div>
               <ToggleSelector
-                value={format === "grid" ? 1 : 0}
+                value={format != null ? (format === "grid" ? 1 : 0) : -1}
                 onChange={(index) => {
                   setFormat(index === 0 ? "list" : "grid");
                 }}
