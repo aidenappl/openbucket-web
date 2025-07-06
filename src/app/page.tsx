@@ -4,6 +4,7 @@ import Button from "@/components/Button";
 import Checkbox, { CheckboxState } from "@/components/Checkbox";
 import GridItem from "@/components/GridItem";
 import MajorButton from "@/components/MajorButton";
+import Spinner from "@/components/Spinner";
 import ToggleOption from "@/components/ToggleOption";
 import ToggleSelector from "@/components/ToggleSelector";
 import { fetchApi } from "@/tools/axios.tools";
@@ -266,44 +267,51 @@ const Home = () => {
 
           {/* GRID FORMAT */}
           <div hidden={format !== "grid"}>
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-x-4 gap-y-4 px-0">
-              {folders && folders.length > 0
-                ? folders.map((folder) => (
-                    <GridItem
-                      key={folder}
-                      title={folder}
-                      subtitle="x items"
-                      icon={faFolder}
-                      onClick={() => {
-                        console.log("Clicked on folder:", folder);
-                        // Update breadcrumbs
-                        setBreadcrumbs((prev) => [...prev, folder]);
-                        // Update prefix
-                        const newPrefix = `${folder}`;
-                        setPrefix(newPrefix);
-                        // Fetch new data
-                        initialize(newPrefix);
-                      }}
-                    />
-                  ))
-                : null}
-              {objects && objects.length > 0
-                ? objects.map((object) => (
-                    <GridItem
-                      key={object}
-                      title={object}
-                      subtitle="x items"
-                      icon={faFile}
-                      onClick={() => {
-                        console.log("Clicked on object:", object);
-                        window.location.href = `/object/${encodeURIComponent(
-                          object
-                        )}`;
-                      }}
-                    />
-                  ))
-                : null}
-            </div>
+            {!folders ||
+              (!objects ? (
+                <div className="flex items-center justify-center h-32">
+                  <Spinner />
+                </div>
+              ) : (
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-x-4 gap-y-4 px-0">
+                  {folders && folders.length > 0
+                    ? folders.map((folder) => (
+                        <GridItem
+                          key={folder}
+                          title={folder}
+                          subtitle="x items"
+                          icon={faFolder}
+                          onClick={() => {
+                            console.log("Clicked on folder:", folder);
+                            // Update breadcrumbs
+                            setBreadcrumbs((prev) => [...prev, folder]);
+                            // Update prefix
+                            const newPrefix = `${folder}`;
+                            setPrefix(newPrefix);
+                            // Fetch new data
+                            initialize(newPrefix);
+                          }}
+                        />
+                      ))
+                    : null}
+                  {objects && objects.length > 0
+                    ? objects.map((object) => (
+                        <GridItem
+                          key={object}
+                          title={object}
+                          subtitle="x items"
+                          icon={faFile}
+                          onClick={() => {
+                            console.log("Clicked on object:", object);
+                            window.location.href = `/object/${encodeURIComponent(
+                              object
+                            )}`;
+                          }}
+                        />
+                      ))
+                    : null}
+                </div>
+              ))}
           </div>
 
           {/* LIST FORMAT */}
@@ -377,84 +385,90 @@ const Home = () => {
                 <div>Actions</div>
               </div>
               {/* Table Objects/Folders */}
-              <div>
-                {folders && folders.length > 0
-                  ? folders.map((folder) => (
-                      <div
-                        key={folder}
-                        className="grid text-sm px-3  border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
-                        onClick={() => {
-                          console.log("Clicked on folder:", folder);
-                          // Update breadcrumbs
-                          setBreadcrumbs((prev) => [...prev, folder]);
-                          // Update prefix
-                          const newPrefix = `${folder}`;
-                          setPrefix(newPrefix);
-                          // Fetch new data
-                          initialize(newPrefix);
-                        }}
-                      >
-                        <Checkbox
-                          state={
-                            selectedObjects[folder] ? "checked" : "unchecked"
-                          }
-                          onToggle={() => toggleObject(folder)}
-                        />
-                        <div className="flex gap-2 items-center">
-                          <FontAwesomeIcon
-                            icon={faFolder}
-                            className="text-gray-500 cursor-pointer"
+              {!objects || !folders ? (
+                <div className="flex items-center justify-center h-32">
+                  <Spinner />
+                </div>
+              ) : (
+                <div>
+                  {folders && folders.length > 0
+                    ? folders.map((folder) => (
+                        <div
+                          key={folder}
+                          className="grid text-sm px-3  border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
+                          onClick={() => {
+                            console.log("Clicked on folder:", folder);
+                            // Update breadcrumbs
+                            setBreadcrumbs((prev) => [...prev, folder]);
+                            // Update prefix
+                            const newPrefix = `${folder}`;
+                            setPrefix(newPrefix);
+                            // Fetch new data
+                            initialize(newPrefix);
+                          }}
+                        >
+                          <Checkbox
+                            state={
+                              selectedObjects[folder] ? "checked" : "unchecked"
+                            }
+                            onToggle={() => toggleObject(folder)}
                           />
-                          <span className="block text-ellipsis whitespace-nowrap overflow-hidden">
-                            {folder}
-                          </span>
+                          <div className="flex gap-2 items-center">
+                            <FontAwesomeIcon
+                              icon={faFolder}
+                              className="text-gray-500 cursor-pointer"
+                            />
+                            <span className="block text-ellipsis whitespace-nowrap overflow-hidden">
+                              {folder.split("/")[folder.split("/").length - 2]}
+                            </span>
+                          </div>
+                          <div>Size</div>
+                          <div>Actions</div>
                         </div>
-                        <div>Size</div>
-                        <div>Actions</div>
-                      </div>
-                    ))
-                  : null}
-                {objects && objects.length > 0
-                  ? objects.map((object) => (
-                      <div
-                        key={object}
-                        className="grid text-sm px-3 border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
-                        onClick={() => {
-                          console.log("Clicked on object:", object);
-                          window.location.href = `/object/${encodeURIComponent(
-                            object
-                          )}`;
-                        }}
-                      >
-                        <Checkbox
-                          state={
-                            selectedObjects[object] ? "checked" : "unchecked"
-                          }
-                          onToggle={() => toggleObject(object)}
-                        />
-                        <div className="flex gap-2 items-center line-clamp-1">
-                          <FontAwesomeIcon
-                            icon={faFile}
-                            className="text-gray-500 cursor-pointer"
+                      ))
+                    : null}
+                  {objects && objects.length > 0
+                    ? objects.map((object) => (
+                        <div
+                          key={object}
+                          className="grid text-sm px-3 border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
+                          onClick={() => {
+                            console.log("Clicked on object:", object);
+                            window.location.href = `/object/${encodeURIComponent(
+                              object
+                            )}`;
+                          }}
+                        >
+                          <Checkbox
+                            state={
+                              selectedObjects[object] ? "checked" : "unchecked"
+                            }
+                            onToggle={() => toggleObject(object)}
                           />
-                          <span className="block text-ellipsis whitespace-nowrap overflow-hidden">
-                            {object}
-                          </span>
+                          <div className="flex gap-2 items-center line-clamp-1">
+                            <FontAwesomeIcon
+                              icon={faFile}
+                              className="text-gray-500 cursor-pointer"
+                            />
+                            <span className="block text-ellipsis whitespace-nowrap overflow-hidden">
+                              {object.split("/")[object.split("/").length - 1]}
+                            </span>
+                          </div>
+                          <div>Size</div>
+                          <div>Actions</div>
                         </div>
-                        <div>Size</div>
-                        <div>Actions</div>
-                      </div>
-                    ))
-                  : null}
-                {folders &&
-                folders.length === 0 &&
-                objects &&
-                objects.length === 0 ? (
-                  <div className="text-sm text-gray-500 p-3">
-                    No items found.
-                  </div>
-                ) : null}
-              </div>
+                      ))
+                    : null}
+                  {folders &&
+                  folders.length === 0 &&
+                  objects &&
+                  objects.length === 0 ? (
+                    <div className="text-sm text-gray-500 p-3">
+                      No items found.
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </div>
           </div>
         </div>
