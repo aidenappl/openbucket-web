@@ -6,7 +6,11 @@ import { fetchApi } from "@/tools/axios.tools";
 import { formatBytes } from "@/tools/formatBytes.tools";
 import { formatDate } from "@/tools/formatDate.tools";
 import { PresignResponse, S3Object } from "@/types";
-import { faChevronLeft, faFile } from "@fortawesome/pro-solid-svg-icons";
+import {
+  faChevronLeft,
+  faEdit,
+  faFile,
+} from "@fortawesome/pro-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -87,7 +91,7 @@ const ObjectPage = () => {
       <div className="flex flex-col gap-5">
         <div className="flex flex-col bg-white w-full p-4 border border-gray-200 shadow-sm rounded-md">
           {/* Object heading */}
-          <div className="flex justify-between border-b border-gray-200 pb-4 gap-4 items-center">
+          <div className="flex justify-between border-b border-gray-200 pb-4 gap-10 items-center">
             {/* Info Section */}
             <div className="flex-1 min-w-0">
               <a
@@ -120,7 +124,7 @@ const ObjectPage = () => {
             {/* Button Section */}
             <div className="flex gap-2 shrink-0">
               <Button onClick={() => viewObject()} variant="light">
-                View
+                Preview
               </Button>
               <Button onClick={() => deleteObject()} hoverVariant="danger">
                 Delete
@@ -138,7 +142,11 @@ const ObjectPage = () => {
             {object && (
               <div className="flex flex-col ">
                 <p className="break-all">
-                  <strong>Full Name:</strong> {fullPath || "N/A"}
+                  <strong>Full Path:</strong> {fullPath || "N/A"}
+                  <FontAwesomeIcon
+                    icon={faEdit}
+                    className="pl-2 text-slate-500 cursor-pointer hover:text-slate-900"
+                  />
                 </p>
                 <p>
                   <strong>Size:</strong>{" "}
