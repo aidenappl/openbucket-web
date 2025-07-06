@@ -194,7 +194,7 @@ const Home = () => {
                 });
                 if (response.success) {
                   // Refresh the folder list
-                  initialize();
+                  initialize("/");
                 } else {
                   console.error("Failed to create folder:", response);
                 }
@@ -498,7 +498,7 @@ const Home = () => {
                 },
               }).then((response) => {
                 if (response.success) {
-                  initialize(prefix);
+                  initialize();
                   if (fileInputRef.current) {
                     fileInputRef.current.value = "";
                   }
