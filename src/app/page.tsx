@@ -7,6 +7,15 @@ import MajorButton from "@/components/MajorButton";
 import Spinner from "@/components/Spinner";
 import ToggleOption from "@/components/ToggleOption";
 import ToggleSelector from "@/components/ToggleSelector";
+import UploadTracker from "@/components/UploadTracker";
+import { useDispatch } from "react-redux";
+import { v4 as uuidv4 } from "uuid";
+import {
+  addUpload,
+  updateProgress,
+  markCompleted,
+  markError,
+} from "@/store/slices/uploadSlice";
 import { fetchApi } from "@/tools/axios.tools";
 import {
   faArrowUpRight,
@@ -26,6 +35,7 @@ import { useEffect, useRef, useState } from "react";
 const ROOT_FOLDER = "All Files";
 
 const Home = () => {
+  const dispatch = useDispatch();
   const [format, setFormat] = useState<"grid" | "list" | null>(null); // null = not ready
   const [folders, setFolders] = useState<null | string[]>(null);
   const [objects, setObjects] = useState<null | string[]>(null);
@@ -166,6 +176,7 @@ const Home = () => {
 
   return (
     <main className="w-full h-[calc(100vh-80px)]">
+      <UploadTracker />
       <div className="flex flex-col gap-5">
         <div className="grid grid-cols-2 w-fit gap-x-3">
           <MajorButton
@@ -480,6 +491,19 @@ const Home = () => {
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) {
+              const id = uuidv4();
+              const startedAt = Date.now();
+
+              dispatch(
+                addUpload({
+                  id,
+                  fileName: file.name,
+                  progress: 0,
+                  status: "uploading",
+                  startedAt,
+                })
+              );
+
               const formData = new FormData();
               formData.append("file", file);
               // get the last prefix from breadcrumbs
@@ -493,16 +517,23 @@ const Home = () => {
                 url: "/aplb/object",
                 method: "PUT",
                 data: formData,
-                headers: {
-                  "Content-Type": undefined, // let Axios remove the default and set it correctly
+                onUploadProgress: (event) => {
+                  const progress = Math.round(
+                    (event.loaded * 100) / (event?.total || 1)
+                  );
+                  dispatch(updateProgress({ id, progress }));
+                  // You can dispatch an action to update the upload progress in your store here
                 },
+                headers: { "Content-Type": "multipart/form-data" },
               }).then((response) => {
                 if (response.success) {
+                  dispatch(markCompleted({ id }));
                   initialize();
                   if (fileInputRef.current) {
                     fileInputRef.current.value = "";
                   }
                 } else {
+                  dispatch(markError({ id, error: response.error }));
                   console.error("Upload failed:", response);
                   if (fileInputRef.current) {
                     fileInputRef.current.value = "";

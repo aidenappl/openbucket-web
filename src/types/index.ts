@@ -43,7 +43,6 @@ interface PresignResponse {
   expires_in: string;
 }
 
-
 // Generic success response
 type ApiSuccess<T> = {
   success: true;
@@ -61,7 +60,32 @@ type ApiError = {
   error_code: number;
 };
 
+type UploadStatus = "uploading" | "success" | "error";
+
+type UploadItem = {
+  id: string;
+  fileName: string;
+  progress: number;
+  status: UploadStatus;
+  startedAt: number;
+  finishedAt?: number;
+  error?: string;
+};
+
+interface UploadState {
+  uploads: UploadItem[];
+}
+
 // Union type for API responses
 type ApiResponse<T> = ApiSuccess<T> | ApiError;
 
-export type { S3Object, ApiResponse, PresignResponse };
+export type {
+  S3Object,
+  ApiResponse,
+  PresignResponse,
+  UploadItem,
+  UploadState,
+  UploadStatus,
+  ApiSuccess,
+  ApiError,
+};
