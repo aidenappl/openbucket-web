@@ -461,7 +461,7 @@ const Home = () => {
                             }
                             onToggle={() => toggleObject(object.ETag)}
                           />
-                          <div className="flex gap-2 items-center line-clamp-1">
+                          <div className="flex gap-2 items-center line-clamp-1 pr-8">
                             <FontAwesomeIcon
                               icon={faFile}
                               className="text-gray-500 cursor-pointer"
