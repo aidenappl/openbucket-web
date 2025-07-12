@@ -38,6 +38,20 @@ interface S3Object {
   WebsiteRedirectLocation?: string | null;
 }
 
+type S3ObjectMetadata = {
+  ChecksumAlgorithm: string | null;
+  ETag: string;
+  Key: string;
+  LastModified: string; // ISO date string
+  Owner: string | null; // Can be refined if Owner structure is known
+  RestoreStatus: string | null; // Can be refined if structure is known
+  Size: number;
+  StorageClass: string;
+};
+
+type S3ObjectList = S3ObjectMetadata[];
+
+
 interface PresignResponse {
   url: string;
   expires_in: string;
@@ -59,6 +73,7 @@ type ApiError = {
   error_message: string;
   error_code: number;
 };
+
 
 type UploadStatus = "uploading" | "success" | "error";
 
@@ -83,6 +98,8 @@ export type {
   S3Object,
   ApiResponse,
   PresignResponse,
+  S3ObjectList,
+  S3ObjectMetadata,
   UploadItem,
   UploadState,
   UploadStatus,

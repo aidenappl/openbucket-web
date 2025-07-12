@@ -31,6 +31,8 @@ import {
 } from "@fortawesome/pro-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useRef, useState } from "react";
+import { S3ObjectMetadata } from "@/types";
+import { formatBytes } from "@/tools/formatBytes.tools";
 
 const ROOT_FOLDER = "All Files";
 
@@ -38,7 +40,7 @@ const Home = () => {
   const dispatch = useDispatch();
   const [format, setFormat] = useState<"grid" | "list" | null>(null); // null = not ready
   const [folders, setFolders] = useState<null | string[]>(null);
-  const [objects, setObjects] = useState<null | string[]>(null);
+  const [objects, setObjects] = useState<null | S3ObjectMetadata[]>(null);
   const [prefix, setPrefix] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [breadcrumbs, setBreadcrumbs] = useState<string[]>([ROOT_FOLDER]);
@@ -52,7 +54,7 @@ const Home = () => {
     }
   }, [format]);
 
-  const totalItems = [...(folders || []), ...(objects || [])];
+  const totalItems = [...(folders || [])];
   const selectedCount = totalItems.filter(
     (item) => selectedObjects[item]
   ).length;
@@ -99,12 +101,14 @@ const Home = () => {
     }
   };
 
-  const listObjects = async (prefix: string): Promise<string[] | null> => {
+  const listObjects = async (
+    prefix: string
+  ): Promise<S3ObjectMetadata[] | null> => {
     if (prefix == "/") {
       // If the prefix is just "/", we want to list the root folders
       prefix = "";
     }
-    const response = await fetchApi<string[]>({
+    const response = await fetchApi<S3ObjectMetadata[]>({
       url: `/aplb/objects`,
       method: "GET",
       params: { prefix },
@@ -308,14 +312,14 @@ const Home = () => {
                   {objects && objects.length > 0
                     ? objects.map((object) => (
                         <GridItem
-                          key={object}
-                          title={object}
+                          key={object.ETag}
+                          title={object.Key}
                           subtitle="x items"
                           icon={faFile}
                           onClick={() => {
                             console.log("Clicked on object:", object);
                             window.location.href = `/object/${encodeURIComponent(
-                              object
+                              object.Key
                             )}`;
                           }}
                         />
@@ -351,11 +355,10 @@ const Home = () => {
                     const selectedFolders = Object.keys(selectedObjects).filter(
                       (key) => selectedObjects[key] && folders?.includes(key)
                     );
-                    // get objects from selectedObjects
                     const selectedObjectsList = Object.keys(
                       selectedObjects
                     ).filter(
-                      (key) => selectedObjects[key] && objects?.includes(key)
+                      (key) => selectedObjects[key] && !folders?.includes(key)
                     );
                     if (
                       selectedFolders.length === 0 &&
@@ -441,20 +444,22 @@ const Home = () => {
                   {objects && objects.length > 0
                     ? objects.map((object) => (
                         <div
-                          key={object}
+                          key={object.ETag}
                           className="grid text-sm px-3 border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
                           onClick={() => {
                             console.log("Clicked on object:", object);
                             window.location.href = `/object/${encodeURIComponent(
-                              object
+                              object.Key
                             )}`;
                           }}
                         >
                           <Checkbox
                             state={
-                              selectedObjects[object] ? "checked" : "unchecked"
+                              selectedObjects[object.ETag]
+                                ? "checked"
+                                : "unchecked"
                             }
-                            onToggle={() => toggleObject(object)}
+                            onToggle={() => toggleObject(object.ETag)}
                           />
                           <div className="flex gap-2 items-center line-clamp-1">
                             <FontAwesomeIcon
@@ -462,10 +467,14 @@ const Home = () => {
                               className="text-gray-500 cursor-pointer"
                             />
                             <span className="block text-ellipsis whitespace-nowrap overflow-hidden">
-                              {object.split("/")[object.split("/").length - 1]}
+                              {
+                                object.Key.split("/")[
+                                  object.Key.split("/").length - 1
+                                ]
+                              }
                             </span>
                           </div>
-                          <div>Size</div>
+                          <div>{formatBytes(object.Size)}</div>
                           <div>Actions</div>
                         </div>
                       ))
