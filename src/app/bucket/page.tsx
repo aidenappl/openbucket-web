@@ -16,6 +16,8 @@ type SessionResponse = {
   token: string;
 };
 
+type Session = {};
+
 const Bucket = () => {
   const router = useRouter();
   const { hasBucket } = usePermissions();
@@ -57,7 +59,20 @@ const Bucket = () => {
 
   const fetchSessions = async () => {
     const tokens = getSessionTokens();
-    setSessions(tokens);
+    const response = await fetchApi({
+      url: "/sessions",
+      method: "PUT",
+      data: { sessions: tokens },
+    });
+    if (response.success) {
+      console.log(response);
+    } else {
+      alert(
+        `Error fetching sessions: ${
+          response.error_message || "Failed to fetch sessions"
+        }`
+      );
+    }
   };
 
   useEffect(() => {
