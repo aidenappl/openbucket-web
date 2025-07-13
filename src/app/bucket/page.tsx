@@ -3,6 +3,7 @@
 import Button from "@/components/Button";
 import Input from "@/components/Input";
 import { usePermissions } from "@/hooks/usePermissions";
+import { fetchApi } from "@/tools/axios.tools";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -10,6 +11,31 @@ const Bucket = () => {
   const router = useRouter();
   const { hasBucket } = usePermissions();
   const [fields, setFields] = useState<Record<string, string>>({});
+
+  const submit = async () => {
+    if (
+      !fields.bucket ||
+      !fields.region ||
+      !fields.endpoint ||
+      !fields.accessKeyId ||
+      !fields.secretAccessKey
+    ) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+
+    const response = await fetchApi({
+      url: "/bucket",
+      method: "POST",
+      data: fields,
+    });
+
+    if (response.success) {
+      alert("Bucket created successfully!");
+    } else {
+      alert(`Error: ${response.error_message || "Failed to create bucket"}`);
+    }
+  };
 
   useEffect(() => {
     if (hasBucket === true) {
@@ -95,7 +121,7 @@ const Bucket = () => {
               }));
             }}
           />
-          <Button>Submit</Button>
+          <Button onClick={submit}>Submit</Button>
         </div>
       </div>
     </div>
