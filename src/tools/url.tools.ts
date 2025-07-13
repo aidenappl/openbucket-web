@@ -9,6 +9,8 @@ export function isValidUrl(input: string): boolean {
   try {
     const url = new URL(normalizeUrl(input));
     if (!url.protocol) return false;
+    if (!url.hostname) return false;
+    if (!url.origin) return false;
     if (input.toLowerCase() == "n/a") return false;
     return ["http:", "https:"].includes(url.protocol);
   } catch {
