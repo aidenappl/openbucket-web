@@ -18,7 +18,7 @@ const Button = ({
   active = true,
   faIcon,
 }: ButtonProps) => {
-  const baseStyles = "text-sm py-1.5 rounded-xs px-3 shadow-sm cursor-pointer";
+  const baseStyles = "text-sm py-1.5 rounded-sm px-3 shadow-sm cursor-pointer";
   const variantStyles =
     variant === "light"
       ? "bg-[#f6f6f6] text-gray-900 border border-gray-200"

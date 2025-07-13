@@ -29,6 +29,7 @@
     "@fortawesome/sharp-thin-svg-icons": "^6.7.2",
     "@reduxjs/toolkit": "^2.8.2",
     "axios": "^1.10.0",
+    "js-cookie": "^3.0.5",
     "next": "15.3.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -40,6 +41,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

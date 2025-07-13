@@ -33,6 +33,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useRef, useState } from "react";
 import { S3ObjectMetadata } from "@/types";
 import { formatBytes } from "@/tools/formatBytes.tools";
+import { useRouter } from "next/navigation";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const ROOT_FOLDER = "All Files";
 
@@ -47,12 +49,20 @@ const Home = () => {
   const [selectedObjects, setSelectedObjects] = useState<
     Record<string, boolean>
   >({});
+  const router = useRouter();
+  const { hasBucket } = usePermissions();
 
   useEffect(() => {
     if (format) {
       localStorage.setItem("viewFormat", format);
     }
   }, [format]);
+
+  useEffect(() => {
+    if (hasBucket === false) {
+      router.replace("/bucket");
+    }
+  }, [hasBucket, router]);
 
   const totalItems = [...(folders || [])];
   const selectedCount = totalItems.filter(
@@ -177,6 +187,9 @@ const Home = () => {
     // Initialize the page
     initialize();
   }, []);
+
+  if (hasBucket === null) return <p>Loading...</p>;
+  if (hasBucket === false) return null; // redirecting
 
   return (
     <main className="w-full h-[calc(100vh-80px)]">
