@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Link from "next/link";
 import { useState } from "react";
 
-type DropdownItem = {
+export type DropdownItem = {
   label: string;
   icon?: IconProp;
   href?: string;
