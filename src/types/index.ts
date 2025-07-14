@@ -98,6 +98,11 @@ interface UploadState {
   uploads: UploadItem[];
 }
 
+interface SessionState {
+  sessions: Session[];
+  currentSession: Session | null;
+}
+
 // Union type for API responses
 type ApiResponse<T> = ApiSuccess<T> | ApiError;
 
@@ -110,6 +115,7 @@ export type {
   UploadItem,
   UploadState,
   Session,
+  SessionState,
   UploadStatus,
   ApiSuccess,
   ApiError,

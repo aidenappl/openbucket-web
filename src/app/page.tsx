@@ -8,7 +8,7 @@ import Spinner from "@/components/Spinner";
 import ToggleOption from "@/components/ToggleOption";
 import ToggleSelector from "@/components/ToggleSelector";
 import UploadTracker from "@/components/UploadTracker";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
 import {
   addUpload,
@@ -36,11 +36,14 @@ import { formatBytes } from "@/tools/formatBytes.tools";
 import { useRouter } from "next/navigation";
 import { usePermissions } from "@/hooks/usePermissions";
 import toast from "react-hot-toast";
+import { selectCurrentSession } from "@/store/slices/sessionSlice";
 
 const ROOT_FOLDER = "All Files";
 
 const Home = () => {
   const dispatch = useDispatch();
+  const currentSession = useSelector(selectCurrentSession);
+
   const [format, setFormat] = useState<"grid" | "list" | null>(null); // null = not ready
   const [folders, setFolders] = useState<null | string[]>(null);
   const [objects, setObjects] = useState<null | S3ObjectMetadata[]>(null);
@@ -58,6 +61,10 @@ const Home = () => {
       localStorage.setItem("viewFormat", format);
     }
   }, [format]);
+
+  useEffect(() => {
+    initialize();
+  }, [currentSession]);
 
   useEffect(() => {
     if (hasAPI === false) {
@@ -101,7 +108,7 @@ const Home = () => {
       prefix = "";
     }
     const response = await fetchApi<string[]>({
-      url: "/aplb/folders",
+      url: `/${currentSession?.bucket}/folders`,
       method: "GET",
       params: { prefix },
     });
@@ -120,7 +127,7 @@ const Home = () => {
       prefix = "";
     }
     const response = await fetchApi<S3ObjectMetadata[]>({
-      url: `/aplb/objects`,
+      url: `/${currentSession?.bucket}/objects`,
       method: "GET",
       params: { prefix },
     });
@@ -151,7 +158,7 @@ const Home = () => {
     }
 
     const response = await fetchApi({
-      url: `/aplb/folder`,
+      url: `/${currentSession?.bucket}/folder`,
       method: "DELETE",
       params: { folder: folderToDelete },
     });
@@ -172,7 +179,7 @@ const Home = () => {
     }
 
     const response = await fetchApi({
-      url: `/aplb/object`,
+      url: `/${currentSession?.bucket}/object`,
       method: "DELETE",
       params: { key: objectToDelete },
     });
@@ -217,7 +224,7 @@ const Home = () => {
                   return;
                 }
                 const response = await fetchApi({
-                  url: "/aplb/folder",
+                  url: `/${currentSession?.bucket}/folder`,
                   method: "POST",
                   data: { folder: folderName },
                 });
@@ -537,7 +544,7 @@ const Home = () => {
               }
 
               fetchApi({
-                url: "/aplb/object",
+                url: `/${currentSession?.bucket}/object`,
                 method: "PUT",
                 data: formData,
                 onUploadProgress: (event) => {

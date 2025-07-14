@@ -5,9 +5,12 @@ import { Session } from "@/types";
 import { fetchApi } from "@/tools/axios.tools";
 import { getSessionTokens } from "@/tools/sessionStore.tools";
 import toast from "react-hot-toast";
+import { useDispatch } from "react-redux";
+import { setActiveSession } from "@/store/slices/sessionSlice";
 
 const Navigation = () => {
   const [dropdownItems, setDropdownItems] = useState<DropdownItem[]>([]);
+  const dispatch = useDispatch();
 
   const fetchSessions = async () => {
     const tokens = getSessionTokens();
@@ -19,6 +22,7 @@ const Navigation = () => {
     if (response.success) {
       const items = response.data.map((session) => ({
         label: session.bucket,
+        onClick: () => dispatch(setActiveSession(session)),
       }));
       setDropdownItems(items);
     } else {

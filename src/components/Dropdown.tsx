@@ -60,40 +60,38 @@ const Dropdown = ({ items, value, onChange = () => {} }: DropdownProps) => {
         aria-labelledby="menu-button"
         tabIndex={-1}
       >
-        {items.map((item, index) => (
-          <>
-            {item.href ? (
-              <Link
-                key={index}
-                href={item.href}
-                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                role="menuitem"
-                id={`menu-item-${index}`}
-                tabIndex={-1}
-                onClick={() => handleItemClick(item)}
-              >
-                {item.icon && (
-                  <FontAwesomeIcon icon={item.icon} className="mr-2" />
-                )}
-                {item.label}
-              </Link>
-            ) : (
-              <a
-                key={index}
-                className="block cursor-pointer px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                role="menuitem"
-                id={`menu-item-${index}`}
-                tabIndex={-1}
-                onClick={() => handleItemClick(item)}
-              >
-                {item.icon && (
-                  <FontAwesomeIcon icon={item.icon} className="mr-2" />
-                )}
-                {item.label}
-              </a>
-            )}
-          </>
-        ))}
+        {items.map((item, index) =>
+          item.href ? (
+            <Link
+              key={index}
+              href={item.href}
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              role="menuitem"
+              id={`menu-item-${index}`}
+              tabIndex={-1}
+              onClick={() => handleItemClick(item)}
+            >
+              {item.icon && (
+                <FontAwesomeIcon icon={item.icon} className="mr-2" />
+              )}
+              {item.label}
+            </Link>
+          ) : (
+            <a
+              key={index}
+              className="block cursor-pointer px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              role="menuitem"
+              id={`menu-item-${index}`}
+              tabIndex={-1}
+              onClick={() => handleItemClick(item)}
+            >
+              {item.icon && (
+                <FontAwesomeIcon icon={item.icon} className="mr-2" />
+              )}
+              {item.label}
+            </a>
+          )
+        )}
       </div>
     </div>
   );
