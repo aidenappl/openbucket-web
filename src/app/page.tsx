@@ -35,6 +35,7 @@ import { S3ObjectMetadata } from "@/types";
 import { formatBytes } from "@/tools/formatBytes.tools";
 import { useRouter } from "next/navigation";
 import { usePermissions } from "@/hooks/usePermissions";
+import toast from "react-hot-toast";
 
 const ROOT_FOLDER = "All Files";
 
@@ -50,7 +51,7 @@ const Home = () => {
     Record<string, boolean>
   >({});
   const router = useRouter();
-  const { hasBucket } = usePermissions();
+  const { hasAPI } = usePermissions();
 
   useEffect(() => {
     if (format) {
@@ -59,10 +60,10 @@ const Home = () => {
   }, [format]);
 
   useEffect(() => {
-    if (hasBucket === false) {
+    if (hasAPI === false) {
       router.replace("/bucket");
     }
-  }, [hasBucket, router]);
+  }, [hasAPI, router]);
 
   const totalItems = [...(folders || [])];
   const selectedCount = totalItems.filter(
@@ -188,8 +189,8 @@ const Home = () => {
     initialize();
   }, []);
 
-  if (hasBucket === null) return <p>Loading...</p>;
-  if (hasBucket === false) return null; // redirecting
+  if (hasAPI === null) return <p>Loading...</p>;
+  if (hasAPI === false) return null; // redirecting
 
   return (
     <main className="w-full h-[calc(100vh-80px)]">
@@ -212,7 +213,7 @@ const Home = () => {
               if (folderName) {
                 // Create the new folder
                 if (folderName.trim() === "") {
-                  alert("Folder name cannot be empty.");
+                  toast.error("Folder name cannot be empty.");
                   return;
                 }
                 const response = await fetchApi({
@@ -377,7 +378,7 @@ const Home = () => {
                       selectedFolders.length === 0 &&
                       selectedObjectsList.length === 0
                     ) {
-                      alert("No folders or objects selected for deletion.");
+                      toast.error("No items selected for deletion.");
                       return;
                     }
                     for (const folder of selectedFolders) {

@@ -12,6 +12,7 @@ import { isValidUrl } from "@/tools/url.tools";
 import { Session } from "@/types";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 type SessionResponse = {
   token: string;
@@ -19,7 +20,7 @@ type SessionResponse = {
 
 const Bucket = () => {
   const router = useRouter();
-  const { hasBucket } = usePermissions();
+  const { hasAPI } = usePermissions();
   const [fields, setFields] = useState<Record<string, string>>({});
   const [sessions, setSessions] = useState<Session[]>([]);
 
@@ -31,12 +32,12 @@ const Bucket = () => {
       !fields.access_key_id ||
       !fields.secret_access_key
     ) {
-      alert("Please fill in all required fields.");
+      toast.error("Please fill in all required fields.");
       return;
     }
 
     if (!isValidUrl(fields.endpoint)) {
-      alert("Please enter a valid endpoint URL.");
+      toast.error("Please enter a valid endpoint URL.");
       return;
     }
 
@@ -47,12 +48,14 @@ const Bucket = () => {
     });
 
     if (response.success) {
-      alert("Bucket created successfully!");
+      toast.success("Bucket created successfully!");
       if (response.data.token) {
         storeSessionToken(response.data.token);
       }
     } else {
-      alert(`Error: ${response.error_message || "Failed to create bucket"}`);
+      toast.error(
+        `Error: ${response.error_message || "Failed to create bucket"}`
+      );
     }
   };
 
@@ -66,7 +69,7 @@ const Bucket = () => {
     if (response.success) {
       setSessions(response.data);
     } else {
-      alert(
+      toast.error(
         `Error fetching sessions: ${
           response.error_message || "Failed to fetch sessions"
         }`
@@ -76,13 +79,13 @@ const Bucket = () => {
 
   useEffect(() => {
     fetchSessions();
-    if (hasBucket === true) {
+    if (hasAPI === true) {
       router.replace("/");
     }
-  }, [hasBucket, router]);
+  }, [hasAPI, router]);
 
-  if (hasBucket === null) return <p>Loading...</p>; // Show loading state while checking permissions
-  if (hasBucket === true) return null; // Redirecting, no need to render anything
+  if (hasAPI === null) return <p>Loading...</p>; // Show loading state while checking permissions
+  if (hasAPI === true) return null; // Redirecting, no need to render anything
   return (
     <div className="pb-10">
       <div className="bg-white p-4 rounded-md shadow-sm gap-10 grid grid-cols-2">
@@ -174,10 +177,10 @@ const Bucket = () => {
                 key={session.bucket}
                 className="mt-2 p-2 bg-gray-100 rounded-md flex justify-between items-center"
               >
-                <p className="break-all">{token}</p>
+                <p className="break-all">{session.bucket}</p>
                 <Button
                   onClick={() => {
-                    setSessions((prev) => prev.filter((t) => t !== token));
+                    setSessions((prev) => prev.filter((t) => t !== session));
                   }}
                 >
                   Remove

@@ -9,6 +9,7 @@ import { config } from "@fortawesome/fontawesome-svg-core";
 import { Provider } from "react-redux";
 import { store } from "@/store/store";
 import ClientOnly from "@/components/ClientOnly";
+import { Toaster } from "react-hot-toast";
 
 config.autoAddCss = false;
 
@@ -21,6 +22,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-[var(--background)]">
         <Provider store={store}>
+          <Toaster position="top-center" reverseOrder={false} />
           <Navigation />
           <div className="px-10 max-w-[var(--max-page-width)] mx-auto">
             <ClientOnly>{children}</ClientOnly>
