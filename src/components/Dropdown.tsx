@@ -8,6 +8,7 @@ export type DropdownItem = {
   label: string;
   icon?: IconProp;
   href?: string;
+  variant?: "action" | "default";
   onClick?: () => void;
 };
 
@@ -65,11 +66,15 @@ const Dropdown = ({ items, value, onChange = () => {} }: DropdownProps) => {
             <Link
               key={index}
               href={item.href}
-              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className={`block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 ${
+                item.variant === "action" ? "font-semibold" : ""
+              }`}
               role="menuitem"
               id={`menu-item-${index}`}
               tabIndex={-1}
-              onClick={() => handleItemClick(item)}
+              onClick={() => {
+                setVisible(false);
+              }}
             >
               {item.icon && (
                 <FontAwesomeIcon icon={item.icon} className="mr-2" />

@@ -6,7 +6,7 @@ import { fetchApi } from "@/tools/axios.tools";
 import { getSessionTokens } from "@/tools/sessionStore.tools";
 import toast from "react-hot-toast";
 import { useDispatch } from "react-redux";
-import { setActiveSession } from "@/store/slices/sessionSlice";
+import { setActiveSession, setSessions } from "@/store/slices/sessionSlice";
 
 const Navigation = () => {
   const [dropdownItems, setDropdownItems] = useState<DropdownItem[]>([]);
@@ -20,11 +20,19 @@ const Navigation = () => {
       data: { sessions: tokens },
     });
     if (response.success) {
+      dispatch(setSessions(response.data));
       const items = response.data.map((session) => ({
         label: session.bucket,
         onClick: () => dispatch(setActiveSession(session)),
       }));
-      setDropdownItems(items);
+      setDropdownItems([
+        ...items,
+        {
+          label: "Create New Session",
+          variant: "action",
+          href: "/bucket",
+        },
+      ]);
     } else {
       toast.error(
         `Error fetching sessions: ${

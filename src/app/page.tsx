@@ -37,6 +37,7 @@ import { useRouter } from "next/navigation";
 import { usePermissions } from "@/hooks/usePermissions";
 import toast from "react-hot-toast";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
+import Link from "next/link";
 
 const ROOT_FOLDER = "All Files";
 
@@ -107,11 +108,14 @@ const Home = () => {
       // If the prefix is just "/", we want to list the root folders
       prefix = "";
     }
-    const response = await fetchApi<string[]>({
-      url: `/${currentSession?.bucket}/folders`,
-      method: "GET",
-      params: { prefix },
-    });
+    const response = await fetchApi<string[]>(
+      {
+        url: `/${currentSession?.bucket}/folders`,
+        method: "GET",
+        params: { prefix },
+      },
+      currentSession?.token
+    );
     if (response.success) {
       return response.data;
     } else {
@@ -139,6 +143,7 @@ const Home = () => {
   };
 
   const initialize = async (overPrefix?: string) => {
+    if (!currentSession) return;
     const saved = localStorage.getItem("viewFormat") as "grid" | "list";
     setFormat(saved || "list");
     setObjects(null);
@@ -464,15 +469,10 @@ const Home = () => {
                     : null}
                   {objects && objects.length > 0
                     ? objects.map((object) => (
-                        <div
+                        <Link
                           key={object.ETag}
                           className="grid text-sm px-3 border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
-                          onClick={() => {
-                            console.log("Clicked on object:", object);
-                            window.location.href = `/object/${encodeURIComponent(
-                              object.Key
-                            )}`;
-                          }}
+                          href={`/object/${encodeURIComponent(object.Key)}`}  
                         >
                           <Checkbox
                             state={
@@ -497,7 +497,7 @@ const Home = () => {
                           </div>
                           <div>{formatBytes(object.Size)}</div>
                           <div>Actions</div>
-                        </div>
+                        </Link>
                       ))
                     : null}
                   {folders &&

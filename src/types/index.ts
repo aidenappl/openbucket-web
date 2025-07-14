@@ -79,6 +79,7 @@ type Session = {
   nickname: string;
   region: string;
   endpoint: string;
+  token: string;
   exp: number;
 };
 

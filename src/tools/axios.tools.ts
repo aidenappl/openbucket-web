@@ -20,9 +20,17 @@ const fetch = axios.create({
 });
 
 const fetchApi = async <T>(
-  config: AxiosRequestConfig
+  config: AxiosRequestConfig,
+  session: string | null = null
 ): Promise<ApiResponse<T>> => {
   try {
+
+    if (session) {
+      config.headers = {
+      ...config.headers,
+      "Authorization": `Bearer ${session}`,
+    }
+  }
     const response = await axios_api.request(config);
 
     if (response.data && response.data.success) {

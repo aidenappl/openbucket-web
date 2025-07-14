@@ -16,6 +16,7 @@ const sessionSlice = createSlice({
     },
     setSessions: (state, action: PayloadAction<Session[]>) => {
       state.sessions = action.payload;
+      state.currentSession = action.payload.length > 0 ? action.payload[0] : null;
     },
     addSession: (state, action: PayloadAction<Session>) => {
       state.sessions.push(action.payload);

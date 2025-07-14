@@ -2,7 +2,6 @@
 
 import Button from "@/components/Button";
 import Input from "@/components/Input";
-import { usePermissions } from "@/hooks/usePermissions";
 import { fetchApi } from "@/tools/axios.tools";
 import {
   getSessionTokens,
@@ -20,7 +19,6 @@ type SessionResponse = {
 
 const Bucket = () => {
   const router = useRouter();
-  const { hasAPI } = usePermissions();
   const [fields, setFields] = useState<Record<string, string>>({});
   const [sessions, setSessions] = useState<Session[]>([]);
 
@@ -79,13 +77,8 @@ const Bucket = () => {
 
   useEffect(() => {
     fetchSessions();
-    if (hasAPI === true) {
-      router.replace("/");
-    }
-  }, [hasAPI, router]);
+  }, []);
 
-  if (hasAPI === null) return <p>Loading...</p>; // Show loading state while checking permissions
-  if (hasAPI === true) return null; // Redirecting, no need to render anything
   return (
     <div className="pb-10">
       <div className="bg-white p-4 rounded-md shadow-sm gap-10 grid grid-cols-2">
