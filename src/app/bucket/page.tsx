@@ -9,6 +9,7 @@ import {
   storeSessionToken,
 } from "@/tools/sessionStore.tools";
 import { isValidUrl } from "@/tools/url.tools";
+import { Session } from "@/types";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -16,13 +17,11 @@ type SessionResponse = {
   token: string;
 };
 
-type Session = {};
-
 const Bucket = () => {
   const router = useRouter();
   const { hasBucket } = usePermissions();
   const [fields, setFields] = useState<Record<string, string>>({});
-  const [sessions, setSessions] = useState<string[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
 
   const submit = async () => {
     if (
@@ -59,13 +58,13 @@ const Bucket = () => {
 
   const fetchSessions = async () => {
     const tokens = getSessionTokens();
-    const response = await fetchApi({
+    const response = await fetchApi<Session[]>({
       url: "/sessions",
       method: "PUT",
       data: { sessions: tokens },
     });
     if (response.success) {
-      console.log(response);
+      setSessions(response.data);
     } else {
       alert(
         `Error fetching sessions: ${
@@ -170,9 +169,9 @@ const Bucket = () => {
             <h1 className="text-lg font-semibold">Active Sessions</h1>
           )}
           {sessions &&
-            sessions.map((token) => (
+            sessions.map((session) => (
               <div
-                key={token}
+                key={session.bucket}
                 className="mt-2 p-2 bg-gray-100 rounded-md flex justify-between items-center"
               >
                 <p className="break-all">{token}</p>

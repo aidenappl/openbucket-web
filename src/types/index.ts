@@ -74,6 +74,13 @@ type ApiError = {
   error_code: number;
 };
 
+type Session = {
+  bucket: string;
+  nickname: string;
+  region: string;
+  endpoint: string;
+  exp: number;
+};
 
 type UploadStatus = "uploading" | "success" | "error";
 
@@ -102,6 +109,7 @@ export type {
   S3ObjectMetadata,
   UploadItem,
   UploadState,
+  Session,
   UploadStatus,
   ApiSuccess,
   ApiError,
