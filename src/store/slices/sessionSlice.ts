@@ -17,6 +17,8 @@ const sessionSlice = createSlice({
     setSessions: (state, action: PayloadAction<Session[]>) => {
       state.sessions = action.payload;
       state.currentSession = action.payload.length > 0 ? action.payload[0] : null;
+      const tokens = action.payload.map((session) => session.token);
+      localStorage.setItem("openbucket-sessions", JSON.stringify({"sessions": tokens}));
     },
     addSession: (state, action: PayloadAction<Session>) => {
       state.sessions.push(action.payload);
