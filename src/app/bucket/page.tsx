@@ -9,7 +9,6 @@ import {
 } from "@/tools/sessionStore.tools";
 import { isValidUrl } from "@/tools/url.tools";
 import { Session } from "@/types";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -18,7 +17,6 @@ type SessionResponse = {
 };
 
 const Bucket = () => {
-  const router = useRouter();
   const [fields, setFields] = useState<Record<string, string>>({});
   const [sessions, setSessions] = useState<Session[]>([]);
 
