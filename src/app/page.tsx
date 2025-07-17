@@ -418,10 +418,12 @@ const Home = () => {
             {/* Files Table */}
             <div className="border border-gray-200">
               {/* Table Header */}
-              <div className="grid grid-cols-[40px_1fr_1fr_1fr] text-sm font-semibold border-b border-gray-300 h-[40px] items-center px-3">
+              <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] text-sm font-semibold border-b border-gray-300 h-[40px] items-center px-3">
                 <Checkbox state={masterCheckboxState} onToggle={toggleAll} />
                 <div>Name</div>
+                <div>Owner</div>
                 <div>Size</div>
+                <div>Last Modified</div>
                 <div>Actions</div>
               </div>
               {/* Table Objects/Folders */}
@@ -435,7 +437,7 @@ const Home = () => {
                     ? folders.map((folder) => (
                         <div
                           key={folder}
-                          className="grid text-sm px-3  border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
+                          className="grid text-sm px-3  border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
                           onClick={() => {
                             console.log("Clicked on folder:", folder);
                             // Update breadcrumbs
@@ -462,8 +464,24 @@ const Home = () => {
                               {folder.split("/")[folder.split("/").length - 2]}
                             </span>
                           </div>
-                          <div>Size</div>
-                          <div>Actions</div>
+                          <div>
+                            <i>No Owner</i>
+                          </div>
+                          <div>
+                            <i>No Size</i>
+                          </div>
+                          <div>
+                            <i>Undefined</i>
+                          </div>
+                          <div>
+                            <Button
+                              variant="light"
+                              hoverVariant="danger"
+                              className="py-1! px-1.5! text-xs"
+                            >
+                              Delete
+                            </Button>
+                          </div>
                         </div>
                       ))
                     : null}
@@ -471,8 +489,8 @@ const Home = () => {
                     ? objects.map((object) => (
                         <Link
                           key={object.ETag}
-                          className="grid text-sm px-3 border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
-                          href={`/object/${encodeURIComponent(object.Key)}`}  
+                          className="grid text-sm px-3 border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
+                          href={`/object/${encodeURIComponent(object.Key)}`}
                         >
                           <Checkbox
                             state={
@@ -495,7 +513,15 @@ const Home = () => {
                               }
                             </span>
                           </div>
+                          <div>
+                            {object.Owner?.DisplayName == ""
+                              ? "No Owner"
+                              : object.Owner?.DisplayName}
+                          </div>
                           <div>{formatBytes(object.Size)}</div>
+                          <div>
+                            <i>{object.LastModified}</i>
+                          </div>
                           <div>Actions</div>
                         </Link>
                       ))

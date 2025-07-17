@@ -7,6 +7,7 @@ type ButtonProps = {
   faIcon?: IconProp;
   hoverVariant?: "danger" | "normal";
   variant?: "light" | "dark";
+  className?: string;
   active?: boolean;
 };
 
@@ -15,6 +16,7 @@ const Button = ({
   children,
   variant = "dark",
   hoverVariant = "normal",
+  className = "",
   active = true,
   faIcon,
 }: ButtonProps) => {
@@ -38,7 +40,7 @@ const Button = ({
     <button
       onClick={onClick}
       disabled={!active}
-      className={`${baseStyles} ${variantStyles} ${hoverStyles} ${activeStyles}`}
+      className={`${baseStyles} ${variantStyles} ${hoverStyles} ${activeStyles} ${className}`}
     >
       {faIcon ? (
         <FontAwesomeIcon icon={faIcon} className="text-[12px] mr-2" />
