@@ -29,6 +29,7 @@
     "@fortawesome/sharp-thin-svg-icons": "^6.7.2",
     "@reduxjs/toolkit": "^2.8.2",
     "axios": "^1.10.0",
+    "dayjs": "^1.11.14",
     "js-cookie": "^3.0.5",
     "next": "15.3.4",
     "react": "^19.0.0",

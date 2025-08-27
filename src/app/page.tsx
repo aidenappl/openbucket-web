@@ -38,6 +38,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import toast from "react-hot-toast";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
 import Link from "next/link";
+import { formatDate } from "@/tools/formatDate.tools";
 
 const ROOT_FOLDER = "All Files";
 
@@ -520,7 +521,7 @@ const Home = () => {
                           </div>
                           <div>{formatBytes(object.Size)}</div>
                           <div>
-                            <i>{object.LastModified}</i>
+                            <i>{formatDate(object.LastModified)}</i>
                           </div>
                           <div>Actions</div>
                         </Link>
