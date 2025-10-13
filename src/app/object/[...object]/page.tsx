@@ -77,6 +77,10 @@ const ObjectPage = () => {
     }
   };
 
+  const renameObject = () => {
+    
+  }
+
   const initialize = async () => {
     const response = await getObject(fullPath || "");
     console.log("Object data:", response);
@@ -146,6 +150,7 @@ const ObjectPage = () => {
                   <FontAwesomeIcon
                     icon={faEdit}
                     className="pl-2 text-slate-500 cursor-pointer hover:text-slate-900"
+                    onClick={renameObject}
                   />
                 </p>
                 <p>
