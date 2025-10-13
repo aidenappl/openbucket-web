@@ -77,9 +77,23 @@ const ObjectPage = () => {
     }
   };
 
-  const renameObject = () => {
-    
-  }
+  const renameObject = async () => {
+    const response = window.prompt("Enter new name for the object:");
+    console.log("Rename response:", response);
+    if (response && response.trim() !== "") {
+      const res = await fetchApi<{ success: boolean }>({
+        url: "/aplb/object/rename",
+        method: "PUT",
+        params: { key: fullPath, newKey: response.trim() },
+      });
+      if (res.success) {
+        console.log("Object renamed successfully");
+        router.push(`/object/${encodeURIComponent(response.trim())}`);
+      } else {
+        console.error("Error renaming object:", res);
+      }
+    }
+  };
 
   const initialize = async () => {
     const response = await getObject(fullPath || "");
