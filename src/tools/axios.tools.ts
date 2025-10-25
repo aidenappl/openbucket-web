@@ -1,4 +1,5 @@
 // lib/axios.ts or services/axios.ts
+import { getCurrentSession, selectCurrentSession } from "@/store/slices/sessionSlice";
 import { ApiResponse } from "@/types";
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
 
@@ -27,10 +28,11 @@ const fetchApi = async <T>(
 
     if (session) {
       config.headers = {
-      ...config.headers,
-      "Authorization": `Bearer ${session}`,
+        ...config.headers,
+        "Authorization": `Bearer ${session}`,
+      };
     }
-  }
+
     const response = await axios_api.request(config);
 
     if (response.data && response.data.success) {

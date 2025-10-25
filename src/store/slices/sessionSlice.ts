@@ -29,7 +29,7 @@ const sessionSlice = createSlice({
       if (state.currentSession?.bucket === action.payload) {
         state.currentSession = null;
       }
-    },
+    }
   },
 });
 

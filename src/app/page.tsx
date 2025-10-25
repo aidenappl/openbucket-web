@@ -131,11 +131,14 @@ const Home = () => {
       // If the prefix is just "/", we want to list the root folders
       prefix = "";
     }
-    const response = await fetchApi<S3ObjectMetadata[]>({
-      url: `/${currentSession?.bucket}/objects`,
-      method: "GET",
-      params: { prefix },
-    });
+    const response = await fetchApi<S3ObjectMetadata[]>(
+      {
+        url: `/${currentSession?.bucket}/objects`,
+        method: "GET",
+        params: { prefix },
+      },
+      currentSession?.token
+    );
     if (response.success) {
       return response.data;
     } else {
@@ -167,7 +170,7 @@ const Home = () => {
       url: `/${currentSession?.bucket}/folder`,
       method: "DELETE",
       params: { folder: folderToDelete },
-    });
+    }, currentSession?.token);
     if (response.success) {
       // Refresh the folder list
       initialize();
@@ -188,7 +191,7 @@ const Home = () => {
       url: `/${currentSession?.bucket}/object`,
       method: "DELETE",
       params: { key: objectToDelete },
-    });
+    }, currentSession?.token);
     if (response.success) {
       // Refresh the folder list
       initialize();
@@ -233,7 +236,7 @@ const Home = () => {
                   url: `/${currentSession?.bucket}/folder`,
                   method: "POST",
                   data: { folder: folderName },
-                });
+                }, currentSession?.token);
                 if (response.success) {
                   // Refresh the folder list
                   initialize("/");
@@ -570,19 +573,22 @@ const Home = () => {
                 formData.append("prefix", `${prefix}`);
               }
 
-              fetchApi({
-                url: `/${currentSession?.bucket}/object`,
-                method: "PUT",
-                data: formData,
-                onUploadProgress: (event) => {
-                  const progress = Math.round(
-                    (event.loaded * 100) / (event?.total || 1)
-                  );
-                  dispatch(updateProgress({ id, progress }));
-                  // You can dispatch an action to update the upload progress in your store here
+              fetchApi(
+                {
+                  url: `/${currentSession?.bucket}/object`,
+                  method: "PUT",
+                  data: formData,
+                  onUploadProgress: (event) => {
+                    const progress = Math.round(
+                      (event.loaded * 100) / (event?.total || 1)
+                    );
+                    dispatch(updateProgress({ id, progress }));
+                    // You can dispatch an action to update the upload progress in your store here
+                  },
+                  headers: { "Content-Type": "multipart/form-data" },
                 },
-                headers: { "Content-Type": "multipart/form-data" },
-              }).then((response) => {
+                currentSession?.token
+              ).then((response) => {
                 if (response.success) {
                   dispatch(markCompleted({ id }));
                   initialize();
