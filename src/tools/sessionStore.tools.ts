@@ -17,6 +17,19 @@ const storeSessionToken = (newToken: string) => {
   localStorage.setItem("openbucket-sessions", JSON.stringify({ sessions }));
 };
 
+const removeSessionToken = (tokenToRemove: string) => {
+  const existing = localStorage.getItem("openbucket-sessions");
+  if (existing) {
+    try {
+      let sessions = JSON.parse(existing).sessions || [];
+      sessions = sessions.filter((token: string) => token !== tokenToRemove);
+      localStorage.setItem("openbucket-sessions", JSON.stringify({ sessions }));
+    } catch (e) {
+      console.warn("Could not parse sessions from localStorage:", e);
+    }
+  }
+}
+
 const getSessionTokens = (): string[] => {
   const existing = localStorage.getItem("openbucket-sessions");
   if (existing) {
@@ -31,4 +44,4 @@ const getSessionTokens = (): string[] => {
   return [];
 };
 
-export { storeSessionToken, getSessionTokens };
+export { storeSessionToken, getSessionTokens, removeSessionToken };

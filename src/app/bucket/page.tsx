@@ -5,6 +5,7 @@ import Input from "@/components/Input";
 import { fetchApi } from "@/tools/axios.tools";
 import {
   getSessionTokens,
+  removeSessionToken,
   storeSessionToken,
 } from "@/tools/sessionStore.tools";
 import { isValidUrl } from "@/tools/url.tools";
@@ -19,6 +20,14 @@ type SessionResponse = {
 const Bucket = () => {
   const [fields, setFields] = useState<Record<string, string>>({});
   const [sessions, setSessions] = useState<Session[]>([]);
+
+  const removeSession = (sessionToRemove: Session) => {
+    const updatedSessions = sessions.filter(
+      (s) => s.bucket !== sessionToRemove.bucket
+    );
+    setSessions(updatedSessions);
+    removeSessionToken(sessionToRemove.token);
+  };
 
   const submit = async () => {
     if (
@@ -169,13 +178,7 @@ const Bucket = () => {
                 className="mt-2 p-2 bg-gray-100 rounded-md flex justify-between items-center"
               >
                 <p className="break-all">{session.bucket}</p>
-                <Button
-                  onClick={() => {
-                    setSessions((prev) => prev.filter((t) => t !== session));
-                  }}
-                >
-                  Remove
-                </Button>
+                <Button onClick={() => removeSession(session)}>Remove</Button>
               </div>
             ))}
         </div>
