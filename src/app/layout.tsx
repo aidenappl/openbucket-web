@@ -20,6 +20,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <title>OpenBucket - Appleby Cloud</title>
+      </head>
       <body className="bg-[var(--background)]">
         <Provider store={store}>
           <Toaster position="top-center" reverseOrder={false} />
