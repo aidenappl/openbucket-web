@@ -1,5 +1,4 @@
 // lib/axios.ts or services/axios.ts
-import { getCurrentSession, selectCurrentSession } from "@/store/slices/sessionSlice";
 import { ApiResponse } from "@/types";
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
 

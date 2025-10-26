@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  services-redirector:
+    image: registry.appleby.cloud/services-redirector:standalone
+    container_name: services-redirector
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+      # Database Configuration
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+    restart: unless-stopped
+    networks:
+      - services-redirector-network
+    healthcheck:
+      test: 
+        - "CMD-SHELL"
+        - |
+          curl -f http://localhost:3000/api/ping || exit 1 &&
+          curl -f http://localhost:3000/api/health || exit 1 &&
+          curl -f http://localhost:3000/ || exit 1
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 45s
+    labels:
+      - "com.docker.compose.project=services-redirector"
+      - "traefik.enable=false"  # Disable if using Traefik
+
+networks:
+  services-redirector-network:
+    driver: bridge

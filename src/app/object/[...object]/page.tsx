@@ -2,6 +2,7 @@
 
 import Button from "@/components/Button";
 import Spinner from "@/components/Spinner";
+import { selectCurrentSession } from "@/store/slices/sessionSlice";
 import { fetchApi } from "@/tools/axios.tools";
 import { formatBytes } from "@/tools/formatBytes.tools";
 import { formatDate } from "@/tools/formatDate.tools";
@@ -15,11 +16,13 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Skeleton from "react-loading-skeleton";
+import { useSelector } from "react-redux";
 
 const ObjectPage = () => {
   const router = useRouter();
   const [object, setObject] = useState<S3Object | null>(null);
   const params = useParams();
+  const currentSession = useSelector(selectCurrentSession);
   const fullPath = decodeURIComponent(
     Array.isArray(params.object) ? params.object.join("/") : params.object ?? ""
   );
@@ -33,11 +36,14 @@ const ObjectPage = () => {
   };
 
   const getObject = async (key: string) => {
-    const res = await fetchApi<S3Object>({
-      url: "/aplb/object",
-      method: "GET",
-      params: { key },
-    });
+    const res = await fetchApi<S3Object>(
+      {
+        url: "/aplb/object",
+        method: "GET",
+        params: { key },
+      },
+      currentSession?.token
+    );
     if (res.success) {
       return res.data;
     } else {
@@ -50,11 +56,14 @@ const ObjectPage = () => {
   };
 
   const deleteObject = async () => {
-    const res = await fetchApi<{ success: boolean }>({
-      url: "/aplb/object",
-      method: "DELETE",
-      params: { key: fullPath },
-    });
+    const res = await fetchApi<{ success: boolean }>(
+      {
+        url: "/aplb/object",
+        method: "DELETE",
+        params: { key: fullPath },
+      },
+      currentSession?.token
+    );
     if (res.success) {
       console.log("Object deleted successfully");
       router.back(); // Redirect to the previous page after deletion
@@ -64,11 +73,14 @@ const ObjectPage = () => {
   };
 
   const generatePresignedUrl = async (key: string) => {
-    const res = await fetchApi<PresignResponse>({
-      url: "/aplb/object/presign",
-      method: "GET",
-      params: { key },
-    });
+    const res = await fetchApi<PresignResponse>(
+      {
+        url: "/aplb/object/presign",
+        method: "GET",
+        params: { key },
+      },
+      currentSession?.token
+    );
     if (res.success) {
       return res.data;
     } else {
@@ -81,11 +93,14 @@ const ObjectPage = () => {
     const response = window.prompt("Enter new name for the object:");
     console.log("Rename response:", response);
     if (response && response.trim() !== "") {
-      const res = await fetchApi<{ success: boolean }>({
-        url: "/aplb/object/rename",
-        method: "PUT",
-        params: { key: fullPath, newKey: response.trim() },
-      });
+      const res = await fetchApi<{ success: boolean }>(
+        {
+          url: "/aplb/object/rename",
+          method: "PUT",
+          params: { key: fullPath, newKey: response.trim() },
+        },
+        currentSession?.token
+      );
       if (res.success) {
         console.log("Object renamed successfully");
         router.push(`/object/${encodeURIComponent(response.trim())}`);
