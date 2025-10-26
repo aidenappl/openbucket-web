@@ -22,7 +22,7 @@ const Navigation = () => {
     if (response.success) {
       dispatch(setSessions(response.data));
       const items = response.data.map((session) => ({
-        label: session.bucket,
+        label: session.nickname || session.bucket,
         onClick: () => dispatch(setActiveSession(session)),
       }));
       setDropdownItems([
