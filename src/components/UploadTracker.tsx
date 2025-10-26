@@ -1,8 +1,52 @@
 import { RootState } from "@/store/store";
-import { useSelector } from "react-redux";
+import { removeUpload } from "@/store/slices/uploadSlice";
+import { useSelector, useDispatch } from "react-redux";
+import { useEffect, useRef } from "react";
 
 const UploadTracker = () => {
   const uploads = useSelector((state: RootState) => state.upload.uploads);
+  const dispatch = useDispatch();
+  const timeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  // Auto-remove completed uploads after 30 seconds (unless there are active uploads)
+  useEffect(() => {
+    const hasActiveUploads = uploads.some(
+      (upload) => upload.status === "uploading"
+    );
+    const timeouts = timeoutsRef.current;
+
+    uploads.forEach((upload) => {
+      if (upload.status === "success" && upload.finishedAt) {
+        const existingTimeout = timeouts.get(upload.id);
+
+        // Clear existing timeout if it exists
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+        }
+
+        // Only set timeout if no active uploads
+        if (!hasActiveUploads) {
+          const timeoutId = setTimeout(() => {
+            dispatch(removeUpload({ id: upload.id }));
+            timeouts.delete(upload.id);
+          }, 30000); // 30 seconds
+
+          timeouts.set(upload.id, timeoutId);
+        }
+      }
+    });
+
+    // Cleanup function
+    return () => {
+      timeouts.forEach((timeout) => clearTimeout(timeout));
+      timeouts.clear();
+    };
+  }, [uploads, dispatch]);
+
+  // Don't render if no uploads
+  if (uploads.length === 0) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-4 right-4 w-80 bg-white border shadow-md rounded-md p-3">

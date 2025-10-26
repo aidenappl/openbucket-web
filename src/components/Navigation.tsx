@@ -1,18 +1,23 @@
 import Link from "next/link";
 import Dropdown, { DropdownItem } from "./Dropdown";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Session } from "@/types";
 import { fetchApi } from "@/tools/axios.tools";
 import { getSessionTokens } from "@/tools/sessionStore.tools";
 import toast from "react-hot-toast";
-import { useDispatch } from "react-redux";
-import { setActiveSession, setSessions } from "@/store/slices/sessionSlice";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  setActiveSession,
+  setSessions,
+  selectCurrentSession,
+} from "@/store/slices/sessionSlice";
 
 const Navigation = () => {
   const [dropdownItems, setDropdownItems] = useState<DropdownItem[]>([]);
   const dispatch = useDispatch();
+  const currentSession = useSelector(selectCurrentSession);
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     const tokens = getSessionTokens();
     const response = await fetchApi<Session[]>({
       url: "/sessions",
@@ -29,7 +34,7 @@ const Navigation = () => {
         ...items,
         {
           label: "Create New Session",
-          variant: "action",
+          variant: "action" as const,
           href: "/bucket",
         },
       ]);
@@ -40,11 +45,11 @@ const Navigation = () => {
         }`
       );
     }
-  };
+  }, [dispatch]);
 
   useEffect(() => {
     fetchSessions();
-  }, []);
+  }, [fetchSessions]);
 
   return (
     <nav className="w-full h-[80px] bg-[var(--background)]">
@@ -54,7 +59,12 @@ const Navigation = () => {
             OpenBucket
           </span>
         </Link>
-        {dropdownItems.length > 0 && <Dropdown items={dropdownItems} />}
+        {dropdownItems.length > 0 && (
+          <Dropdown
+            items={dropdownItems}
+            value={currentSession?.nickname || currentSession?.bucket}
+          />
+        )}
       </div>
     </nav>
   );

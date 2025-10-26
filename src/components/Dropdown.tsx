@@ -61,13 +61,13 @@ const Dropdown = ({ items, value, onChange = () => {} }: DropdownProps) => {
         aria-labelledby="menu-button"
         tabIndex={-1}
       >
-        {items.map((item, index) =>
-          item.href ? (
+        {items.map((dropItem, index) =>
+          dropItem.href ? (
             <Link
               key={index}
-              href={item.href}
+              href={dropItem.href}
               className={`block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 ${
-                item.variant === "action" ? "font-semibold" : ""
+                dropItem.variant === "action" ? "font-semibold" : ""
               }`}
               role="menuitem"
               id={`menu-item-${index}`}
@@ -76,24 +76,30 @@ const Dropdown = ({ items, value, onChange = () => {} }: DropdownProps) => {
                 setVisible(false);
               }}
             >
-              {item.icon && (
-                <FontAwesomeIcon icon={item.icon} className="mr-2" />
+              {dropItem.icon && (
+                <FontAwesomeIcon icon={dropItem.icon} className="mr-2" />
               )}
-              {item.label}
+              {dropItem.label}
             </Link>
           ) : (
             <a
               key={index}
-              className="block cursor-pointer px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className={
+                `flex items-center gap-2 cursor-pointer px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 truncate` +
+                (dropItem.label == item.label && " font-medium text-black")
+              }
               role="menuitem"
               id={`menu-item-${index}`}
               tabIndex={-1}
-              onClick={() => handleItemClick(item)}
+              onClick={() => handleItemClick(dropItem)}
             >
-              {item.icon && (
-                <FontAwesomeIcon icon={item.icon} className="mr-2" />
+              {dropItem.icon && (
+                <FontAwesomeIcon icon={dropItem.icon} className="mr-2" />
               )}
-              {item.label}
+              {dropItem.label == item.label && (
+                <div className="w-[7px] h-[7px] bg-blue-700 rounded-full" />
+              )}
+              {dropItem.label}
             </a>
           )
         )}

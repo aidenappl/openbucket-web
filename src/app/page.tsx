@@ -1,7 +1,7 @@
 "use client";
 
 import Button from "@/components/Button";
-import Checkbox, { CheckboxState } from "@/components/Checkbox";
+import Checkbox from "@/components/Checkbox";
 import GridItem from "@/components/GridItem";
 import MajorButton from "@/components/MajorButton";
 import Spinner from "@/components/Spinner";
@@ -18,6 +18,16 @@ import {
 } from "@/store/slices/uploadSlice";
 import { fetchApi } from "@/tools/axios.tools";
 import {
+  getCurrentSessionBucket,
+  getSessionTokens,
+} from "@/tools/sessionStore.tools";
+import {
+  selectCurrentSession,
+  setSessions,
+  setActiveSession,
+} from "@/store/slices/sessionSlice";
+import { Session } from "@/types";
+import {
   faArrowUpRight,
   faChevronRight,
   faCloudUpload,
@@ -30,183 +40,265 @@ import {
   faTrash,
 } from "@fortawesome/pro-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { useEffect, useRef, useState } from "react";
-import { S3ObjectMetadata } from "@/types";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { formatBytes } from "@/tools/formatBytes.tools";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { usePermissions } from "@/hooks/usePermissions";
-import toast from "react-hot-toast";
-import { selectCurrentSession } from "@/store/slices/sessionSlice";
-import Link from "next/link";
 import { formatDate } from "@/tools/formatDate.tools";
-
-const ROOT_FOLDER = "All Files";
+import { useBucketData } from "@/hooks/useBucketData";
+import { useBreadcrumbs } from "@/hooks/useBreadcrumbs";
+import { useSelection } from "@/hooks/useSelection";
+import { useBucketActions } from "@/hooks/useBucketActions";
+import { useViewFormat } from "@/hooks/useViewFormat";
 
 const Home = () => {
   const dispatch = useDispatch();
   const currentSession = useSelector(selectCurrentSession);
-
-  const [format, setFormat] = useState<"grid" | "list" | null>(null); // null = not ready
-  const [folders, setFolders] = useState<null | string[]>(null);
-  const [objects, setObjects] = useState<null | S3ObjectMetadata[]>(null);
-  const [prefix, setPrefix] = useState<string>("");
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [breadcrumbs, setBreadcrumbs] = useState<string[]>([ROOT_FOLDER]);
-  const [selectedObjects, setSelectedObjects] = useState<
-    Record<string, boolean>
-  >({});
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { hasAPI } = usePermissions();
+  const [previousSessionBucket, setPreviousSessionBucket] = useState<
+    string | null
+  >(null);
 
+  // Custom hooks
+  const { format, setFormat } = useViewFormat();
+  const { folders, objects, loadBucketData } = useBucketData();
+  const {
+    breadcrumbs,
+    prefix,
+    navigateToFolder,
+    navigateToBreadcrumb,
+    resetToRoot,
+    setFromPath,
+  } = useBreadcrumbs();
+  const {
+    selectedObjects,
+    toggleObject,
+    toggleAll,
+    clearSelection,
+    getSelectedItems,
+    getSelectionStats,
+  } = useSelection();
+  const { createFolder, deleteBulkItems } = useBucketActions();
+
+  // Initialize sessions from localStorage on app start
   useEffect(() => {
-    if (format) {
-      localStorage.setItem("viewFormat", format);
+    const initializeSessions = async () => {
+      try {
+        // Get all stored session tokens
+        const tokens = getSessionTokens();
+        if (tokens.length > 0) {
+          // Fetch session data from API
+          const response = await fetchApi<Session[]>({
+            url: "/sessions",
+            method: "PUT",
+            data: { sessions: tokens },
+          });
+
+          if (response.success) {
+            // Set sessions in Redux
+            dispatch(setSessions(response.data));
+
+            // Check if there's a saved current session bucket
+            const savedBucket = getCurrentSessionBucket();
+            if (savedBucket) {
+              // Find and set the active session
+              const savedSession = response.data.find(
+                (session: Session) => session.bucket === savedBucket
+              );
+              if (savedSession) {
+                dispatch(setActiveSession(savedSession));
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to initialize sessions:", error);
+      }
+    };
+
+    initializeSessions();
+  }, [dispatch]); // Include dispatch in dependencies
+
+  // URL parameter management
+  const updateUrlParams = useCallback(
+    (folderPath: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (folderPath) {
+        params.set("folder", folderPath);
+      } else {
+        params.delete("folder");
+      }
+      router.replace(`/?${params.toString()}`, { scroll: false });
+    },
+    [router, searchParams]
+  );
+
+  // Initialize from URL params (only on initial load or when URL changes)
+  useEffect(() => {
+    const folderParam = searchParams.get("folder");
+    if (currentSession?.bucket && currentSession?.token) {
+      if (folderParam) {
+        setFromPath(folderParam, (newPrefix) => {
+          loadBucketData(
+            currentSession.bucket,
+            newPrefix,
+            currentSession.token
+          );
+        });
+      } else {
+        // No folder param, so we're at root
+        resetToRoot((newPrefix) => {
+          loadBucketData(
+            currentSession.bucket,
+            newPrefix,
+            currentSession.token
+          );
+        });
+      }
     }
-  }, [format]);
+  }, [
+    searchParams,
+    currentSession?.bucket,
+    currentSession?.token,
+    setFromPath,
+    loadBucketData,
+    resetToRoot,
+  ]);
 
-  useEffect(() => {
-    initialize();
-  }, [currentSession]);
+  // Get all items for selection (need to separate folder and object keys)
+  const folderKeys = folders || [];
+  const objectKeys = (objects || []).map((obj) => obj.ETag);
+  const allKeys = [...folderKeys, ...objectKeys];
+  const { selectedCount, masterCheckboxState } = getSelectionStats(allKeys);
 
+  // Handle bulk selection
+  const handleToggleAll = () => {
+    const newState = masterCheckboxState !== "checked";
+    toggleAll(allKeys, newState);
+  };
+
+  // Handle create folder
+  const handleCreateFolder = async () => {
+    const folderName = prompt("Enter folder name:");
+    if (folderName && currentSession?.bucket && currentSession?.token) {
+      const success = await createFolder(
+        currentSession.bucket,
+        folderName,
+        currentSession.token
+      );
+      if (success) {
+        loadBucketData(currentSession.bucket, prefix, currentSession.token);
+      }
+    }
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = () => {
+    if (!currentSession?.bucket || !currentSession?.token) return;
+
+    const selectedFolders = getSelectedItems(folderKeys);
+    const selectedObjectKeys = getSelectedItems(objectKeys);
+
+    deleteBulkItems(
+      currentSession.bucket,
+      selectedFolders,
+      selectedObjectKeys,
+      currentSession.token,
+      () => loadBucketData(currentSession.bucket, prefix, currentSession.token)
+    );
+  };
+
+  // Handle file upload
+  const handleFileUpload = (file: File) => {
+    if (!currentSession?.bucket || !currentSession?.token) return;
+
+    const id = uuidv4();
+    const startedAt = Date.now();
+
+    dispatch(
+      addUpload({
+        id,
+        fileName: file.name,
+        progress: 0,
+        status: "uploading",
+        startedAt,
+      })
+    );
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    // Use the current prefix for uploading to the current folder
+    if (prefix) {
+      formData.append("prefix", prefix);
+    }
+
+    fetchApi(
+      {
+        url: `/${currentSession.bucket}/object`,
+        method: "PUT",
+        data: formData,
+        onUploadProgress: (event) => {
+          const progress = Math.round(
+            (event.loaded * 100) / (event?.total || 1)
+          );
+          dispatch(updateProgress({ id, progress }));
+        },
+        headers: { "Content-Type": "multipart/form-data" },
+      },
+      currentSession.token
+    ).then((response) => {
+      if (response.success) {
+        dispatch(markCompleted({ id }));
+        // Refresh the current folder
+        loadBucketData(currentSession.bucket, prefix, currentSession.token);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      } else {
+        dispatch(markError({ id, error: response.error }));
+        console.error("Upload failed:", response);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
+    });
+  };
+
+  // Effects
   useEffect(() => {
     if (hasAPI === false) {
       router.replace("/bucket");
     }
   }, [hasAPI, router]);
 
-  const totalItems = [...(folders || [])];
-  const selectedCount = totalItems.filter(
-    (item) => selectedObjects[item]
-  ).length;
-
-  const masterCheckboxState: CheckboxState =
-    selectedCount === 0
-      ? "unchecked"
-      : selectedCount === totalItems.length
-      ? "checked"
-      : "indeterminate";
-
-  const toggleAll = () => {
-    const newState = masterCheckboxState !== "checked";
-
-    const allItems = [...(folders || []), ...(objects || [])];
-    const newSelection = Object.fromEntries(
-      allItems.map((item) => [item, newState])
-    );
-
-    setSelectedObjects(newSelection);
-  };
-
-  const toggleObject = (key: string) => {
-    setSelectedObjects((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
-
-  const listFolders = async (prefix: string): Promise<string[] | null> => {
-    if (prefix == "/") {
-      // If the prefix is just "/", we want to list the root folders
-      prefix = "";
-    }
-    const response = await fetchApi<string[]>(
-      {
-        url: `/${currentSession?.bucket}/folders`,
-        method: "GET",
-        params: { prefix },
-      },
-      currentSession?.token
-    );
-    if (response.success) {
-      return response.data;
-    } else {
-      return null;
-    }
-  };
-
-  const listObjects = async (
-    prefix: string
-  ): Promise<S3ObjectMetadata[] | null> => {
-    if (prefix == "/") {
-      // If the prefix is just "/", we want to list the root folders
-      prefix = "";
-    }
-    const response = await fetchApi<S3ObjectMetadata[]>(
-      {
-        url: `/${currentSession?.bucket}/objects`,
-        method: "GET",
-        params: { prefix },
-      },
-      currentSession?.token
-    );
-    if (response.success) {
-      return response.data;
-    } else {
-      return null;
-    }
-  };
-
-  const initialize = async (overPrefix?: string) => {
-    if (!currentSession) return;
-    const saved = localStorage.getItem("viewFormat") as "grid" | "list";
-    setFormat(saved || "list");
-    setObjects(null);
-    setFolders(null);
-    const folders = await listFolders(overPrefix || prefix);
-    setFolders(folders || []);
-    const objects = await listObjects(overPrefix || prefix);
-    setObjects(objects || []);
-  };
-
-  const deleteFolder = async (folderToDelete: string) => {
-    const confirmDelete = confirm(
-      `Are you sure you want to delete the folder "${folderToDelete}"? This action cannot be undone.`
-    );
-    if (!confirmDelete) {
-      return;
-    }
-
-    const response = await fetchApi({
-      url: `/${currentSession?.bucket}/folder`,
-      method: "DELETE",
-      params: { folder: folderToDelete },
-    }, currentSession?.token);
-    if (response.success) {
-      // Refresh the folder list
-      initialize();
-    } else {
-      console.error("Failed to delete folder:", response);
-    }
-  };
-
-  const deleteObject = async (objectToDelete: string) => {
-    const confirmDelete = confirm(
-      `Are you sure you want to delete the object "${objectToDelete}"? This action cannot be undone.`
-    );
-    if (!confirmDelete) {
-      return;
-    }
-
-    const response = await fetchApi({
-      url: `/${currentSession?.bucket}/object`,
-      method: "DELETE",
-      params: { key: objectToDelete },
-    }, currentSession?.token);
-    if (response.success) {
-      // Refresh the folder list
-      initialize();
-    } else {
-      console.error("Failed to delete object:", response);
-    }
-  };
-
+  // Reset to root when session changes (but not on initial load)
   useEffect(() => {
-    // Initialize the page
-    initialize();
-  }, []);
+    if (currentSession?.bucket) {
+      // If this is a different session than before, reset to root
+      if (
+        previousSessionBucket !== null &&
+        previousSessionBucket !== currentSession.bucket
+      ) {
+        resetToRoot((newPrefix) => {
+          updateUrlParams(newPrefix);
+        });
+      }
+      setPreviousSessionBucket(currentSession.bucket);
+    }
+  }, [
+    currentSession?.bucket,
+    resetToRoot,
+    updateUrlParams,
+    previousSessionBucket,
+  ]);
 
+  // Loading states
   if (hasAPI === null) return <p>Loading...</p>;
-  if (hasAPI === false) return null; // redirecting
+  if (hasAPI === false) return null;
 
   return (
     <main className="w-full h-[calc(100vh-80px)]">
@@ -224,27 +316,7 @@ const Home = () => {
             label="Create Folder"
             variant="light"
             faIcon={faFolderPlus}
-            onClick={async () => {
-              const folderName = prompt("Enter folder name:");
-              if (folderName) {
-                // Create the new folder
-                if (folderName.trim() === "") {
-                  toast.error("Folder name cannot be empty.");
-                  return;
-                }
-                const response = await fetchApi({
-                  url: `/${currentSession?.bucket}/folder`,
-                  method: "POST",
-                  data: { folder: folderName },
-                }, currentSession?.token);
-                if (response.success) {
-                  // Refresh the folder list
-                  initialize("/");
-                } else {
-                  console.error("Failed to create folder:", response);
-                }
-              }
-            }}
+            onClick={handleCreateFolder}
           />
         </div>
 
@@ -268,16 +340,17 @@ const Home = () => {
                         isLast ? "text-gray-900" : ""
                       }`}
                       onClick={() => {
-                        if (fullPath === ROOT_FOLDER) {
-                          setBreadcrumbs([ROOT_FOLDER]);
-                          setPrefix("");
-                          initialize("/");
-                          return;
-                        }
-                        setBreadcrumbs(breadcrumbs.slice(0, index + 1));
-                        const newPrefix = index === 0 ? "" : fullPath;
-                        setPrefix(newPrefix);
-                        initialize(newPrefix);
+                        navigateToBreadcrumb(index, (newPrefix) => {
+                          updateUrlParams(newPrefix);
+                          clearSelection();
+                          if (currentSession?.bucket && currentSession?.token) {
+                            loadBucketData(
+                              currentSession.bucket,
+                              newPrefix,
+                              currentSession.token
+                            );
+                          }
+                        });
                       }}
                     >
                       {displayName}
@@ -327,14 +400,20 @@ const Home = () => {
                           subtitle="x items"
                           icon={faFolder}
                           onClick={() => {
-                            console.log("Clicked on folder:", folder);
-                            // Update breadcrumbs
-                            setBreadcrumbs((prev) => [...prev, folder]);
-                            // Update prefix
-                            const newPrefix = `${folder}`;
-                            setPrefix(newPrefix);
-                            // Fetch new data
-                            initialize(newPrefix);
+                            navigateToFolder(folder, (newPrefix) => {
+                              updateUrlParams(newPrefix);
+                              clearSelection();
+                              if (
+                                currentSession?.bucket &&
+                                currentSession?.token
+                              ) {
+                                loadBucketData(
+                                  currentSession.bucket,
+                                  newPrefix,
+                                  currentSession.token
+                                );
+                              }
+                            });
                           }}
                         />
                       ))
@@ -347,7 +426,6 @@ const Home = () => {
                           subtitle="x items"
                           icon={faFile}
                           onClick={() => {
-                            console.log("Clicked on object:", object);
                             window.location.href = `/object/${encodeURIComponent(
                               object.Key
                             )}`;
@@ -380,31 +458,7 @@ const Home = () => {
                   active={selectedCount > 0}
                   hoverVariant="danger"
                   faIcon={faTrash}
-                  onClick={() => {
-                    // get from selectedObjects
-                    const selectedFolders = Object.keys(selectedObjects).filter(
-                      (key) => selectedObjects[key] && folders?.includes(key)
-                    );
-                    const selectedObjectsList = Object.keys(
-                      selectedObjects
-                    ).filter(
-                      (key) => selectedObjects[key] && !folders?.includes(key)
-                    );
-                    if (
-                      selectedFolders.length === 0 &&
-                      selectedObjectsList.length === 0
-                    ) {
-                      toast.error("No items selected for deletion.");
-                      return;
-                    }
-                    for (const folder of selectedFolders) {
-                      deleteFolder(folder);
-                    }
-
-                    for (const object of selectedObjectsList) {
-                      deleteObject(object);
-                    }
-                  }}
+                  onClick={handleBulkDelete}
                 >
                   Delete
                 </Button>
@@ -423,7 +477,10 @@ const Home = () => {
             <div className="border border-gray-200">
               {/* Table Header */}
               <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] text-sm font-semibold border-b border-gray-300 h-[40px] items-center px-3">
-                <Checkbox state={masterCheckboxState} onToggle={toggleAll} />
+                <Checkbox
+                  state={masterCheckboxState}
+                  onToggle={handleToggleAll}
+                />
                 <div>Name</div>
                 <div>Owner</div>
                 <div>Size</div>
@@ -443,14 +500,20 @@ const Home = () => {
                           key={folder}
                           className="grid text-sm px-3  border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
                           onClick={() => {
-                            console.log("Clicked on folder:", folder);
-                            // Update breadcrumbs
-                            setBreadcrumbs((prev) => [...prev, folder]);
-                            // Update prefix
-                            const newPrefix = `${folder}`;
-                            setPrefix(newPrefix);
-                            // Fetch new data
-                            initialize(newPrefix);
+                            navigateToFolder(folder, (newPrefix) => {
+                              updateUrlParams(newPrefix);
+                              clearSelection();
+                              if (
+                                currentSession?.bucket &&
+                                currentSession?.token
+                              ) {
+                                loadBucketData(
+                                  currentSession.bucket,
+                                  newPrefix,
+                                  currentSession.token
+                                );
+                              }
+                            });
                           }}
                         >
                           <Checkbox
@@ -491,10 +554,9 @@ const Home = () => {
                     : null}
                   {objects && objects.length > 0
                     ? objects.map((object) => (
-                        <Link
+                        <div
                           key={object.ETag}
-                          className="grid text-sm px-3 border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
-                          href={`/object/${encodeURIComponent(object.Key)}`}
+                          className="grid text-sm px-3 border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 select-none"
                         >
                           <Checkbox
                             state={
@@ -504,7 +566,14 @@ const Home = () => {
                             }
                             onToggle={() => toggleObject(object.ETag)}
                           />
-                          <div className="flex gap-2 items-center line-clamp-1 pr-8">
+                          <div
+                            className="flex gap-2 items-center line-clamp-1 pr-8 cursor-pointer"
+                            onClick={() =>
+                              router.push(
+                                `/object/${encodeURIComponent(object.Key)}`
+                              )
+                            }
+                          >
                             <FontAwesomeIcon
                               icon={faFile}
                               className="text-gray-500 cursor-pointer"
@@ -517,17 +586,58 @@ const Home = () => {
                               }
                             </span>
                           </div>
-                          <div>
+                          <div
+                            className="cursor-pointer"
+                            onClick={() =>
+                              router.push(
+                                `/object/${encodeURIComponent(object.Key)}`
+                              )
+                            }
+                          >
                             {object.Owner?.DisplayName == ""
                               ? "No Owner"
                               : object.Owner?.DisplayName}
                           </div>
-                          <div>{formatBytes(object.Size)}</div>
-                          <div>
+                          <div
+                            className="cursor-pointer"
+                            onClick={() =>
+                              router.push(
+                                `/object/${encodeURIComponent(object.Key)}`
+                              )
+                            }
+                          >
+                            {formatBytes(object.Size)}
+                          </div>
+                          <div
+                            className="cursor-pointer"
+                            onClick={() =>
+                              router.push(
+                                `/object/${encodeURIComponent(object.Key)}`
+                              )
+                            }
+                          >
                             <i>{formatDate(object.LastModified)}</i>
                           </div>
-                          <div>Actions</div>
-                        </Link>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              onClick={() => {
+                                router.push(
+                                  `/object/${encodeURIComponent(object.Key)}`
+                                );
+                              }}
+                              variant="light"
+                              className="py-1! px-1.5! text-xs"
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="light"
+                              className="py-1! px-1.5! text-xs"
+                            >
+                              Preview
+                            </Button>
+                          </div>
+                        </div>
                       ))
                     : null}
                   {folders &&
@@ -551,58 +661,7 @@ const Home = () => {
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) {
-              const id = uuidv4();
-              const startedAt = Date.now();
-
-              dispatch(
-                addUpload({
-                  id,
-                  fileName: file.name,
-                  progress: 0,
-                  status: "uploading",
-                  startedAt,
-                })
-              );
-
-              const formData = new FormData();
-              formData.append("file", file);
-              // get the last prefix from breadcrumbs
-              const prefix = breadcrumbs[breadcrumbs.length - 1];
-              console.log("Uploading file with prefix:", prefix);
-              if (prefix && prefix.endsWith("/")) {
-                formData.append("prefix", `${prefix}`);
-              }
-
-              fetchApi(
-                {
-                  url: `/${currentSession?.bucket}/object`,
-                  method: "PUT",
-                  data: formData,
-                  onUploadProgress: (event) => {
-                    const progress = Math.round(
-                      (event.loaded * 100) / (event?.total || 1)
-                    );
-                    dispatch(updateProgress({ id, progress }));
-                    // You can dispatch an action to update the upload progress in your store here
-                  },
-                  headers: { "Content-Type": "multipart/form-data" },
-                },
-                currentSession?.token
-              ).then((response) => {
-                if (response.success) {
-                  dispatch(markCompleted({ id }));
-                  initialize();
-                  if (fileInputRef.current) {
-                    fileInputRef.current.value = "";
-                  }
-                } else {
-                  dispatch(markError({ id, error: response.error }));
-                  console.error("Upload failed:", response);
-                  if (fileInputRef.current) {
-                    fileInputRef.current.value = "";
-                  }
-                }
-              });
+              handleFileUpload(file);
             }
           }}
         />

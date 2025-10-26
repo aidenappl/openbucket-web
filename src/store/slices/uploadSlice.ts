@@ -37,9 +37,12 @@ const uploadSlice = createSlice({
         upload.finishedAt = Date.now();
       }
     },
+    removeUpload: (state, action: PayloadAction<{ id: string }>) => {
+      state.uploads = state.uploads.filter((u) => u.id !== action.payload.id);
+    },
   },
 });
 
-export const { addUpload, updateProgress, markCompleted, markError } =
+export const { addUpload, updateProgress, markCompleted, markError, removeUpload } =
   uploadSlice.actions;
 export default uploadSlice.reducer;

@@ -1,4 +1,7 @@
 const storeSessionToken = (newToken: string) => {
+  // Only access localStorage on client side
+  if (typeof window === 'undefined') return;
+
   const existing = localStorage.getItem("openbucket-sessions");
 
   let sessions: string[] = [];
@@ -18,6 +21,9 @@ const storeSessionToken = (newToken: string) => {
 };
 
 const removeSessionToken = (tokenToRemove: string) => {
+  // Only access localStorage on client side
+  if (typeof window === 'undefined') return;
+
   const existing = localStorage.getItem("openbucket-sessions");
   if (existing) {
     try {
@@ -31,6 +37,9 @@ const removeSessionToken = (tokenToRemove: string) => {
 }
 
 const getSessionTokens = (): string[] => {
+  // Only access localStorage on client side
+  if (typeof window === 'undefined') return [];
+
   const existing = localStorage.getItem("openbucket-sessions");
   if (existing) {
     try {
@@ -44,4 +53,25 @@ const getSessionTokens = (): string[] => {
   return [];
 };
 
-export { storeSessionToken, getSessionTokens, removeSessionToken };
+const getCurrentSessionBucket = (): string | null => {
+  // Only access localStorage on client side
+  if (typeof window === 'undefined') return null;
+
+  return localStorage.getItem("openbucket-current-session");
+};
+
+const setCurrentSessionBucket = (bucket: string) => {
+  // Only access localStorage on client side
+  if (typeof window === 'undefined') return;
+
+  localStorage.setItem("openbucket-current-session", bucket);
+};
+
+const clearCurrentSessionBucket = () => {
+  // Only access localStorage on client side
+  if (typeof window === 'undefined') return;
+
+  localStorage.removeItem("openbucket-current-session");
+};
+
+export { storeSessionToken, getSessionTokens, removeSessionToken, getCurrentSessionBucket, setCurrentSessionBucket, clearCurrentSessionBucket };

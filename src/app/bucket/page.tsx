@@ -7,10 +7,14 @@ import {
   getSessionTokens,
   removeSessionToken,
   storeSessionToken,
+  setCurrentSessionBucket,
 } from "@/tools/sessionStore.tools";
 import { isValidUrl } from "@/tools/url.tools";
 import { Session } from "@/types";
 import { useEffect, useState } from "react";
+import { useDispatch } from "react-redux";
+import { addSession, setActiveSession } from "@/store/slices/sessionSlice";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
 type SessionResponse = {
@@ -20,6 +24,8 @@ type SessionResponse = {
 const Bucket = () => {
   const [fields, setFields] = useState<Record<string, string>>({});
   const [sessions, setSessions] = useState<Session[]>([]);
+  const dispatch = useDispatch();
+  const router = useRouter();
 
   const removeSession = (sessionToRemove: Session) => {
     const updatedSessions = sessions.filter(
@@ -55,7 +61,31 @@ const Bucket = () => {
     if (response.success) {
       toast.success("Bucket created successfully!");
       if (response.data.token) {
+        // Store in localStorage
         storeSessionToken(response.data.token);
+
+        // Create session object
+        const newSession: Session = {
+          bucket: fields.bucket,
+          nickname: fields.nickname || fields.bucket,
+          region: fields.region,
+          endpoint: fields.endpoint,
+          token: response.data.token,
+          exp: Date.now() + 7 * 24 * 60 * 60 * 1000, // Default 7 days from now
+        };
+
+        // Add to Redux store
+        dispatch(addSession(newSession));
+
+        // Set as active session and persist to localStorage
+        dispatch(setActiveSession(newSession));
+        setCurrentSessionBucket(fields.bucket);
+
+        // Clear form
+        setFields({});
+
+        // Redirect to main page
+        router.push("/");
       }
     } else {
       toast.error(
