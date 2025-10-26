@@ -10,6 +10,10 @@ WORKDIR /app
 ARG NPM_TOKEN
 ENV NPM_TOKEN=${NPM_TOKEN}
 
+# Pass API URL for build-time embedding
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 # Copy dependency files first (for better caching)
 COPY package*.json ./
 COPY .npmrc ./

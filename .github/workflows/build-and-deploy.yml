@@ -46,6 +46,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             NPM_TOKEN=${{ secrets.NPM_TOKEN }}
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
