@@ -60,10 +60,24 @@ const Navigation = () => {
           </span>
         </Link>
         {dropdownItems.length > 0 && (
-          <Dropdown
-            items={dropdownItems}
-            value={currentSession?.nickname || currentSession?.bucket}
-          />
+          <div className="flex gap-4 items-center">
+            <Link
+              className="text-sm font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+              href={"/"}
+            >
+              Explorer
+            </Link>
+            <Link
+              className="text-sm font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+              href={"/bucket"}
+            >
+              Sessions
+            </Link>
+            <Dropdown
+              items={dropdownItems}
+              value={currentSession?.nickname || currentSession?.bucket}
+            />
+          </div>
         )}
       </div>
     </nav>

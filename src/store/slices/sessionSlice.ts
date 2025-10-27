@@ -1,8 +1,13 @@
 import { SessionState, Session } from "@/types";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { RootState } from "../store";
-
-const initialState: SessionState = {
+import {
+  storeSessionToken,
+  removeSessionToken,
+  setCurrentSessionBucket,
+  clearCurrentSessionBucket,
+  getCurrentSessionBucket
+} from "@/tools/sessionStore.tools"; const initialState: SessionState = {
   sessions: [],
   currentSession: null,
 };
@@ -11,17 +16,10 @@ const sessionSlice = createSlice({
   name: "sessions",
   initialState,
   reducers: {
-    setActiveSession: (state, action: PayloadAction<Session | null>) => {
+    setActiveSession: (state, action: PayloadAction<Session>) => {
       state.currentSession = action.payload;
-
-      // Persist current session bucket to localStorage
-      if (typeof window !== 'undefined') {
-        if (action.payload) {
-          localStorage.setItem("openbucket-current-session", action.payload.bucket);
-        } else {
-          localStorage.removeItem("openbucket-current-session");
-        }
-      }
+      // Persist current session to localStorage using endpoint{bucket} format
+      setCurrentSessionBucket(action.payload.endpoint, action.payload.bucket);
     },
     setSessions: (state, action: PayloadAction<Session[]>) => {
       state.sessions = action.payload;
@@ -29,9 +27,16 @@ const sessionSlice = createSlice({
       // Try to restore previously selected session from localStorage
       let selectedSession = null;
       if (typeof window !== 'undefined') {
-        const savedSessionBucket = localStorage.getItem("openbucket-current-session");
-        if (savedSessionBucket) {
-          selectedSession = action.payload.find(session => session.bucket === savedSessionBucket);
+        const savedSessionKey = getCurrentSessionBucket();
+        if (savedSessionKey && savedSessionKey.includes('{')) {
+          // Parse the endpoint{bucket} format
+          const lastBraceIndex = savedSessionKey.lastIndexOf('{');
+          const savedEndpoint = savedSessionKey.substring(0, lastBraceIndex);
+          const savedBucket = savedSessionKey.substring(lastBraceIndex + 1, savedSessionKey.length - 1);
+
+          selectedSession = action.payload.find(session =>
+            session.endpoint === savedEndpoint && session.bucket === savedBucket
+          );
         }
       }
 
@@ -45,37 +50,39 @@ const sessionSlice = createSlice({
 
         // Update current session in localStorage to match what we actually set
         if (state.currentSession) {
-          localStorage.setItem("openbucket-current-session", state.currentSession.bucket);
+          setCurrentSessionBucket(state.currentSession.endpoint, state.currentSession.bucket);
         } else {
-          localStorage.removeItem("openbucket-current-session");
+          clearCurrentSessionBucket();
         }
       }
     },
     addSession: (state, action: PayloadAction<Session>) => {
-      state.sessions.push(action.payload);
+      const existingIndex = state.sessions.findIndex(
+        (session) => session.endpoint === action.payload.endpoint && session.bucket === action.payload.bucket
+      );
+      if (existingIndex !== -1) {
+        state.sessions[existingIndex] = action.payload;
+      } else {
+        state.sessions.push(action.payload);
+      }
+      // Store session token
+      storeSessionToken(action.payload.token);
+      // Set as active session
       state.currentSession = action.payload;
-
-      // Persist the new current session
-      if (typeof window !== 'undefined') {
-        localStorage.setItem("openbucket-current-session", action.payload.bucket);
+      setCurrentSessionBucket(action.payload.endpoint, action.payload.bucket);
+    },
+    removeSession: (state, action: PayloadAction<Session>) => {
+      state.sessions = state.sessions.filter(
+        (session) => !(session.endpoint === action.payload.endpoint && session.bucket === action.payload.bucket)
+      );
+      // Remove session token
+      removeSessionToken(action.payload.token);
+      // Clear current session if it was the removed one
+      if (state.currentSession?.endpoint === action.payload.endpoint && state.currentSession?.bucket === action.payload.bucket) {
+        state.currentSession = null;
+        clearCurrentSessionBucket();
       }
     },
-    removeSession: (state, action: PayloadAction<string>) => {
-      state.sessions = state.sessions.filter((s) => s.bucket !== action.payload);
-
-      if (state.currentSession?.bucket === action.payload) {
-        state.currentSession = state.sessions.length > 0 ? state.sessions[0] : null;
-
-        // Update localStorage
-        if (typeof window !== 'undefined') {
-          if (state.currentSession) {
-            localStorage.setItem("openbucket-current-session", state.currentSession.bucket);
-          } else {
-            localStorage.removeItem("openbucket-current-session");
-          }
-        }
-      }
-    }
   },
 });
 

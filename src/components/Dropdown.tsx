@@ -7,9 +7,11 @@ import { useState } from "react";
 export type DropdownItem = {
   label: string;
   icon?: IconProp;
+  followingIcon?: IconProp;
   href?: string;
   variant?: "action" | "default";
   onClick?: () => void;
+  handleFollowingIconClick?: () => void;
 };
 
 type DropdownProps = {
@@ -91,15 +93,22 @@ const Dropdown = ({ items, value, onChange = () => {} }: DropdownProps) => {
               role="menuitem"
               id={`menu-item-${index}`}
               tabIndex={-1}
-              onClick={() => handleItemClick(dropItem)}
+              onClick={() => {
+                handleItemClick(dropItem);
+              }}
             >
-              {dropItem.icon && (
-                <FontAwesomeIcon icon={dropItem.icon} className="mr-2" />
-              )}
+              {dropItem.icon && <FontAwesomeIcon icon={dropItem.icon} />}
               {dropItem.label == item.label && (
                 <div className="w-[7px] h-[7px] bg-blue-700 rounded-full" />
               )}
               {dropItem.label}
+              {dropItem.followingIcon && (
+                <FontAwesomeIcon
+                  icon={dropItem.followingIcon}
+                  onClick={() => dropItem.handleFollowingIconClick?.()}
+                  className="ml-auto text-gray-200 hover:text-gray-500"
+                />
+              )}
             </a>
           )
         )}

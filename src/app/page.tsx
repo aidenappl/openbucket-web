@@ -20,6 +20,7 @@ import { fetchApi } from "@/tools/axios.tools";
 import {
   getCurrentSessionBucket,
   getSessionTokens,
+  parseSessionKey,
 } from "@/tools/sessionStore.tools";
 import {
   selectCurrentSession,
@@ -101,15 +102,20 @@ const Home = () => {
             // Set sessions in Redux
             dispatch(setSessions(response.data));
 
-            // Check if there's a saved current session bucket
-            const savedBucket = getCurrentSessionBucket();
-            if (savedBucket) {
-              // Find and set the active session
-              const savedSession = response.data.find(
-                (session: Session) => session.bucket === savedBucket
-              );
-              if (savedSession) {
-                dispatch(setActiveSession(savedSession));
+            // Check if there's a saved current session
+            const savedSessionKey = getCurrentSessionBucket();
+            if (savedSessionKey) {
+              const parsed = parseSessionKey(savedSessionKey);
+              if (parsed) {
+                // Find and set the active session
+                const savedSession = response.data.find(
+                  (session: Session) =>
+                    session.endpoint === parsed.endpoint &&
+                    session.bucket === parsed.bucket
+                );
+                if (savedSession) {
+                  dispatch(setActiveSession(savedSession));
+                }
               }
             }
           }
