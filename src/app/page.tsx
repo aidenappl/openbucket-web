@@ -52,6 +52,8 @@ import { useSelection } from "@/hooks/useSelection";
 import { useBucketActions } from "@/hooks/useBucketActions";
 import { useViewFormat } from "@/hooks/useViewFormat";
 import FullscreenDropZone from "@/components/FullscreenDropZone";
+import DeleteConfirmationModal from "@/components/DeleteConfirmationModal";
+import toast from "react-hot-toast";
 
 const Home = () => {
   const dispatch = useDispatch();
@@ -61,6 +63,8 @@ const Home = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { hasAPI } = usePermissions();
   const [isFullscreenDragActive, setIsFullscreenDragActive] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [previousSessionBucket, setPreviousSessionBucket] = useState<
     string | null
   >(null);
@@ -84,7 +88,7 @@ const Home = () => {
     getSelectedItems,
     getSelectionStats,
   } = useSelection();
-  const { createFolder, deleteBulkItems } = useBucketActions();
+  const { createFolder } = useBucketActions();
 
   // Initialize sessions from localStorage on app start
   useEffect(() => {
@@ -205,20 +209,94 @@ const Home = () => {
     }
   };
 
-  // Handle bulk delete
+  // Get display names for selected items
+  const getSelectedDisplayNames = (): string[] => {
+    const selectedFolders = getSelectedItems(folderKeys);
+    const selectedObjectETags = getSelectedItems(objectKeys);
+
+    // Map ETags back to actual filenames
+    const selectedObjectNames = selectedObjectETags.map((etag) => {
+      const obj = objects?.find((o) => o.ETag === etag);
+      return obj?.Key || etag; // fallback to etag if not found
+    });
+
+    return [...selectedFolders, ...selectedObjectNames];
+  };
+
+  // Handle bulk delete - show confirmation modal
   const handleBulkDelete = () => {
+    if (
+      !currentSession?.bucket ||
+      !currentSession?.token ||
+      selectedCount === 0
+    )
+      return;
+    setIsDeleteModalOpen(true);
+  };
+
+  // Handle confirmed deletion
+  const handleConfirmDelete = async () => {
     if (!currentSession?.bucket || !currentSession?.token) return;
 
-    const selectedFolders = getSelectedItems(folderKeys);
-    const selectedObjectKeys = getSelectedItems(objectKeys);
+    setIsDeleting(true);
 
-    deleteBulkItems(
-      currentSession.bucket,
-      selectedFolders,
-      selectedObjectKeys,
-      currentSession.token,
-      () => loadBucketData(currentSession.bucket, prefix, currentSession.token)
-    );
+    const selectedFolders = getSelectedItems(folderKeys);
+    const selectedObjectETags = getSelectedItems(objectKeys);
+
+    // Map ETags back to actual object keys for deletion
+    const selectedObjectKeys = selectedObjectETags.map((etag) => {
+      const obj = objects?.find((o) => o.ETag === etag);
+      return obj?.Key || etag; // fallback to etag if not found
+    });
+
+    try {
+      // Delete folders and objects without confirmation prompts
+      const deletePromises = [
+        ...selectedFolders.map(async (folder) => {
+          const response = await fetchApi(
+            {
+              url: `/${currentSession.bucket}/folder`,
+              method: "DELETE",
+              params: { folder },
+            },
+            currentSession.token
+          );
+          return response.success;
+        }),
+        ...selectedObjectKeys.map(async (objectKey) => {
+          const response = await fetchApi(
+            {
+              url: `/${currentSession.bucket}/object`,
+              method: "DELETE",
+              params: { key: objectKey },
+            },
+            currentSession.token
+          );
+          return response.success;
+        }),
+      ];
+
+      const results = await Promise.all(deletePromises);
+      const allSuccessful = results.every((result) => result);
+
+      if (allSuccessful) {
+        toast.success(
+          `Successfully deleted ${selectedCount} item${
+            selectedCount === 1 ? "" : "s"
+          }`
+        );
+        clearSelection();
+        loadBucketData(currentSession.bucket, prefix, currentSession.token);
+      } else {
+        toast.error("Some items failed to delete");
+      }
+    } catch (error) {
+      console.error("Error during bulk deletion:", error);
+      toast.error("Failed to delete items");
+    }
+
+    setIsDeleting(false);
+    setIsDeleteModalOpen(false);
   };
 
   // Handle file upload
@@ -305,9 +383,9 @@ const Home = () => {
   if (hasAPI === false) return null;
 
   return (
-    <main className="w-full h-[calc(100vh-80px)]">
+    <main className="w-full">
       <UploadTracker />
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-5 min-h-[calc(100vh-80px)]">
         <div className="grid grid-cols-2 w-fit gap-x-3">
           <MajorButton
             label="Upload or Drop"
@@ -324,7 +402,7 @@ const Home = () => {
           />
         </div>
 
-        <div className="bg-white w-full p-4 border border-gray-200 shadow-sm rounded-md flex flex-col h-[calc(100vh-200px)]">
+        <div className="bg-white w-full p-4 border border-gray-200 shadow-sm rounded-md flex flex-col max-h-[calc(100vh-200px)]">
           {/* Breadcrumbs & Controls */}
           <div className="flex justify-between items-center flex-shrink-0">
             {/* Left Breadcrumbs */}
@@ -442,10 +520,7 @@ const Home = () => {
           </div>
 
           {/* LIST FORMAT */}
-          <div
-            hidden={format !== "list"}
-            className="flex flex-col flex-1 min-h-0"
-          >
+          <div hidden={format !== "list"} className="flex flex-col">
             {/* Controls */}
             <div className="flex justify-between items-center my-3 flex-shrink-0">
               {/* Left Controls */}
@@ -481,7 +556,7 @@ const Home = () => {
               </div>
             </div>
             {/* Files Table */}
-            <div className="border border-gray-200 overflow-hidden flex flex-col flex-1 min-h-0">
+            <div className="border border-gray-200 overflow-hidden flex flex-col">
               {/* Table Header - Fixed */}
               <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] text-sm font-semibold border-b border-gray-300 h-[40px] items-center px-3 bg-gray-50 flex-shrink-0">
                 <Checkbox
@@ -495,13 +570,13 @@ const Home = () => {
                 <div>Actions</div>
               </div>
 
-              {/* Table Content - Scrollable */}
+              {/* Table Content - Dynamic Height with Max Height Scrolling */}
               {!objects || !folders ? (
                 <div className="flex items-center justify-center h-32">
                   <Spinner />
                 </div>
               ) : (
-                <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="max-h-[calc(100vh-360px)] overflow-y-auto">
                   {folders && folders.length > 0
                     ? folders.map((folder) => (
                         <div
@@ -694,6 +769,17 @@ const Home = () => {
         onDragStateChange={setIsFullscreenDragActive}
         disabled={!currentSession?.bucket || !currentSession?.token}
       />
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <DeleteConfirmationModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={handleConfirmDelete}
+          items={getSelectedDisplayNames()}
+          isDeleting={isDeleting}
+        />
+      )}
     </main>
   );
 };
