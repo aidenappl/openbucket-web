@@ -29,7 +29,7 @@ const UploadTracker = () => {
           const timeoutId = setTimeout(() => {
             dispatch(removeUpload({ id: upload.id }));
             timeouts.delete(upload.id);
-          }, 30000); // 30 seconds
+          }, 3000); // 3 seconds
 
           timeouts.set(upload.id, timeoutId);
         }
@@ -48,9 +48,18 @@ const UploadTracker = () => {
     return null;
   }
 
+  // Limit displayed uploads to the most recent 5
+  const displayedUploads = uploads.slice(-5);
+  const hiddenCount = uploads.length - displayedUploads.length;
+
   return (
-    <div className="fixed bottom-4 right-4 w-80 bg-white border shadow-md rounded-md p-3">
-      {uploads.map((upload) => (
+    <div className="fixed bottom-4 right-4 w-80 bg-white border border-slate-300 shadow-md rounded-md p-3">
+      {hiddenCount > 0 && (
+        <div className="mb-2 text-xs text-gray-500 text-center">
+          +{hiddenCount} more upload{hiddenCount > 1 ? "s" : ""} in progress
+        </div>
+      )}
+      {displayedUploads.map((upload) => (
         <div key={upload.id} className="mb-2">
           <p className="text-sm font-medium truncate">{upload.fileName}</p>
           <div className="w-full bg-gray-200 rounded h-2">

@@ -51,6 +51,7 @@ import { useBreadcrumbs } from "@/hooks/useBreadcrumbs";
 import { useSelection } from "@/hooks/useSelection";
 import { useBucketActions } from "@/hooks/useBucketActions";
 import { useViewFormat } from "@/hooks/useViewFormat";
+import FullscreenDropZone from "@/components/FullscreenDropZone";
 
 const Home = () => {
   const dispatch = useDispatch();
@@ -59,6 +60,7 @@ const Home = () => {
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { hasAPI } = usePermissions();
+  const [isFullscreenDragActive, setIsFullscreenDragActive] = useState(false);
   const [previousSessionBucket, setPreviousSessionBucket] = useState<
     string | null
   >(null);
@@ -261,15 +263,9 @@ const Home = () => {
         dispatch(markCompleted({ id }));
         // Refresh the current folder
         loadBucketData(currentSession.bucket, prefix, currentSession.token);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
       } else {
         dispatch(markError({ id, error: response.error }));
         console.error("Upload failed:", response);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
       }
     });
   };
@@ -326,9 +322,9 @@ const Home = () => {
           />
         </div>
 
-        <div className="bg-white w-full p-4 border border-gray-200 shadow-sm rounded-md">
+        <div className="bg-white w-full p-4 border border-gray-200 shadow-sm rounded-md flex flex-col h-[calc(100vh-200px)]">
           {/* Breadcrumbs & Controls */}
-          <div className="flex justify-between items-center mb-3">
+          <div className="flex justify-between items-center flex-shrink-0">
             {/* Left Breadcrumbs */}
             <div className="flex items-center gap-1 text-md text-gray-700 font-semibold select-none">
               {breadcrumbs.map((fullPath, index) => {
@@ -444,9 +440,12 @@ const Home = () => {
           </div>
 
           {/* LIST FORMAT */}
-          <div hidden={format !== "list"}>
+          <div
+            hidden={format !== "list"}
+            className="flex flex-col flex-1 min-h-0"
+          >
             {/* Controls */}
-            <div className="flex justify-between items-center my-3">
+            <div className="flex justify-between items-center my-3 flex-shrink-0">
               {/* Left Controls */}
               <div className="flex gap-2">
                 <Button faIcon={faArrowUpRight} active={selectedCount > 0}>
@@ -480,9 +479,9 @@ const Home = () => {
               </div>
             </div>
             {/* Files Table */}
-            <div className="border border-gray-200">
-              {/* Table Header */}
-              <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] text-sm font-semibold border-b border-gray-300 h-[40px] items-center px-3">
+            <div className="border border-gray-200 overflow-hidden flex flex-col flex-1 min-h-0">
+              {/* Table Header - Fixed */}
+              <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] text-sm font-semibold border-b border-gray-300 h-[40px] items-center px-3 bg-gray-50 flex-shrink-0">
                 <Checkbox
                   state={masterCheckboxState}
                   onToggle={handleToggleAll}
@@ -493,13 +492,14 @@ const Home = () => {
                 <div>Last Modified</div>
                 <div>Actions</div>
               </div>
-              {/* Table Objects/Folders */}
+
+              {/* Table Content - Scrollable */}
               {!objects || !folders ? (
                 <div className="flex items-center justify-center h-32">
                   <Spinner />
                 </div>
               ) : (
-                <div>
+                <div className="flex-1 overflow-y-auto min-h-0">
                   {folders && folders.length > 0
                     ? folders.map((folder) => (
                         <div
@@ -659,19 +659,27 @@ const Home = () => {
             </div>
           </div>
         </div>
+
         <input
           type="file"
           ref={fileInputRef}
-          id="fileInput"
+          multiple
           className="hidden"
           onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) {
-              handleFileUpload(file);
+            const files = e.target.files;
+            if (files) {
+              Array.from(files).forEach((file) => handleFileUpload(file));
             }
           }}
         />
       </div>
+
+      <FullscreenDropZone
+        isActive={isFullscreenDragActive}
+        onFileUpload={handleFileUpload}
+        onDragStateChange={setIsFullscreenDragActive}
+        disabled={!currentSession?.bucket || !currentSession?.token}
+      />
     </main>
   );
 };
