@@ -5,13 +5,13 @@ export type CheckboxState = "checked" | "unchecked" | "indeterminate";
 
 type CheckboxProps = {
   state: CheckboxState;
-  onToggle: () => void;
+  onToggle: (event?: React.MouseEvent) => void;
 };
 
 const Checkbox = ({ state, onToggle }: CheckboxProps) => {
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation(); // prevent triggering parent onClick
-    onToggle();
+    onToggle(e);
   };
 
   return (

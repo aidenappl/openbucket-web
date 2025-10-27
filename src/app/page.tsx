@@ -183,7 +183,9 @@ const Home = () => {
   const { selectedCount, masterCheckboxState } = getSelectionStats(allKeys);
 
   // Handle bulk selection
-  const handleToggleAll = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleToggleAll = (event?: React.MouseEvent) => {
+    // event parameter for compatibility with Checkbox component
     const newState = masterCheckboxState !== "checked";
     toggleAll(allKeys, newState);
   };
@@ -526,7 +528,13 @@ const Home = () => {
                             state={
                               selectedObjects[folder] ? "checked" : "unchecked"
                             }
-                            onToggle={() => toggleObject(folder)}
+                            onToggle={(event) =>
+                              toggleObject(
+                                folder,
+                                event?.shiftKey || false,
+                                allKeys
+                              )
+                            }
                           />
                           <div className="flex gap-2 items-center">
                             <FontAwesomeIcon
@@ -570,7 +578,13 @@ const Home = () => {
                                 ? "checked"
                                 : "unchecked"
                             }
-                            onToggle={() => toggleObject(object.ETag)}
+                            onToggle={(event) =>
+                              toggleObject(
+                                object.ETag,
+                                event?.shiftKey || false,
+                                allKeys
+                              )
+                            }
                           />
                           <div
                             className="flex gap-2 items-center line-clamp-1 pr-8 cursor-pointer"
