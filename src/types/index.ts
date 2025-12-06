@@ -56,6 +56,23 @@ type OwnerObject = {
 
 type S3ObjectList = S3ObjectMetadata[];
 
+interface ObjectACLResponse {
+  Grants: Grant[];
+  Owner: OwnerObject;
+}
+
+interface Grant {
+  Grantee: Grantee;
+  Permission: string;
+}
+
+interface Grantee {
+  Type: "Group" | "CanonicalUser";
+  ID?: string;
+  DisplayName?: string;
+  URI?: string;
+  EmailAddress?: string;
+}
 
 interface PresignResponse {
   url: string;
@@ -118,9 +135,11 @@ export type {
   PresignResponse,
   S3ObjectList,
   S3ObjectMetadata,
+  ObjectACLResponse,
   UploadItem,
   UploadState,
   Session,
+  Grant,
   SessionState,
   UploadStatus,
   ApiSuccess,

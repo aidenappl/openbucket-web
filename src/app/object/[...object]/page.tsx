@@ -6,7 +6,7 @@ import { selectCurrentSession } from "@/store/slices/sessionSlice";
 import { fetchApi } from "@/tools/axios.tools";
 import { formatBytes } from "@/tools/formatBytes.tools";
 import { formatDate } from "@/tools/formatDate.tools";
-import { PresignResponse, S3Object } from "@/types";
+import { Grant, ObjectACLResponse, PresignResponse, S3Object } from "@/types";
 import {
   faChevronLeft,
   faEdit,
@@ -27,6 +27,8 @@ const ObjectPage = () => {
   const [initialSessionBucket, setInitialSessionBucket] = useState<
     string | null
   >(null);
+  const [objectACL, setObjectACL] = useState<ObjectACLResponse | null>(null);
+  const [objectPublic, setObjectPublic] = useState<string | boolean>(false);
   const params = useParams();
   const currentSession = useSelector(selectCurrentSession);
   const { getParentPath } = useBreadcrumbs();
@@ -92,6 +94,44 @@ const ObjectPage = () => {
     }
   };
 
+  const getObjectACL = useCallback(
+    async (key: string) => {
+      if (!currentSession?.token) return null;
+
+      const res = await fetchApi<ObjectACLResponse>(
+        {
+          url: `/${currentSession?.bucket}/object/acl`,
+          method: "GET",
+          params: { key },
+        },
+        currentSession?.token
+      );
+
+      if (res.success) {
+        return res.data;
+      } else {
+        console.error("Error fetching object ACL:", res);
+        return null;
+      }
+    },
+    [currentSession?.token, currentSession?.bucket]
+  );
+
+  const filterObjectACLs = useCallback(async (acls: Grant[] | null) => {
+    if (!acls) return null;
+    const filtered = acls.filter(
+      (grant) =>
+        grant.Grantee.URI !== "http://openbucket/groups/global/AllUsers"
+    );
+    const publicACL = acls.find(
+      (grant) =>
+        grant.Grantee.URI === "http://openbucket/groups/global/AllUsers"
+    );
+
+    setObjectPublic(publicACL ? publicACL.Permission : false);
+    return filtered;
+  }, []);
+
   const renameObject = async () => {
     if (!sessionReady || !currentSession?.token) return;
 
@@ -111,6 +151,35 @@ const ObjectPage = () => {
         router.push(`/object/${encodeURIComponent(response.trim())}`);
       } else {
         console.error("Error renaming object:", res);
+      }
+    }
+  };
+
+  const changePublicAccess = async () => {
+    if (!sessionReady || !currentSession?.token) return;
+
+    const newAccess = window.prompt("Enter new public access (None, Read):");
+    console.log("Change public access response:", newAccess);
+    if (newAccess && ["None", "Read"].includes(newAccess)) {
+      const res = await fetchApi<{ success: boolean }>(
+        {
+          url: `/${currentSession?.bucket}/object/acl/public`,
+          method: "PUT",
+          params: { key: fullPath, access: newAccess },
+        },
+        currentSession?.token
+      );
+      if (res.success) {
+        console.log("Public access changed successfully");
+        // Refresh ACLs
+        const acl = await getObjectACL(fullPath);
+        if (acl) {
+          const filteredGrants = await filterObjectACLs(acl.Grants);
+          acl.Grants = filteredGrants || [];
+          setObjectACL(acl);
+        }
+      } else {
+        console.error("Error changing public access:", res);
       }
     }
   };
@@ -140,6 +209,13 @@ const ObjectPage = () => {
       setObject(null);
     }
 
+    const acl = await getObjectACL(fullPath);
+    if (acl) {
+      const filteredGrants = await filterObjectACLs(acl.Grants);
+      acl.Grants = filteredGrants || [];
+      setObjectACL(acl);
+    }
+
     setIsLoading(false);
   }, [
     sessionReady,
@@ -147,6 +223,8 @@ const ObjectPage = () => {
     currentSession?.bucket,
     fullPath,
     router,
+    filterObjectACLs,
+    getObjectACL,
   ]);
 
   useEffect(() => {
@@ -238,6 +316,9 @@ const ObjectPage = () => {
 
             {/* Button Section */}
             <div className="flex gap-2 shrink-0">
+              <Button onClick={() => changePublicAccess()} variant="light">
+                Change Public Access
+              </Button>
               <Button onClick={() => viewObject()} variant="light">
                 Preview
               </Button>
@@ -278,8 +359,32 @@ const ObjectPage = () => {
                   <strong>ETag:</strong>{" "}
                   {object?.ETag!.replaceAll('"', "") || "N/A"}
                 </p>
-                <strong>Metadata:</strong>
-                <pre>{JSON.stringify(object, null, 2)}</pre>
+                <p>
+                  <strong>Owner:</strong> {objectACL?.Owner.DisplayName}{" "}
+                  <i>{objectACL?.Owner.ID}</i>
+                </p>
+                <p>
+                  <strong>Public:</strong>
+                  <a className="ml-2 px-2 py-1 bg-blue-100 rounded-md font-semibold text-sm">
+                    {objectPublic}
+                  </a>
+                </p>
+                <strong>Grants:</strong>
+                {objectACL?.Grants.map((grant, index) => (
+                  <div
+                    key={"grant_" + index}
+                    className="bg-slate-100 w-fit py-2 px-4 rounded-md"
+                  >
+                    <p>
+                      <strong>Grantee:</strong>{" "}
+                      {grant.Grantee.DisplayName || grant.Grantee.URI}{" "}
+                    </p>
+                    <p>
+                      {" "}
+                      <strong>Permission:</strong> {grant.Permission}{" "}
+                    </p>
+                  </div>
+                ))}
               </div>
             )}
           </div>
