@@ -2,7 +2,7 @@ import { IconProp } from "@fortawesome/fontawesome-svg-core";
 import { faChevronDown } from "@fortawesome/pro-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export type DropdownItem = {
   label: string;
@@ -25,6 +25,23 @@ const Dropdown = ({ items, value, onChange = () => {} }: DropdownProps) => {
     items.find((item) => item.label === value) || items[0]
   );
   const [visible, setVisible] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setVisible(false);
+      }
+    };
+
+    if (visible) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [visible]);
 
   const handleItemClick = (item: DropdownItem) => {
     if (item.onClick) {
@@ -36,7 +53,7 @@ const Dropdown = ({ items, value, onChange = () => {} }: DropdownProps) => {
   };
 
   return (
-    <div className="relative inline-block text-left">
+    <div ref={dropdownRef} className="relative inline-block text-left">
       <div>
         <button
           type="button"
