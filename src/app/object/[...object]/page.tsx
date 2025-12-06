@@ -128,7 +128,7 @@ const ObjectPage = () => {
         grant.Grantee.URI === "http://openbucket/groups/global/AllUsers"
     );
 
-    setObjectPublic(publicACL ? publicACL.Permission : false);
+    setObjectPublic(publicACL ? publicACL.Permission : "PRIVATE");
     return filtered;
   }, []);
 
@@ -158,14 +158,19 @@ const ObjectPage = () => {
   const changePublicAccess = async () => {
     if (!sessionReady || !currentSession?.token) return;
 
-    const newAccess = window.prompt("Enter new public access (None, Read):");
+    const newAccess = window.prompt(
+      "Enter new public access (private, public-read):"
+    );
     console.log("Change public access response:", newAccess);
-    if (newAccess && ["None", "Read"].includes(newAccess)) {
+    if (newAccess && ["private", "public-read"].includes(newAccess)) {
       const res = await fetchApi<{ success: boolean }>(
         {
-          url: `/${currentSession?.bucket}/object/acl/public`,
+          url: `/${currentSession?.bucket}/object/acl`,
           method: "PUT",
-          params: { key: fullPath, access: newAccess },
+          params: { key: fullPath },
+          data: {
+            acl: newAccess.toLowerCase().trim(),
+          },
         },
         currentSession?.token
       );
@@ -191,7 +196,7 @@ const ObjectPage = () => {
 
     const res = await fetchApi<S3Object>(
       {
-        url: `/${currentSession?.bucket}/object`,
+        url: `/${currentSession?.bucket}/object/head`,
         method: "GET",
         params: { key: fullPath },
       },
@@ -364,7 +369,7 @@ const ObjectPage = () => {
                   <i>{objectACL?.Owner.ID}</i>
                 </p>
                 <p>
-                  <strong>Public:</strong>
+                  <strong>Public Permission:</strong>
                   <a className="ml-2 px-2 py-1 bg-blue-100 rounded-md font-semibold text-sm">
                     {objectPublic}
                   </a>
