@@ -198,7 +198,7 @@ const ObjectPage = () => {
     );
   }
   return (
-    <main className="w-full h-[calc(100vh-80px)]">
+    <main className="w-full min-h-[calc(100vh-80px)] h-fit mb-10">
       <div className="flex flex-col gap-5">
         <div className="flex flex-col bg-white w-full p-4 border border-gray-200 shadow-sm rounded-md">
           {/* Object heading */}
