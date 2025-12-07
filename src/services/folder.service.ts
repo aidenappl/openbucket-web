@@ -15,6 +15,19 @@ const reqDeleteFolder = async (folderKey: string): Promise<ApiResponse<null>> =>
     );
 };
 
+const reqFetchFolders = async (prefix: string): Promise<ApiResponse<string[]>> => {
+    const currentSession = selectCurrentSession(store.getState());
+    return fetchApi<string[]>(
+        {
+            url: `/${currentSession?.bucket}/folders`,
+            method: "GET",
+            params: { prefix },
+        },
+        currentSession?.token
+    );
+}
+
 export {
-    reqDeleteFolder
+    reqDeleteFolder,
+    reqFetchFolders
 };

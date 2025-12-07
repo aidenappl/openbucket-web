@@ -1,5 +1,5 @@
 import { fetchApi } from "@/tools/axios.tools";
-import { ApiResponse, ObjectACLResponse, ObjectHead, PresignResponse } from "@/types";
+import { ApiResponse, ObjectACLResponse, ObjectHead, PresignResponse, S3ObjectMetadata } from "@/types";
 import { store } from "@/store/store";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
 
@@ -128,9 +128,22 @@ const reqFetchObjectHead = async (key: string): Promise<ApiResponse<ObjectHead>>
     );
 }
 
+const reqFetchObjects = async (prefix: string): Promise<ApiResponse<S3ObjectMetadata[]>> => {
+    const currentSession = selectCurrentSession(store.getState());
+    return fetchApi<S3ObjectMetadata[]>(
+        {
+            url: `/${currentSession?.bucket}/objects`,
+            method: "GET",
+            params: { prefix },
+        },
+        currentSession?.token
+    );
+}
+
 export {
     reqDeleteObject,
     reqFetchObjectACL,
+    reqFetchObjects,
     reqPutObjectACL,
     reqFetchObjectPresign,
     reqPutRenameObject,

@@ -1,34 +1,21 @@
 import { useState, useCallback } from 'react';
-import { fetchApi } from '@/tools/axios.tools';
 import { S3ObjectMetadata } from '@/types';
+import { reqFetchFolders } from '@/services/folder.service';
+import { reqFetchObjects } from '@/services/object.service';
 
 export const useBucketData = () => {
     const [folders, setFolders] = useState<string[] | null>(null);
     const [objects, setObjects] = useState<S3ObjectMetadata[] | null>(null);
 
-    const listFolders = useCallback(async (bucket: string, prefix: string, token: string): Promise<string[] | null> => {
+    const listFolders = useCallback(async (prefix: string): Promise<string[] | null> => {
         const normalizedPrefix = prefix === "/" ? "" : prefix;
-        const response = await fetchApi<string[]>(
-            {
-                url: `/${bucket}/folders`,
-                method: "GET",
-                params: { prefix: normalizedPrefix },
-            },
-            token
-        );
+        const response = await reqFetchFolders(normalizedPrefix);
         return response.success ? response.data : null;
     }, []);
 
-    const listObjects = useCallback(async (bucket: string, prefix: string, token: string): Promise<S3ObjectMetadata[] | null> => {
+    const listObjects = useCallback(async (prefix: string): Promise<S3ObjectMetadata[] | null> => {
         const normalizedPrefix = prefix === "/" ? "" : prefix;
-        const response = await fetchApi<S3ObjectMetadata[]>(
-            {
-                url: `/${bucket}/objects`,
-                method: "GET",
-                params: { prefix: normalizedPrefix },
-            },
-            token
-        );
+        const response = await reqFetchObjects(normalizedPrefix);
         return response.success ? response.data : null;
     }, []);
 
@@ -40,8 +27,8 @@ export const useBucketData = () => {
 
         try {
             const [foldersData, objectsData] = await Promise.all([
-                listFolders(bucket, prefix, token),
-                listObjects(bucket, prefix, token)
+                listFolders(prefix),
+                listObjects(prefix)
             ]);
 
             setFolders(foldersData || []);

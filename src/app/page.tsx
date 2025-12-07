@@ -153,6 +153,7 @@ const Home = () => {
   useEffect(() => {
     const folderParam = searchParams.get("folder");
     if (currentSession?.bucket && currentSession?.token) {
+      console.log("Loading folder from URL param:", folderParam);
       if (folderParam) {
         setFromPath(folderParam, (newPrefix) => {
           loadBucketData(
@@ -172,14 +173,8 @@ const Home = () => {
         });
       }
     }
-  }, [
-    searchParams,
-    currentSession?.bucket,
-    currentSession?.token,
-    setFromPath,
-    loadBucketData,
-    resetToRoot,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, currentSession?.bucket, currentSession?.token]);
 
   // Get all items for selection (need to separate folder and object keys)
   const folderKeys = folders || [];
@@ -396,13 +391,7 @@ const Home = () => {
                         navigateToBreadcrumb(index, (newPrefix) => {
                           updateUrlParams(newPrefix);
                           clearSelection();
-                          if (currentSession?.bucket && currentSession?.token) {
                             loadBucketData(
-                              currentSession.bucket,
-                              newPrefix,
-                              currentSession.token
-                            );
-                          }
                         });
                       }}
                     >
@@ -456,16 +445,6 @@ const Home = () => {
                             navigateToFolder(folder, (newPrefix) => {
                               updateUrlParams(newPrefix);
                               clearSelection();
-                              if (
-                                currentSession?.bucket &&
-                                currentSession?.token
-                              ) {
-                                loadBucketData(
-                                  currentSession.bucket,
-                                  newPrefix,
-                                  currentSession.token
-                                );
-                              }
                             });
                           }}
                         />
@@ -557,16 +536,6 @@ const Home = () => {
                             navigateToFolder(folder, (newPrefix) => {
                               updateUrlParams(newPrefix);
                               clearSelection();
-                              if (
-                                currentSession?.bucket &&
-                                currentSession?.token
-                              ) {
-                                loadBucketData(
-                                  currentSession.bucket,
-                                  newPrefix,
-                                  currentSession.token
-                                );
-                              }
                             });
                           }}
                         >
