@@ -128,6 +128,20 @@ const reqFetchObjectHead = async (key: string): Promise<ApiResponse<ObjectHead>>
     );
 }
 
+const reqFetchBulkObjectHead = async (keys: string[]): Promise<ApiResponse<ObjectHead[]>> => {
+    const currentSession = selectCurrentSession(store.getState());
+    return fetchApi<ObjectHead[]>(
+        {
+            url: `/${currentSession?.bucket}/object/head?bulk`,
+            method: "POST",
+            data: {
+                keys
+            }
+        },
+        currentSession?.token
+    );
+}
+
 const reqFetchObjects = async (prefix: string): Promise<ApiResponse<S3ObjectMetadata[]>> => {
     const currentSession = selectCurrentSession(store.getState());
     return fetchApi<S3ObjectMetadata[]>(
@@ -149,5 +163,6 @@ export {
     reqPutRenameObject,
     reqFetchObjectHead,
     reqFetchMultiObjectHead,
+    reqFetchBulkObjectHead,
     reqPutObjectWithProgress
 }

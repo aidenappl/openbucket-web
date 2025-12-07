@@ -65,7 +65,7 @@ const Home = () => {
 
   // Custom hooks
   const { format, setFormat } = useViewFormat();
-  const { folders, objects, loadBucketData } = useBucketData();
+  const { folders, objects, metadata, loadBucketData } = useBucketData();
   const {
     breadcrumbs,
     prefix,
@@ -121,8 +121,14 @@ const Home = () => {
         });
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, currentSession?.bucket, currentSession?.token]);
+  }, [
+    searchParams,
+    currentSession?.bucket,
+    currentSession?.token,
+    setFromPath,
+    loadBucketData,
+    resetToRoot,
+  ]);
 
   // Get all items for selection (need to separate folder and object keys)
   const folderKeys = folders || [];
@@ -131,8 +137,7 @@ const Home = () => {
   const { selectedCount, masterCheckboxState } = getSelectionStats(allKeys);
 
   // Handle bulk selection
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleToggleAll = (event?: React.MouseEvent) => {
+  const handleToggleAll = () => {
     // event parameter for compatibility with Checkbox component
     const newState = masterCheckboxState !== "checked";
     toggleAll(allKeys, newState);
@@ -451,7 +456,7 @@ const Home = () => {
             {/* Files Table */}
             <div className="border border-gray-200 overflow-hidden flex flex-col">
               {/* Table Header - Fixed */}
-              <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] text-sm font-semibold border-b border-gray-300 h-[40px] items-center px-3 bg-gray-50 flex-shrink-0">
+              <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] text-sm font-semibold border-b border-gray-300 h-[40px] items-center px-3 bg-gray-50 flex-shrink-0">
                 <Checkbox
                   state={masterCheckboxState}
                   onToggle={handleToggleAll}
@@ -459,6 +464,7 @@ const Home = () => {
                 <div>Name</div>
                 <div>Owner</div>
                 <div>Size</div>
+                <div>ACL</div>
                 <div>Last Modified</div>
                 <div>Actions</div>
               </div>
@@ -474,7 +480,7 @@ const Home = () => {
                     ? folders.map((folder) => (
                         <div
                           key={folder}
-                          className="grid text-sm px-3  border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
+                          className="grid text-sm px-3  border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
                           onClick={() => {
                             navigateToFolder(folder, (newPrefix) => {
                               updateUrlParams(newPrefix);
@@ -510,6 +516,9 @@ const Home = () => {
                             <i>No Size</i>
                           </div>
                           <div>
+                            <i>No ACL</i>
+                          </div>
+                          <div>
                             <i>Undefined</i>
                           </div>
                           <div>
@@ -528,7 +537,7 @@ const Home = () => {
                     ? objects.map((object) => (
                         <div
                           key={object.ETag}
-                          className="grid text-sm px-3 border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 select-none"
+                          className="grid text-sm px-3 border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 select-none"
                         >
                           <Checkbox
                             state={
@@ -585,6 +594,17 @@ const Home = () => {
                             }
                           >
                             {formatBytes(object.Size)}
+                          </div>
+                          <div
+                            className="cursor-pointer"
+                            onClick={() =>
+                              router.push(
+                                `/object/${encodeURIComponent(object.Key)}`
+                              )
+                            }
+                          >
+                            {metadata?.find((m) => m.ETag === object.ETag)
+                              ?.Metadata?.Acl || "No ACL"}
                           </div>
                           <div
                             className="cursor-pointer"
