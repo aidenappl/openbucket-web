@@ -391,7 +391,6 @@ const Home = () => {
                         navigateToBreadcrumb(index, (newPrefix) => {
                           updateUrlParams(newPrefix);
                           clearSelection();
-                            loadBucketData(
                         });
                       }}
                     >
