@@ -3,10 +3,9 @@
 import Button from "@/components/Button";
 import Spinner from "@/components/Spinner";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
-import { fetchApi } from "@/tools/axios.tools";
 import { formatBytes } from "@/tools/formatBytes.tools";
 import { formatDate } from "@/tools/formatDate.tools";
-import { Grant, ObjectACLResponse, PresignResponse, S3Object } from "@/types";
+import { Grant, ObjectACLResponse } from "@/types";
 import {
   faChevronLeft,
   faEdit,
@@ -18,6 +17,14 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import Skeleton from "react-loading-skeleton";
 import { useSelector } from "react-redux";
+import {
+  reqDeleteObject,
+  reqFetchObjectACL,
+  reqFetchObjectHead,
+  reqFetchObjectPresign,
+  reqPutObjectACL,
+  reqPutRenameObject,
+} from "@/services/object.service";
 
 const ObjectPage = () => {
   const router = useRouter();
@@ -59,14 +66,7 @@ const ObjectPage = () => {
   const deleteObject = async () => {
     if (!sessionReady || !currentSession?.token) return;
 
-    const res = await fetchApi<{ success: boolean }>(
-      {
-        url: `/${currentSession?.bucket}/object`,
-        method: "DELETE",
-        params: { key: fullPath },
-      },
-      currentSession?.token
-    );
+    const res = await reqDeleteObject(fullPath);
     if (res.success) {
       console.log("Object deleted successfully");
       router.back(); // Redirect to the previous page after deletion
@@ -78,14 +78,7 @@ const ObjectPage = () => {
   const generatePresignedUrl = async (key: string) => {
     if (!currentSession?.token) return null;
 
-    const res = await fetchApi<PresignResponse>(
-      {
-        url: `/${currentSession?.bucket}/object/presign`,
-        method: "GET",
-        params: { key },
-      },
-      currentSession?.token
-    );
+    const res = await reqFetchObjectPresign(key);
     if (res.success) {
       return res.data;
     } else {
@@ -98,15 +91,7 @@ const ObjectPage = () => {
     async (key: string) => {
       if (!currentSession?.token) return null;
 
-      const res = await fetchApi<ObjectACLResponse>(
-        {
-          url: `/${currentSession?.bucket}/object/acl`,
-          method: "GET",
-          params: { key },
-        },
-        currentSession?.token
-      );
-
+      const res = await reqFetchObjectACL(key);
       if (res.success) {
         return res.data;
       } else {
@@ -114,7 +99,7 @@ const ObjectPage = () => {
         return null;
       }
     },
-    [currentSession?.token, currentSession?.bucket]
+    [currentSession]
   );
 
   const filterObjectACLs = useCallback(async (acls: Grant[] | null) => {
@@ -138,14 +123,7 @@ const ObjectPage = () => {
     const response = window.prompt("Enter new name for the object:");
     console.log("Rename response:", response);
     if (response && response.trim() !== "") {
-      const res = await fetchApi<{ success: boolean }>(
-        {
-          url: `/${currentSession?.bucket}/object/rename`,
-          method: "PUT",
-          params: { key: fullPath, newKey: response.trim() },
-        },
-        currentSession?.token
-      );
+      const res = await reqPutRenameObject(fullPath, response.trim());
       if (res.success) {
         console.log("Object renamed successfully");
         router.push(`/object/${encodeURIComponent(response.trim())}`);
@@ -163,17 +141,7 @@ const ObjectPage = () => {
     );
     console.log("Change public access response:", newAccess);
     if (newAccess && ["private", "public-read"].includes(newAccess)) {
-      const res = await fetchApi<{ success: boolean }>(
-        {
-          url: `/${currentSession?.bucket}/object/acl`,
-          method: "PUT",
-          params: { key: fullPath },
-          data: {
-            acl: newAccess.toLowerCase().trim(),
-          },
-        },
-        currentSession?.token
-      );
+      const res = await reqPutObjectACL(fullPath, newAccess.toUpperCase());
       if (res.success) {
         console.log("Public access changed successfully");
         // Refresh ACLs
@@ -194,14 +162,7 @@ const ObjectPage = () => {
 
     setIsLoading(true);
 
-    const res = await fetchApi<S3Object>(
-      {
-        url: `/${currentSession?.bucket}/object/head`,
-        method: "GET",
-        params: { key: fullPath },
-      },
-      currentSession?.token
-    );
+    const res = await reqFetchObjectHead(fullPath);
 
     if (res.success) {
       console.log("Object data:", res.data);

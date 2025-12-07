@@ -16,7 +16,6 @@ import {
   markCompleted,
   markError,
 } from "@/store/slices/uploadSlice";
-import { fetchApi } from "@/tools/axios.tools";
 import {
   getCurrentSessionBucket,
   getSessionTokens,
@@ -54,6 +53,12 @@ import { useViewFormat } from "@/hooks/useViewFormat";
 import FullscreenDropZone from "@/components/FullscreenDropZone";
 import DeleteConfirmationModal from "@/components/DeleteConfirmationModal";
 import toast from "react-hot-toast";
+import {
+  reqDeleteObject,
+  reqPutObjectWithProgress,
+} from "@/services/object.service";
+import { reqFetchSession } from "@/services/session.service";
+import { reqDeleteFolder } from "@/services/folder.service";
 
 const Home = () => {
   const dispatch = useDispatch();
@@ -98,11 +103,7 @@ const Home = () => {
         const tokens = getSessionTokens();
         if (tokens.length > 0) {
           // Fetch session data from API
-          const response = await fetchApi<Session[]>({
-            url: "/sessions",
-            method: "PUT",
-            data: { sessions: tokens },
-          });
+          const response = await reqFetchSession(tokens);
 
           if (response.success) {
             // Set sessions in Redux
@@ -253,31 +254,17 @@ const Home = () => {
       // Delete folders and objects without confirmation prompts
       const deletePromises = [
         ...selectedFolders.map(async (folder) => {
-          const response = await fetchApi(
-            {
-              url: `/${currentSession.bucket}/folder`,
-              method: "DELETE",
-              params: { folder },
-            },
-            currentSession.token
-          );
+          const response = await reqDeleteFolder(folder);
           return response.success;
         }),
         ...selectedObjectKeys.map(async (objectKey) => {
-          const response = await fetchApi(
-            {
-              url: `/${currentSession.bucket}/object`,
-              method: "DELETE",
-              params: { key: objectKey },
-            },
-            currentSession.token
-          );
+          const response = await reqDeleteObject(objectKey);
           return response.success;
         }),
       ];
 
       const results = await Promise.all(deletePromises);
-      const allSuccessful = results.every((result) => result);
+      const allSuccessful = results.every((result: boolean) => result);
 
       if (allSuccessful) {
         toast.success(
@@ -316,29 +303,13 @@ const Home = () => {
       })
     );
 
-    const formData = new FormData();
-    formData.append("file", file);
-
-    // Use the current prefix for uploading to the current folder
-    if (prefix) {
-      formData.append("prefix", prefix);
-    }
-
-    fetchApi(
-      {
-        url: `/${currentSession.bucket}/object`,
-        method: "PUT",
-        data: formData,
-        onUploadProgress: (event) => {
-          const progress = Math.round(
-            (event.loaded * 100) / (event?.total || 1)
-          );
-          dispatch(updateProgress({ id, progress }));
-        },
-        headers: { "Content-Type": "multipart/form-data" },
+    reqPutObjectWithProgress({
+      file,
+      prefix,
+      onUploadProgress: (progress) => {
+        dispatch(updateProgress({ id, progress }));
       },
-      currentSession.token
-    ).then((response) => {
+    }).then((response) => {
       if (response.success) {
         dispatch(markCompleted({ id }));
         // Refresh the current folder

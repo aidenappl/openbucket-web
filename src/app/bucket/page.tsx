@@ -2,7 +2,6 @@
 
 import Button from "@/components/Button";
 import Input from "@/components/Input";
-import { fetchApi } from "@/tools/axios.tools";
 import {
   getSessionTokens,
   removeSessionToken,
@@ -16,10 +15,7 @@ import { useDispatch } from "react-redux";
 import { addSession, setActiveSession } from "@/store/slices/sessionSlice";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-
-type SessionResponse = {
-  token: string;
-};
+import { reqPostSession, reqPutSession } from "@/services/session.service";
 
 const Bucket = () => {
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -82,11 +78,7 @@ const Bucket = () => {
     removeSession(editingSession);
 
     // Create new session with updated data
-    const response = await fetchApi<SessionResponse>({
-      url: "/session",
-      method: "POST",
-      data: editFields,
-    });
+    const response = await reqPostSession(editFields);
 
     if (response.success) {
       toast.success("Bucket updated successfully!");
@@ -140,12 +132,7 @@ const Bucket = () => {
       return;
     }
 
-    const response = await fetchApi<SessionResponse>({
-      url: "/session",
-      method: "POST",
-      data: fields,
-    });
-
+    const response = await reqPostSession(fields);
     if (response.success) {
       toast.success("Bucket created successfully!");
       if (response.data.token) {
@@ -184,11 +171,7 @@ const Bucket = () => {
 
   const fetchSessions = async () => {
     const tokens = getSessionTokens();
-    const response = await fetchApi<Session[]>({
-      url: "/sessions",
-      method: "PUT",
-      data: { sessions: tokens },
-    });
+    const response = await reqPutSession(tokens);
     if (response.success) {
       setSessions(response.data);
     } else {

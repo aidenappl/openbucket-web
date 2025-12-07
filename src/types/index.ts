@@ -1,43 +1,3 @@
-// S3 Object
-interface S3Object {
-  AcceptRanges?: string;
-  Body?: object;
-  BucketKeyEnabled?: boolean | null;
-  CacheControl?: string | null;
-  ChecksumCRC32?: string | null;
-  ChecksumCRC32C?: string | null;
-  ChecksumSHA1?: string | null;
-  ChecksumSHA256?: string | null;
-  ContentDisposition?: string | null;
-  ContentEncoding?: string | null;
-  ContentLanguage?: string | null;
-  ContentLength?: number;
-  ContentRange?: string | null;
-  ContentType?: string | null;
-  DeleteMarker?: boolean | null;
-  ETag?: string;
-  Expiration?: string | null;
-  Expires?: string | null;
-  LastModified?: string;
-  Metadata?: { [key: string]: string } | null;
-  MissingMeta?: number | null;
-  ObjectLockLegalHoldStatus?: string | null;
-  ObjectLockMode?: string | null;
-  ObjectLockRetainUntilDate?: string | null;
-  PartsCount?: number | null;
-  ReplicationStatus?: string | null;
-  RequestCharged?: string | null;
-  Restore?: string | null;
-  SSECustomerAlgorithm?: string | null;
-  SSECustomerKeyMD5?: string | null;
-  SSEKMSKeyId?: string | null;
-  ServerSideEncryption?: string | null;
-  StorageClass?: string | null;
-  TagCount?: number | null;
-  VersionId?: string | null;
-  WebsiteRedirectLocation?: string | null;
-}
-
 type S3ObjectMetadata = {
   ChecksumAlgorithm: string | null;
   ETag: string;
@@ -74,6 +34,10 @@ interface Grantee {
   EmailAddress?: string;
 }
 
+type SessionResponse = {
+  token: string;
+};
+
 interface PresignResponse {
   url: string;
   expires_in: string;
@@ -105,6 +69,47 @@ type Session = {
   exp: number;
 };
 
+type ObjectHead = {
+  AcceptRanges?: string;
+  ArchiveStatus?: string;
+  BucketKeyEnabled?: boolean;
+  CacheControl?: string;
+  ChecksumCRC32?: string;
+  ChecksumCRC32C?: string;
+  ChecksumSHA1?: string;
+  ChecksumSHA256?: string;
+  ContentDisposition?: string;
+  ContentEncoding?: string;
+  ContentLanguage?: string;
+  ContentLength: number;
+  ContentType: string;
+  DeleteMarker?: boolean;
+  ETag: string;
+  Expiration?: string;
+  Expires?: string;
+  LastModified: string;
+  Metadata: Metadata;
+  MissingMeta?: number;
+  ObjectLockLegalHoldStatus?: string;
+  ObjectLockMode?: string;
+  ObjectLockRetainUntilDate?: string;
+  PartsCount?: number;
+  ReplicationStatus?: string;
+  RequestCharged?: string;
+  Restore?: string;
+  SSECustomerAlgorithm?: string;
+  SSECustomerKeyMD5?: string;
+  SSEKMSKeyId?: string;
+  ServerSideEncryption?: string;
+  StorageClass?: string;
+  VersionId?: string;
+  WebsiteRedirectLocation?: string;
+}
+
+type Metadata = {
+  [key: string]: string;
+};
+
 type UploadStatus = "uploading" | "success" | "error";
 
 type UploadItem = {
@@ -130,7 +135,6 @@ interface SessionState {
 type ApiResponse<T> = ApiSuccess<T> | ApiError;
 
 export type {
-  S3Object,
   ApiResponse,
   PresignResponse,
   S3ObjectList,
@@ -138,7 +142,9 @@ export type {
   ObjectACLResponse,
   UploadItem,
   UploadState,
+  SessionResponse,
   Session,
+  ObjectHead,
   Grant,
   SessionState,
   UploadStatus,
