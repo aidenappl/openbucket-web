@@ -1,9 +1,10 @@
 import { useCallback } from 'react';
-import { fetchApi } from '@/tools/axios.tools';
 import toast from 'react-hot-toast';
+import { reqDeleteFolder, reqPostFolder } from '@/services/folder.service';
+import { reqDeleteObject } from '@/services/object.service';
 
 export const useBucketActions = () => {
-    const deleteFolder = useCallback(async (bucket: string, folderPath: string, token: string): Promise<boolean> => {
+    const deleteFolder = useCallback(async (folderPath: string): Promise<boolean> => {
         const confirmDelete = confirm(
             `Are you sure you want to delete the folder "${folderPath}"? This action cannot be undone.`
         );
@@ -11,14 +12,7 @@ export const useBucketActions = () => {
             return false;
         }
 
-        const response = await fetchApi(
-            {
-                url: `/${bucket}/folder`,
-                method: "DELETE",
-                params: { folder: folderPath },
-            },
-            token
-        );
+        const response = await reqDeleteFolder(folderPath);
 
         if (response.success) {
             return true;
@@ -29,7 +23,7 @@ export const useBucketActions = () => {
         }
     }, []);
 
-    const deleteObject = useCallback(async (bucket: string, objectKey: string, token: string): Promise<boolean> => {
+    const deleteObject = useCallback(async (objectKey: string): Promise<boolean> => {
         const confirmDelete = confirm(
             `Are you sure you want to delete the object "${objectKey}"? This action cannot be undone.`
         );
@@ -37,14 +31,7 @@ export const useBucketActions = () => {
             return false;
         }
 
-        const response = await fetchApi(
-            {
-                url: `/${bucket}/object`,
-                method: "DELETE",
-                params: { key: objectKey },
-            },
-            token
-        );
+        const response = await reqDeleteObject(objectKey);
 
         if (response.success) {
             return true;
@@ -55,21 +42,13 @@ export const useBucketActions = () => {
         }
     }, []);
 
-    const createFolder = useCallback(async (bucket: string, folderName: string, token: string): Promise<boolean> => {
+    const createFolder = useCallback(async (folderName: string): Promise<boolean> => {
         if (folderName.trim() === "") {
             toast.error("Folder name cannot be empty.");
             return false;
         }
 
-        const response = await fetchApi(
-            {
-                url: `/${bucket}/folder`,
-                method: "POST",
-                data: { folder: folderName },
-            },
-            token
-        );
-
+        const response = await reqPostFolder(folderName);
         if (response.success) {
             return true;
         } else {
@@ -80,10 +59,8 @@ export const useBucketActions = () => {
     }, []);
 
     const deleteBulkItems = useCallback(async (
-        bucket: string,
         folders: string[],
         objects: string[],
-        token: string,
         onRefresh?: () => void
     ) => {
         if (folders.length === 0 && objects.length === 0) {
@@ -92,8 +69,8 @@ export const useBucketActions = () => {
         }
 
         const deletePromises = [
-            ...folders.map(folder => deleteFolder(bucket, folder, token)),
-            ...objects.map(object => deleteObject(bucket, object, token))
+            ...folders.map(folder => deleteFolder(folder)),
+            ...objects.map(object => deleteObject(object))
         ];
 
         try {

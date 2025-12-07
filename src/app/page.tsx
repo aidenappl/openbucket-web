@@ -16,17 +16,7 @@ import {
   markCompleted,
   markError,
 } from "@/store/slices/uploadSlice";
-import {
-  getCurrentSessionBucket,
-  getSessionTokens,
-  parseSessionKey,
-} from "@/tools/sessionStore.tools";
-import {
-  selectCurrentSession,
-  setSessions,
-  setActiveSession,
-} from "@/store/slices/sessionSlice";
-import { Session } from "@/types";
+import { selectCurrentSession } from "@/store/slices/sessionSlice";
 import {
   faArrowUpRight,
   faChevronRight,
@@ -57,7 +47,6 @@ import {
   reqDeleteObject,
   reqPutObjectWithProgress,
 } from "@/services/object.service";
-import { reqFetchSession } from "@/services/session.service";
 import { reqDeleteFolder } from "@/services/folder.service";
 
 const Home = () => {
@@ -95,46 +84,6 @@ const Home = () => {
   } = useSelection();
   const { createFolder } = useBucketActions();
 
-  // Initialize sessions from localStorage on app start
-  useEffect(() => {
-    const initializeSessions = async () => {
-      try {
-        // Get all stored session tokens
-        const tokens = getSessionTokens();
-        if (tokens.length > 0) {
-          // Fetch session data from API
-          const response = await reqFetchSession(tokens);
-
-          if (response.success) {
-            // Set sessions in Redux
-            dispatch(setSessions(response.data));
-
-            // Check if there's a saved current session
-            const savedSessionKey = getCurrentSessionBucket();
-            if (savedSessionKey) {
-              const parsed = parseSessionKey(savedSessionKey);
-              if (parsed) {
-                // Find and set the active session
-                const savedSession = response.data.find(
-                  (session: Session) =>
-                    session.endpoint === parsed.endpoint &&
-                    session.bucket === parsed.bucket
-                );
-                if (savedSession) {
-                  dispatch(setActiveSession(savedSession));
-                }
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Failed to initialize sessions:", error);
-      }
-    };
-
-    initializeSessions();
-  }, [dispatch]); // Include dispatch in dependencies
-
   // URL parameter management
   const updateUrlParams = useCallback(
     (folderPath: string) => {
@@ -153,7 +102,6 @@ const Home = () => {
   useEffect(() => {
     const folderParam = searchParams.get("folder");
     if (currentSession?.bucket && currentSession?.token) {
-      console.log("Loading folder from URL param:", folderParam);
       if (folderParam) {
         setFromPath(folderParam, (newPrefix) => {
           loadBucketData(
@@ -194,11 +142,7 @@ const Home = () => {
   const handleCreateFolder = async () => {
     const folderName = prompt("Enter folder name:");
     if (folderName && currentSession?.bucket && currentSession?.token) {
-      const success = await createFolder(
-        currentSession.bucket,
-        folderName,
-        currentSession.token
-      );
+      const success = await createFolder(folderName);
       if (success) {
         loadBucketData(currentSession.bucket, prefix, currentSession.token);
       }

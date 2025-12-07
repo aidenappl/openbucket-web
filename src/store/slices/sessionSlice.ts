@@ -89,5 +89,8 @@ const sessionSlice = createSlice({
 export const selectCurrentSession = (state: RootState) =>
   state.session.currentSession;
 
+export const selectAllSessions = (state: RootState) =>
+  state.session.sessions;
+
 export const { addSession, removeSession, setActiveSession, setSessions } = sessionSlice.actions;
 export default sessionSlice.reducer;

@@ -27,7 +27,20 @@ const reqFetchFolders = async (prefix: string): Promise<ApiResponse<string[]>> =
     );
 }
 
+const reqPostFolder = async (folderKey: string): Promise<ApiResponse<null>> => {
+    const currentSession = selectCurrentSession(store.getState());
+    return await fetchApi(
+        {
+            url: `/${currentSession?.bucket}/folder`,
+            method: "POST",
+            data: { folder: folderKey },
+        },
+        currentSession?.token
+    );
+};
+
 export {
     reqDeleteFolder,
+    reqPostFolder,
     reqFetchFolders
 };
