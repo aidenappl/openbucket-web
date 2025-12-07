@@ -5,7 +5,7 @@ import Spinner from "@/components/Spinner";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
 import { formatBytes } from "@/tools/formatBytes.tools";
 import { formatDate } from "@/tools/formatDate.tools";
-import { Grant, ObjectACLResponse } from "@/types";
+import { Grant, ObjectACLResponse, ObjectHead } from "@/types";
 import {
   faChevronLeft,
   faEdit,
@@ -28,7 +28,7 @@ import {
 
 const ObjectPage = () => {
   const router = useRouter();
-  const [object, setObject] = useState<S3Object | null>(null);
+  const [object, setObject] = useState<ObjectHead | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sessionReady, setSessionReady] = useState(false);
   const [initialSessionBucket, setInitialSessionBucket] = useState<
