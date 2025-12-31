@@ -186,7 +186,6 @@ const ObjectPage = () => {
   }, [
     sessionReady,
     currentSession?.token,
-    currentSession?.bucket,
     fullPath,
     router,
     filterObjectACLs,
