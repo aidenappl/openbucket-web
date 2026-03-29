@@ -1,10 +1,10 @@
 import { fetchApi } from "@/tools/axios.tools";
 import { ApiResponse } from "@/types";
-import { store } from "@/store/store";
+import { getStore } from "@/store/StoreProvider";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
 
 const reqDeleteFolder = async (folderKey: string): Promise<ApiResponse<null>> => {
-    const currentSession = selectCurrentSession(store.getState());
+    const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<null>(
         {
             url: `/${currentSession?.bucket}/folder`,
@@ -16,7 +16,7 @@ const reqDeleteFolder = async (folderKey: string): Promise<ApiResponse<null>> =>
 };
 
 const reqFetchFolders = async (prefix: string): Promise<ApiResponse<string[]>> => {
-    const currentSession = selectCurrentSession(store.getState());
+    const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<string[]>(
         {
             url: `/${currentSession?.bucket}/folders`,
@@ -28,7 +28,7 @@ const reqFetchFolders = async (prefix: string): Promise<ApiResponse<string[]>> =
 }
 
 const reqPostFolder = async (folderKey: string): Promise<ApiResponse<null>> => {
-    const currentSession = selectCurrentSession(store.getState());
+    const currentSession = selectCurrentSession(getStore().getState());
     return await fetchApi(
         {
             url: `/${currentSession?.bucket}/folder`,

@@ -1,6 +1,6 @@
 import { SessionState, Session } from "@/types";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { RootState } from "../store";
+import { RootState } from "../index";
 import {
   storeSessionToken,
   removeSessionToken,

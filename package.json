@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "dev:ssl": "node server.js",
     "start": "next start",
     "lint": "next lint"
   },

@@ -6,8 +6,7 @@ import Footer from "@/components/Footer";
 import "@fortawesome/fontawesome-svg-core/styles.css";
 import "react-loading-skeleton/dist/skeleton.css";
 import { config } from "@fortawesome/fontawesome-svg-core";
-import { Provider, useDispatch } from "react-redux";
-import { store } from "@/store/store";
+import { useDispatch } from "react-redux";
 import ClientOnly from "@/components/ClientOnly";
 import { Toaster } from "react-hot-toast";
 import { useEffect, useState } from "react";
@@ -19,6 +18,7 @@ import {
 import { setSessions, setActiveSession } from "@/store/slices/sessionSlice";
 import { reqFetchSession } from "@/services/session.service";
 import { Session } from "@/types";
+import StoreProvider from "@/store/StoreProvider";
 
 config.autoAddCss = false;
 
@@ -48,7 +48,7 @@ function SessionInitializer() {
                 const savedSession = response.data.find(
                   (session: Session) =>
                     session.endpoint === parsed.endpoint &&
-                    session.bucket === parsed.bucket
+                    session.bucket === parsed.bucket,
                 );
                 if (savedSession) {
                   dispatch(setActiveSession(savedSession));
@@ -86,7 +86,7 @@ export default function RootLayout({
         <title>OpenBucket - Appleby Cloud</title>
       </head>
       <body className="bg-[var(--background)]" suppressHydrationWarning={true}>
-        <Provider store={store}>
+        <StoreProvider>
           {mounted && (
             <>
               <SessionInitializer />
@@ -98,7 +98,7 @@ export default function RootLayout({
               <Footer />
             </>
           )}
-        </Provider>
+        </StoreProvider>
       </body>
     </html>
   );

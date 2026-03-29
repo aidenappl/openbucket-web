@@ -1,10 +1,10 @@
 import { fetchApi } from "@/tools/axios.tools";
 import { ApiResponse, ObjectHead } from "@/types";
-import { store } from "@/store/store";
+import { getStore } from "@/store/StoreProvider";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
 
 const reqFetchBucketHead = async (): Promise<ApiResponse<ObjectHead>> => {
-    const currentSession = selectCurrentSession(store.getState());
+    const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<ObjectHead>(
         {
             url: `/${currentSession?.bucket}/head`,

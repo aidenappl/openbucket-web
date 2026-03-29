@@ -1,3 +1,5 @@
+export * from "./user.types";
+
 type S3ObjectMetadata = {
   ChecksumAlgorithm: string | null;
   ETag: string;
