@@ -9,6 +9,7 @@ const axios_api = axios.create({
   },
   validateStatus: () => true,
   timeout: 10000,
+  withCredentials: true,
 });
 
 const fetch = axios.create({
@@ -62,4 +63,13 @@ const fetchApi = async <T>(
   }
 };
 
-export { fetchApi, fetch };
+const fetchRaw = async <T>(config: AxiosRequestConfig): Promise<T | null> => {
+  try {
+    const response = await axios_api.request(config);
+    return response.data as T;
+  } catch {
+    return null;
+  }
+};
+
+export { fetchApi, fetch, fetchRaw };

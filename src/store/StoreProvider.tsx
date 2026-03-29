@@ -2,10 +2,9 @@
 
 import { Provider } from "react-redux";
 import { makeStore, AppStore } from "./index";
-import Cookies from "js-cookie";
 import { setIsLoading, setIsLogged, setUser } from "./slices/authSlice";
 import { useEffect } from "react";
-import { reqGetSelf } from "@/services/auth.service";
+import { reqFortaCheck } from "@/services/auth.service";
 
 interface StoreProviderProps {
   children: React.ReactNode;
@@ -20,22 +19,14 @@ export const getStore = () => {
   return store;
 };
 
-const getLoggedInCookie = () => {
-  return Cookies.get("logged_in") || null;
-};
-
 const StoreProvider = ({ children }: StoreProviderProps) => {
   const storeInstance = getStore();
 
   useEffect(() => {
-    if (getLoggedInCookie() !== "1") {
-      storeInstance.dispatch(setIsLoading(false));
-      return;
-    }
-    reqGetSelf().then((res) => {
-      if (res.success) {
+    reqFortaCheck().then((res) => {
+      if (res && res.authenticated && res.user) {
         storeInstance.dispatch(setIsLogged(true));
-        storeInstance.dispatch(setUser(res.data));
+        storeInstance.dispatch(setUser(res.user));
       }
       storeInstance.dispatch(setIsLoading(false));
     });

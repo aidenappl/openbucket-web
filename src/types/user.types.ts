@@ -24,3 +24,9 @@ export type User = {
 
 // Alias for API responses
 export type UserPublic = User;
+
+export interface AuthCheckResponse {
+    authenticated: boolean;
+    user?: User;
+    message?: string;
+}

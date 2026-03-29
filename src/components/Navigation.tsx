@@ -7,12 +7,21 @@ import {
   selectCurrentSession,
   selectAllSessions,
 } from "@/store/slices/sessionSlice";
+import {
+  selectIsLogged,
+  selectIsLoading,
+  selectUser,
+} from "@/store/slices/authSlice";
+import { fortaLogin, fortaLogout } from "@/services/auth.service";
 
 const Navigation = () => {
   const [dropdownItems, setDropdownItems] = useState<DropdownItem[]>([]);
   const dispatch = useDispatch();
   const currentSession = useSelector(selectCurrentSession);
   const sessions = useSelector(selectAllSessions);
+  const isLogged = useSelector(selectIsLogged);
+  const isLoading = useSelector(selectIsLoading);
+  const user = useSelector(selectUser);
 
   useEffect(() => {
     if (sessions && sessions.length > 0) {
@@ -39,26 +48,49 @@ const Navigation = () => {
             OpenBucket
           </span>
         </Link>
-        {dropdownItems.length > 0 && (
-          <div className="flex gap-4 items-center">
-            <Link
-              className="text-sm font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
-              href={"/"}
-            >
-              Explorer
-            </Link>
-            <Link
-              className="text-sm font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
-              href={"/bucket"}
-            >
-              Sessions
-            </Link>
-            <Dropdown
-              items={dropdownItems}
-              value={currentSession?.nickname || currentSession?.bucket}
-            />
-          </div>
-        )}
+        <div className="flex gap-4 items-center">
+          {dropdownItems.length > 0 && (
+            <>
+              <Link
+                className="text-sm font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+                href={"/"}
+              >
+                Explorer
+              </Link>
+              <Link
+                className="text-sm font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+                href={"/bucket"}
+              >
+                Sessions
+              </Link>
+              <Dropdown
+                items={dropdownItems}
+                value={currentSession?.nickname || currentSession?.bucket}
+              />
+            </>
+          )}
+          {!isLoading &&
+            (isLogged ? (
+              <>
+                <span className="text-sm font-medium text-slate-600">
+                  {user?.display_name || user?.email}
+                </span>
+                <button
+                  onClick={fortaLogout}
+                  className="text-sm font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={fortaLogin}
+                className="text-sm font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+              >
+                Sign in
+              </button>
+            ))}
+        </div>
       </div>
     </nav>
   );
