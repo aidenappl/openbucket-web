@@ -7,10 +7,9 @@ const reqFetchBucketHead = async (): Promise<ApiResponse<ObjectHead>> => {
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<ObjectHead>(
         {
-            url: `/core/v1/${currentSession?.bucket}/head`,
+            url: `/core/v1/${currentSession?.id}/head`,
             method: "GET",
-        },
-        currentSession?.token
+        }
     );
 };
 

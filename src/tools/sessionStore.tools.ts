@@ -1,58 +1,3 @@
-const storeSessionToken = (newToken: string) => {
-  // Only access localStorage on client side
-  if (typeof window === 'undefined') return;
-
-  const existing = localStorage.getItem("openbucket-sessions");
-
-  let sessions: string[] = [];
-  if (existing) {
-    try {
-      sessions = JSON.parse(existing).sessions || [];
-    } catch (e) {
-      console.warn("Could not parse sessions from localStorage:", e);
-    }
-  }
-
-  if (!sessions.includes(newToken)) {
-    sessions.push(newToken);
-  }
-
-  localStorage.setItem("openbucket-sessions", JSON.stringify({ sessions }));
-};
-
-const removeSessionToken = (tokenToRemove: string) => {
-  // Only access localStorage on client side
-  if (typeof window === 'undefined') return;
-
-  const existing = localStorage.getItem("openbucket-sessions");
-  if (existing) {
-    try {
-      let sessions = JSON.parse(existing).sessions || [];
-      sessions = sessions.filter((token: string) => token !== tokenToRemove);
-      localStorage.setItem("openbucket-sessions", JSON.stringify({ sessions }));
-    } catch (e) {
-      console.warn("Could not parse sessions from localStorage:", e);
-    }
-  }
-}
-
-const getSessionTokens = (): string[] => {
-  // Only access localStorage on client side
-  if (typeof window === 'undefined') return [];
-
-  const existing = localStorage.getItem("openbucket-sessions");
-  if (existing) {
-    try {
-      const sessions = JSON.parse(existing).sessions || [];
-      return Array.isArray(sessions) ? sessions : [];
-    } catch (e) {
-      console.warn("Could not parse sessions from localStorage:", e);
-      return [];
-    }
-  }
-  return [];
-};
-
 const CURRENT_SESSION_KEY = "openbucket-current-session";
 
 const getCurrentSessionBucket = (): string | null => {
@@ -103,4 +48,4 @@ const parseSessionKey = (sessionKey: string): { endpoint: string; bucket: string
   return null;
 };
 
-export { storeSessionToken, getSessionTokens, removeSessionToken, getCurrentSessionBucket, setCurrentSessionBucket, clearCurrentSessionBucket, getSessionKey, setCurrentSession, parseSessionKey };
+export { getCurrentSessionBucket, setCurrentSessionBucket, clearCurrentSessionBucket, getSessionKey, setCurrentSession, parseSessionKey };

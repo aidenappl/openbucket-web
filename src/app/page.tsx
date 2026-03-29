@@ -42,9 +42,11 @@ import { useBucketActions } from "@/hooks/useBucketActions";
 import { useViewFormat } from "@/hooks/useViewFormat";
 import FullscreenDropZone from "@/components/FullscreenDropZone";
 import DeleteConfirmationModal from "@/components/DeleteConfirmationModal";
+import Skeleton from "react-loading-skeleton";
 import toast from "react-hot-toast";
 import {
   reqDeleteObject,
+  reqFetchObjectPresign,
   reqPutObjectWithProgress,
 } from "@/services/object.service";
 import { reqDeleteFolder } from "@/services/folder.service";
@@ -59,9 +61,7 @@ const Home = () => {
   const [isFullscreenDragActive, setIsFullscreenDragActive] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [previousSessionBucket, setPreviousSessionBucket] = useState<
-    string | null
-  >(null);
+  const previousSessionIdRef = useRef<number | null>(null);
 
   // Custom hooks
   const { format, setFormat } = useViewFormat();
@@ -95,36 +95,27 @@ const Home = () => {
       }
       router.replace(`/?${params.toString()}`, { scroll: false });
     },
-    [router, searchParams]
+    [router, searchParams],
   );
 
   // Initialize from URL params (only on initial load or when URL changes)
   useEffect(() => {
     const folderParam = searchParams.get("folder");
-    if (currentSession?.bucket && currentSession?.token) {
+    if (currentSession?.bucket) {
       if (folderParam) {
         setFromPath(folderParam, (newPrefix) => {
-          loadBucketData(
-            currentSession.bucket,
-            newPrefix,
-            currentSession.token
-          );
+          loadBucketData(currentSession.bucket, newPrefix);
         });
       } else {
-        // No folder param, so we're at root
         resetToRoot((newPrefix) => {
-          loadBucketData(
-            currentSession.bucket,
-            newPrefix,
-            currentSession.token
-          );
+          loadBucketData(currentSession.bucket, newPrefix);
         });
       }
     }
   }, [
     searchParams,
+    currentSession?.id,
     currentSession?.bucket,
-    currentSession?.token,
     setFromPath,
     loadBucketData,
     resetToRoot,
@@ -132,7 +123,7 @@ const Home = () => {
 
   // Get all items for selection (need to separate folder and object keys)
   const folderKeys = folders || [];
-  const objectKeys = (objects || []).map((obj) => obj.ETag);
+  const objectKeys = (objects || []).map((obj) => obj.Key);
   const allKeys = [...folderKeys, ...objectKeys];
   const { selectedCount, masterCheckboxState } = getSelectionStats(allKeys);
 
@@ -146,10 +137,10 @@ const Home = () => {
   // Handle create folder
   const handleCreateFolder = async () => {
     const folderName = prompt("Enter folder name:");
-    if (folderName && currentSession?.bucket && currentSession?.token) {
+    if (folderName && currentSession?.bucket) {
       const success = await createFolder(folderName);
       if (success) {
-        loadBucketData(currentSession.bucket, prefix, currentSession.token);
+        loadBucketData(currentSession.bucket, prefix);
       }
     }
   };
@@ -157,42 +148,45 @@ const Home = () => {
   // Get display names for selected items
   const getSelectedDisplayNames = (): string[] => {
     const selectedFolders = getSelectedItems(folderKeys);
-    const selectedObjectETags = getSelectedItems(objectKeys);
+    const selectedObjectKeys = getSelectedItems(objectKeys);
 
-    // Map ETags back to actual filenames
-    const selectedObjectNames = selectedObjectETags.map((etag) => {
-      const obj = objects?.find((o) => o.ETag === etag);
-      return obj?.Key || etag; // fallback to etag if not found
-    });
+    return [...selectedFolders, ...selectedObjectKeys];
+  };
 
-    return [...selectedFolders, ...selectedObjectNames];
+  // Handle download selected objects
+  const handleDownload = async () => {
+    if (!currentSession?.bucket || selectedCount === 0) return;
+    const selectedObjectKeys = getSelectedItems(objectKeys);
+    if (selectedObjectKeys.length === 0) return;
+
+    for (const key of selectedObjectKeys) {
+      const res = await reqFetchObjectPresign(key);
+      if (res.success && res.data?.url) {
+        const a = document.createElement("a");
+        a.href = res.data.url;
+        a.download = key.split("/").pop() || key;
+        a.rel = "noopener noreferrer";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    }
   };
 
   // Handle bulk delete - show confirmation modal
   const handleBulkDelete = () => {
-    if (
-      !currentSession?.bucket ||
-      !currentSession?.token ||
-      selectedCount === 0
-    )
-      return;
+    if (!currentSession?.bucket || selectedCount === 0) return;
     setIsDeleteModalOpen(true);
   };
 
   // Handle confirmed deletion
   const handleConfirmDelete = async () => {
-    if (!currentSession?.bucket || !currentSession?.token) return;
+    if (!currentSession?.bucket) return;
 
     setIsDeleting(true);
 
     const selectedFolders = getSelectedItems(folderKeys);
-    const selectedObjectETags = getSelectedItems(objectKeys);
-
-    // Map ETags back to actual object keys for deletion
-    const selectedObjectKeys = selectedObjectETags.map((etag) => {
-      const obj = objects?.find((o) => o.ETag === etag);
-      return obj?.Key || etag; // fallback to etag if not found
-    });
+    const selectedObjectKeys = getSelectedItems(objectKeys);
 
     try {
       // Delete folders and objects without confirmation prompts
@@ -214,10 +208,10 @@ const Home = () => {
         toast.success(
           `Successfully deleted ${selectedCount} item${
             selectedCount === 1 ? "" : "s"
-          }`
+          }`,
         );
         clearSelection();
-        loadBucketData(currentSession.bucket, prefix, currentSession.token);
+        loadBucketData(currentSession.bucket, prefix);
       } else {
         toast.error("Some items failed to delete");
       }
@@ -232,7 +226,7 @@ const Home = () => {
 
   // Handle file upload
   const handleFileUpload = (file: File) => {
-    if (!currentSession?.bucket || !currentSession?.token) return;
+    if (!currentSession?.bucket) return;
 
     const id = uuidv4();
     const startedAt = Date.now();
@@ -244,7 +238,7 @@ const Home = () => {
         progress: 0,
         status: "uploading",
         startedAt,
-      })
+      }),
     );
 
     reqPutObjectWithProgress({
@@ -256,8 +250,7 @@ const Home = () => {
     }).then((response) => {
       if (response.success) {
         dispatch(markCompleted({ id }));
-        // Refresh the current folder
-        loadBucketData(currentSession.bucket, prefix, currentSession.token);
+        loadBucketData(currentSession.bucket, prefix);
       } else {
         dispatch(markError({ id, error: response.error }));
         console.error("Upload failed:", response);
@@ -274,24 +267,18 @@ const Home = () => {
 
   // Reset to root when session changes (but not on initial load)
   useEffect(() => {
-    if (currentSession?.bucket) {
-      // If this is a different session than before, reset to root
+    if (currentSession?.id != null) {
       if (
-        previousSessionBucket !== null &&
-        previousSessionBucket !== currentSession.bucket
+        previousSessionIdRef.current !== null &&
+        previousSessionIdRef.current !== currentSession.id
       ) {
         resetToRoot((newPrefix) => {
           updateUrlParams(newPrefix);
         });
       }
-      setPreviousSessionBucket(currentSession.bucket);
+      previousSessionIdRef.current = currentSession.id;
     }
-  }, [
-    currentSession?.bucket,
-    resetToRoot,
-    updateUrlParams,
-    previousSessionBucket,
-  ]);
+  }, [currentSession?.id, resetToRoot, updateUrlParams]);
 
   // Loading states
   if (hasAPI === null) return <p>Loading...</p>;
@@ -401,13 +388,13 @@ const Home = () => {
                   {objects && objects.length > 0
                     ? objects.map((object) => (
                         <GridItem
-                          key={object.ETag}
+                          key={object.Key}
                           title={object.Key}
                           subtitle="x items"
                           icon={faFile}
                           onClick={() => {
                             window.location.href = `/object/${encodeURIComponent(
-                              object.Key
+                              object.Key,
                             )}`;
                           }}
                         />
@@ -430,6 +417,7 @@ const Home = () => {
                   variant="light"
                   active={selectedCount > 0}
                   faIcon={faDownload}
+                  onClick={handleDownload}
                 >
                   Download
                 </Button>
@@ -496,7 +484,7 @@ const Home = () => {
                               toggleObject(
                                 folder,
                                 event?.shiftKey || false,
-                                allKeys
+                                allKeys,
                               )
                             }
                           />
@@ -536,20 +524,20 @@ const Home = () => {
                   {objects && objects.length > 0
                     ? objects.map((object) => (
                         <div
-                          key={object.ETag}
+                          key={object.Key}
                           className="grid text-sm px-3 border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 select-none"
                         >
                           <Checkbox
                             state={
-                              selectedObjects[object.ETag]
+                              selectedObjects[object.Key]
                                 ? "checked"
                                 : "unchecked"
                             }
                             onToggle={(event) =>
                               toggleObject(
-                                object.ETag,
+                                object.Key,
                                 event?.shiftKey || false,
-                                allKeys
+                                allKeys,
                               )
                             }
                           />
@@ -557,7 +545,7 @@ const Home = () => {
                             className="flex gap-2 items-center line-clamp-1 pr-8 cursor-pointer"
                             onClick={() =>
                               router.push(
-                                `/object/${encodeURIComponent(object.Key)}`
+                                `/object/${encodeURIComponent(object.Key)}`,
                               )
                             }
                           >
@@ -577,7 +565,7 @@ const Home = () => {
                             className="cursor-pointer"
                             onClick={() =>
                               router.push(
-                                `/object/${encodeURIComponent(object.Key)}`
+                                `/object/${encodeURIComponent(object.Key)}`,
                               )
                             }
                           >
@@ -589,7 +577,7 @@ const Home = () => {
                             className="cursor-pointer"
                             onClick={() =>
                               router.push(
-                                `/object/${encodeURIComponent(object.Key)}`
+                                `/object/${encodeURIComponent(object.Key)}`,
                               )
                             }
                           >
@@ -599,18 +587,22 @@ const Home = () => {
                             className="cursor-pointer"
                             onClick={() =>
                               router.push(
-                                `/object/${encodeURIComponent(object.Key)}`
+                                `/object/${encodeURIComponent(object.Key)}`,
                               )
                             }
                           >
-                            {metadata?.find((m) => m.ETag === object.ETag)
-                              ?.Metadata?.Acl || "No ACL"}
+                            {metadata === null ? (
+                              <Skeleton width={60} />
+                            ) : (
+                              metadata?.find((m) => m.ETag === object.ETag)
+                                ?.Metadata?.Acl || "No ACL"
+                            )}
                           </div>
                           <div
                             className="cursor-pointer"
                             onClick={() =>
                               router.push(
-                                `/object/${encodeURIComponent(object.Key)}`
+                                `/object/${encodeURIComponent(object.Key)}`,
                               )
                             }
                           >
@@ -620,7 +612,7 @@ const Home = () => {
                             <Button
                               onClick={() => {
                                 router.push(
-                                  `/object/${encodeURIComponent(object.Key)}`
+                                  `/object/${encodeURIComponent(object.Key)}`,
                                 );
                               }}
                               variant="light"
@@ -670,7 +662,7 @@ const Home = () => {
         isActive={isFullscreenDragActive}
         onFileUpload={handleFileUpload}
         onDragStateChange={setIsFullscreenDragActive}
-        disabled={!currentSession?.bucket || !currentSession?.token}
+        disabled={!currentSession?.bucket}
       />
 
       {/* Delete Confirmation Modal */}

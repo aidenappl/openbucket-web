@@ -13,11 +13,7 @@ const axios_api = axios.create({
 });
 
 axios_api.interceptors.response.use((response) => {
-  if (
-    response.status === 401 &&
-    typeof window !== "undefined" &&
-    !response.config.url?.includes("/forta/check")
-  ) {
+  if (response.status === 401 && typeof window !== "undefined") {
     window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/forta/login`;
   }
   return response;
@@ -32,17 +28,9 @@ const fetch = axios.create({
 });
 
 const fetchApi = async <T>(
-  config: AxiosRequestConfig,
-  session: string | null = null
+  config: AxiosRequestConfig
 ): Promise<ApiResponse<T>> => {
   try {
-
-    if (session) {
-      config.headers = {
-        ...config.headers,
-        "Authorization": `Bearer ${session}`,
-      };
-    }
 
     const response = await axios_api.request(config);
 

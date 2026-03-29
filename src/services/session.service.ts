@@ -1,24 +1,15 @@
 import { fetchApi } from "@/tools/axios.tools";
-import { ApiResponse, Session, SessionResponse } from "@/types";
+import { ApiResponse, Session } from "@/types";
 
-const reqFetchSession = async (tokens: string[]): Promise<ApiResponse<Session[]>> => {
+const reqGetSessions = async (): Promise<ApiResponse<Session[]>> => {
     return fetchApi<Session[]>({
         url: "/core/v1/sessions",
-        method: "PUT",
-        data: { sessions: tokens },
+        method: "GET",
     });
 };
 
-const reqPutSession = async (tokens: string[]): Promise<ApiResponse<Session[]>> => {
-    return fetchApi<Session[]>({
-        url: "/core/v1/sessions",
-        method: "PUT",
-        data: { sessions: tokens },
-    });
-};
-
-const reqPostSession = async (data: Record<string, string>): Promise<ApiResponse<SessionResponse>> => {
-    return fetchApi<SessionResponse>({
+const reqPostSession = async (data: Record<string, string>): Promise<ApiResponse<Session>> => {
+    return fetchApi<Session>({
         url: "/core/v1/session",
         method: "POST",
         data,
@@ -26,7 +17,6 @@ const reqPostSession = async (data: Record<string, string>): Promise<ApiResponse
 };
 
 export {
-    reqFetchSession,
-    reqPutSession,
+    reqGetSessions,
     reqPostSession
 };

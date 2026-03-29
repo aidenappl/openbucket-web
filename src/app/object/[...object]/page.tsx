@@ -1,21 +1,16 @@
 "use client";
 
-import Button from "@/components/Button";
 import Spinner from "@/components/Spinner";
+import ChangeAccessModal from "@/components/ChangeAccessModal";
+import DeleteConfirmationModal from "@/components/DeleteConfirmationModal";
+import RenameModal from "@/components/RenameModal";
+import MoveObjectModal from "@/components/MoveObjectModal";
+import ObjectInspectPanel from "@/components/ObjectInspectPanel";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
-import { formatBytes } from "@/tools/formatBytes.tools";
-import { formatDate } from "@/tools/formatDate.tools";
 import { Grant, ObjectACLResponse, ObjectHead } from "@/types";
-import {
-  faChevronLeft,
-  faEdit,
-  faFile,
-} from "@fortawesome/pro-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useBreadcrumbs } from "@/hooks/useBreadcrumbs";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import Skeleton from "react-loading-skeleton";
 import { useSelector } from "react-redux";
 import {
   reqDeleteObject,
@@ -35,17 +30,26 @@ const ObjectPage = () => {
     string | null
   >(null);
   const [objectACL, setObjectACL] = useState<ObjectACLResponse | null>(null);
-  const [objectPublic, setObjectPublic] = useState<string | boolean>(false);
+  const [isChangeAccessOpen, setIsChangeAccessOpen] = useState(false);
+  const [isChangingAccess, setIsChangingAccess] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [isMoveOpen, setIsMoveOpen] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
   const params = useParams();
   const currentSession = useSelector(selectCurrentSession);
   const { getParentPath } = useBreadcrumbs();
   const fullPath = decodeURIComponent(
-    Array.isArray(params.object) ? params.object.join("/") : params.object ?? ""
+    Array.isArray(params.object)
+      ? params.object.join("/")
+      : (params.object ?? ""),
   );
 
   // Check if session is available and set initial session
   useEffect(() => {
-    if (currentSession?.token) {
+    if (currentSession) {
       setSessionReady(true);
       // Set initial session bucket if not already set
       if (initialSessionBucket === null && currentSession?.bucket) {
@@ -64,19 +68,20 @@ const ObjectPage = () => {
   };
 
   const deleteObject = async () => {
-    if (!sessionReady || !currentSession?.token) return;
-
+    if (!sessionReady || !currentSession?.bucket) return;
+    setIsDeleting(true);
     const res = await reqDeleteObject(fullPath);
     if (res.success) {
-      console.log("Object deleted successfully");
-      router.back(); // Redirect to the previous page after deletion
+      router.back();
     } else {
       console.error("Error deleting object:", res);
     }
+    setIsDeleting(false);
+    setIsDeleteModalOpen(false);
   };
 
   const generatePresignedUrl = async (key: string) => {
-    if (!currentSession?.token) return null;
+    if (!currentSession) return null;
 
     const res = await reqFetchObjectPresign(key);
     if (res.success) {
@@ -89,7 +94,7 @@ const ObjectPage = () => {
 
   const getObjectACL = useCallback(
     async (key: string) => {
-      if (!currentSession?.token) return null;
+      if (!currentSession) return null;
 
       const res = await reqFetchObjectACL(key);
       if (res.success) {
@@ -99,66 +104,65 @@ const ObjectPage = () => {
         return null;
       }
     },
-    [currentSession]
+    [currentSession],
   );
 
-  const filterObjectACLs = useCallback(async (acls: Grant[] | null) => {
-    if (!acls) return null;
-    const filtered = acls.filter(
+  const filterGrants = useCallback((grants: Grant[] | null) => {
+    if (!grants) return [];
+    return grants.filter(
       (grant) =>
-        grant.Grantee.URI !== "http://openbucket/groups/global/AllUsers"
+        grant.Grantee.URI !== "http://openbucket/groups/global/AllUsers",
     );
-    const publicACL = acls.find(
-      (grant) =>
-        grant.Grantee.URI === "http://openbucket/groups/global/AllUsers"
-    );
-
-    setObjectPublic(publicACL ? publicACL.Permission : "PRIVATE");
-    return filtered;
   }, []);
 
-  const renameObject = async () => {
-    if (!sessionReady || !currentSession?.token) return;
-
-    const response = window.prompt("Enter new name for the object:");
-    console.log("Rename response:", response);
-    if (response && response.trim() !== "") {
-      const res = await reqPutRenameObject(fullPath, response.trim());
-      if (res.success) {
-        console.log("Object renamed successfully");
-        router.push(`/object/${encodeURIComponent(response.trim())}`);
-      } else {
-        console.error("Error renaming object:", res);
-      }
+  const renameObject = async (newPath: string) => {
+    if (!sessionReady || !currentSession) return;
+    setIsRenaming(true);
+    const res = await reqPutRenameObject(fullPath, newPath);
+    if (res.success) {
+      router.push(`/object/${encodeURIComponent(newPath)}`);
+    } else {
+      console.error("Error renaming object:", res);
     }
+    setIsRenaming(false);
+    setIsRenameOpen(false);
   };
 
-  const changePublicAccess = async () => {
-    if (!sessionReady || !currentSession?.token) return;
+  const moveObject = async (newPath: string) => {
+    if (!sessionReady || !currentSession) return;
+    setIsMoving(true);
+    const res = await reqPutRenameObject(fullPath, newPath);
+    if (res.success) {
+      router.push(`/object/${encodeURIComponent(newPath)}`);
+    } else {
+      console.error("Error moving object:", res);
+    }
+    setIsMoving(false);
+    setIsMoveOpen(false);
+  };
 
-    const newAccess = window.prompt(
-      "Enter new public access (private, public-read):"
-    );
-    console.log("Change public access response:", newAccess);
-    if (newAccess && ["private", "public-read"].includes(newAccess)) {
-      const res = await reqPutObjectACL(fullPath, newAccess.toUpperCase());
-      if (res.success) {
-        console.log("Public access changed successfully");
-        // Refresh ACLs
-        const acl = await getObjectACL(fullPath);
-        if (acl) {
-          const filteredGrants = await filterObjectACLs(acl.Grants);
-          acl.Grants = filteredGrants || [];
-          setObjectACL(acl);
-        }
-      } else {
-        console.error("Error changing public access:", res);
+  const handleConfirmAccess = async (newAcl: string) => {
+    if (!sessionReady || !currentSession) return;
+    setIsChangingAccess(true);
+    const res = await reqPutObjectACL(fullPath, newAcl);
+    if (res.success) {
+      // Update local metadata so badge reflects change immediately
+      if (object) {
+        setObject({ ...object, Metadata: { ...object.Metadata, Acl: newAcl } });
+      }
+      // Refresh ACL grants
+      const acl = await getObjectACL(fullPath);
+      if (acl) {
+        acl.Grants = filterGrants(acl.Grants);
+        setObjectACL(acl);
       }
     }
+    setIsChangingAccess(false);
+    setIsChangeAccessOpen(false);
   };
 
   const initialize = useCallback(async () => {
-    if (!sessionReady || !currentSession?.token) return;
+    if (!sessionReady || !currentSession) return;
 
     setIsLoading(true);
 
@@ -177,18 +181,18 @@ const ObjectPage = () => {
 
     const acl = await getObjectACL(fullPath);
     if (acl) {
-      const filteredGrants = await filterObjectACLs(acl.Grants);
-      acl.Grants = filteredGrants || [];
+      const filteredGrants = filterGrants(acl.Grants);
+      acl.Grants = filteredGrants;
       setObjectACL(acl);
     }
 
     setIsLoading(false);
   }, [
     sessionReady,
-    currentSession?.token,
+    currentSession,
     fullPath,
     router,
-    filterObjectACLs,
+    filterGrants,
     getObjectACL,
   ]);
 
@@ -205,7 +209,7 @@ const ObjectPage = () => {
   }, [
     fullPath,
     sessionReady,
-    currentSession?.token,
+    currentSession,
     router,
     initialize,
     currentSession?.bucket,
@@ -224,137 +228,64 @@ const ObjectPage = () => {
   }, [currentSession?.bucket, initialSessionBucket, router]);
 
   // Show loading spinner while waiting for session
-  if (!sessionReady || !currentSession?.token) {
+  if (!sessionReady || !currentSession) {
     return (
-      <main className="w-full h-[calc(100vh-80px)]">
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-col bg-white w-full p-4 border border-gray-200 shadow-sm rounded-md">
-            <div className="flex items-center justify-center h-32">
-              <Spinner />
-              <span className="ml-2 text-slate-600">
-                Waiting for session...
-              </span>
-            </div>
-          </div>
-        </div>
+      <main className="w-full h-[calc(100vh-80px)] flex items-center justify-center gap-2 text-slate-500">
+        <Spinner />
+        <span className="text-sm">Waiting for session...</span>
       </main>
     );
   }
+
   return (
     <main className="w-full min-h-[calc(100vh-80px)] h-fit mb-10">
       <div className="flex flex-col gap-5">
-        <div className="flex flex-col bg-white w-full p-4 border border-gray-200 shadow-sm rounded-md">
-          {/* Object heading */}
-          <div className="flex justify-between border-b border-gray-200 pb-4 gap-10 items-center">
-            {/* Info Section */}
-            <div className="flex-1 min-w-0">
-              <a
-                className="flex items-center gap-1 text-sm font-medium text-slate-500 cursor-pointer hover:text-slate-900"
-                onClick={() => {
-                  const parentPath = getParentPath(fullPath);
-                  const url = parentPath
-                    ? `/?folder=${encodeURIComponent(parentPath)}`
-                    : "/";
-                  router.push(url);
-                }}
-              >
-                <FontAwesomeIcon icon={faChevronLeft} />
-                Back
-              </a>
-              <div className="flex gap-2 items-center mt-2">
-                <FontAwesomeIcon
-                  icon={faFile}
-                  className="text-slate-800 text-xl"
-                />
-                <h1 className="text-xl font-semibold line-clamp-1 truncate">
-                  {fullPath.split("/").pop()}
-                </h1>
-              </div>
-              <p className="text-slate-600 text-sm mt-0.5">
-                {object ? (
-                  <>Last Modified: {formatDate(object?.LastModified || "")}</>
-                ) : (
-                  <Skeleton width={300} />
-                )}
-              </p>
-            </div>
-
-            {/* Button Section */}
-            <div className="flex gap-2 shrink-0">
-              <Button onClick={() => changePublicAccess()} variant="light">
-                Change Public Access
-              </Button>
-              <Button onClick={() => viewObject()} variant="light">
-                Preview
-              </Button>
-              <Button onClick={() => deleteObject()} hoverVariant="danger">
-                Delete
-              </Button>
-            </div>
-          </div>
-
-          {/* Object Metadata & Content */}
-          <div className="pt-4">
-            {isLoading && (
-              <div className="flex items-center justify-center h-32">
-                <Spinner />
-                <span className="ml-2 text-slate-600">Loading object...</span>
-              </div>
-            )}
-            {!isLoading && !object && (
-              <div className="flex items-center justify-center h-32">
-                <span className="text-slate-600">Object not found</span>
-              </div>
-            )}
-            {!isLoading && object && (
-              <div className="flex flex-col ">
-                <p className="break-all">
-                  <strong>Full Path:</strong> {fullPath || "N/A"}
-                  <FontAwesomeIcon
-                    icon={faEdit}
-                    className="pl-2 text-slate-500 cursor-pointer hover:text-slate-900"
-                    onClick={renameObject}
-                  />
-                </p>
-                <p>
-                  <strong>Size:</strong>{" "}
-                  {formatBytes(object?.ContentLength || 0)}
-                </p>
-                <p>
-                  <strong>ETag:</strong>{" "}
-                  {object?.ETag!.replaceAll('"', "") || "N/A"}
-                </p>
-                <p>
-                  <strong>Owner:</strong> {objectACL?.Owner.DisplayName}{" "}
-                  <i>{objectACL?.Owner.ID}</i>
-                </p>
-                <p>
-                  <strong>Public Permission:</strong>
-                  <a className="ml-2 px-2 py-1 bg-blue-100 rounded-md font-semibold text-sm">
-                    {objectPublic}
-                  </a>
-                </p>
-                <strong>Grants:</strong>
-                {objectACL?.Grants.map((grant, index) => (
-                  <div
-                    key={"grant_" + index}
-                    className="bg-slate-100 w-fit py-2 px-4 rounded-md"
-                  >
-                    <p>
-                      <strong>Grantee:</strong>{" "}
-                      {grant.Grantee.DisplayName || grant.Grantee.URI}{" "}
-                    </p>
-                    <p>
-                      {" "}
-                      <strong>Permission:</strong> {grant.Permission}{" "}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <ObjectInspectPanel
+          object={object}
+          objectACL={objectACL}
+          fullPath={fullPath}
+          isLoading={isLoading}
+          onBack={() => {
+            const parentPath = getParentPath(fullPath);
+            router.push(
+              parentPath ? `/?folder=${encodeURIComponent(parentPath)}` : "/",
+            );
+          }}
+          onRename={() => setIsRenameOpen(true)}
+          onMove={() => setIsMoveOpen(true)}
+          onChangeAccess={() => setIsChangeAccessOpen(true)}
+          onPreview={viewObject}
+          onDelete={() => setIsDeleteModalOpen(true)}
+        />
       </div>
+      <ChangeAccessModal
+        isOpen={isChangeAccessOpen}
+        onClose={() => setIsChangeAccessOpen(false)}
+        onConfirm={handleConfirmAccess}
+        currentAcl={object?.Metadata?.Acl || "private"}
+        isLoading={isChangingAccess}
+      />
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={deleteObject}
+        items={[fullPath]}
+        isDeleting={isDeleting}
+      />
+      <RenameModal
+        isOpen={isRenameOpen}
+        onClose={() => setIsRenameOpen(false)}
+        onConfirm={renameObject}
+        currentPath={fullPath}
+        isLoading={isRenaming}
+      />
+      <MoveObjectModal
+        isOpen={isMoveOpen}
+        onClose={() => setIsMoveOpen(false)}
+        onConfirm={moveObject}
+        currentPath={fullPath}
+        isLoading={isMoving}
+      />
     </main>
   );
 };

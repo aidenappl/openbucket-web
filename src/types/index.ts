@@ -36,9 +36,7 @@ interface Grantee {
   EmailAddress?: string;
 }
 
-type SessionResponse = {
-  token: string;
-};
+
 
 interface PresignResponse {
   url: string;
@@ -63,12 +61,13 @@ type ApiError = {
 };
 
 type Session = {
+  id: number;
   bucket: string;
   nickname: string;
   region: string;
   endpoint: string;
-  token: string;
-  exp: number;
+  inserted_at: string;
+  updated_at: string;
 };
 
 type ObjectHead = {
@@ -131,6 +130,7 @@ interface UploadState {
 interface SessionState {
   sessions: Session[];
   currentSession: Session | null;
+  isInitialized: boolean;
 }
 
 // Union type for API responses
@@ -144,7 +144,6 @@ export type {
   ObjectACLResponse,
   UploadItem,
   UploadState,
-  SessionResponse,
   Session,
   ObjectHead,
   Grant,

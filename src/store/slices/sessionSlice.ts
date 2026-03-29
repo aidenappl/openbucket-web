@@ -2,14 +2,15 @@ import { SessionState, Session } from "@/types";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { RootState } from "../index";
 import {
-  storeSessionToken,
-  removeSessionToken,
   setCurrentSessionBucket,
   clearCurrentSessionBucket,
   getCurrentSessionBucket
-} from "@/tools/sessionStore.tools"; const initialState: SessionState = {
+} from "@/tools/sessionStore.tools";
+
+const initialState: SessionState = {
   sessions: [],
   currentSession: null,
+  isInitialized: false,
 };
 
 const sessionSlice = createSlice({
@@ -18,18 +19,17 @@ const sessionSlice = createSlice({
   reducers: {
     setActiveSession: (state, action: PayloadAction<Session>) => {
       state.currentSession = action.payload;
-      // Persist current session to localStorage using endpoint{bucket} format
       setCurrentSessionBucket(action.payload.endpoint, action.payload.bucket);
     },
     setSessions: (state, action: PayloadAction<Session[]>) => {
       state.sessions = action.payload;
+      state.isInitialized = true;
 
       // Try to restore previously selected session from localStorage
       let selectedSession = null;
       if (typeof window !== 'undefined') {
         const savedSessionKey = getCurrentSessionBucket();
         if (savedSessionKey && savedSessionKey.includes('{')) {
-          // Parse the endpoint{bucket} format
           const lastBraceIndex = savedSessionKey.lastIndexOf('{');
           const savedEndpoint = savedSessionKey.substring(0, lastBraceIndex);
           const savedBucket = savedSessionKey.substring(lastBraceIndex + 1, savedSessionKey.length - 1);
@@ -43,12 +43,7 @@ const sessionSlice = createSlice({
       // Fall back to first session if no saved session or saved session not found
       state.currentSession = selectedSession || (action.payload.length > 0 ? action.payload[0] : null);
 
-      // Only access localStorage on client side
       if (typeof window !== 'undefined') {
-        const tokens = action.payload.map((session) => session.token);
-        localStorage.setItem("openbucket-sessions", JSON.stringify({ "sessions": tokens }));
-
-        // Update current session in localStorage to match what we actually set
         if (state.currentSession) {
           setCurrentSessionBucket(state.currentSession.endpoint, state.currentSession.bucket);
         } else {
@@ -65,8 +60,6 @@ const sessionSlice = createSlice({
       } else {
         state.sessions.push(action.payload);
       }
-      // Store session token
-      storeSessionToken(action.payload.token);
       // Set as active session
       state.currentSession = action.payload;
       setCurrentSessionBucket(action.payload.endpoint, action.payload.bucket);
@@ -75,12 +68,14 @@ const sessionSlice = createSlice({
       state.sessions = state.sessions.filter(
         (session) => !(session.endpoint === action.payload.endpoint && session.bucket === action.payload.bucket)
       );
-      // Remove session token
-      removeSessionToken(action.payload.token);
       // Clear current session if it was the removed one
       if (state.currentSession?.endpoint === action.payload.endpoint && state.currentSession?.bucket === action.payload.bucket) {
-        state.currentSession = null;
-        clearCurrentSessionBucket();
+        state.currentSession = state.sessions[0] ?? null;
+        if (state.currentSession) {
+          setCurrentSessionBucket(state.currentSession.endpoint, state.currentSession.bucket);
+        } else {
+          clearCurrentSessionBucket();
+        }
       }
     },
   },
@@ -91,6 +86,9 @@ export const selectCurrentSession = (state: RootState) =>
 
 export const selectAllSessions = (state: RootState) =>
   state.session.sessions;
+
+export const selectSessionsInitialized = (state: RootState) =>
+  state.session.isInitialized;
 
 export const { addSession, removeSession, setActiveSession, setSessions } = sessionSlice.actions;
 export default sessionSlice.reducer;

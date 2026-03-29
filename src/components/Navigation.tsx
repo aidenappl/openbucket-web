@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import Dropdown, { DropdownItem } from "./Dropdown";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -14,7 +15,7 @@ import {
   setIsLogged,
   setUser,
 } from "@/store/slices/authSlice";
-import { fortaLogin } from "@/services/auth.service";
+import { fortaLogin, openBucketLogout } from "@/services/auth.service";
 
 const Navigation = () => {
   const [dropdownItems, setDropdownItems] = useState<DropdownItem[]>([]);
@@ -26,13 +27,13 @@ const Navigation = () => {
   const user = useSelector(selectUser);
 
   const handleLogout = () => {
-    dispatch(setIsLogged(false));
-    dispatch(setUser(null));
+    openBucketLogout();
   };
 
   useEffect(() => {
     if (sessions && sessions.length > 0) {
       const items = sessions.map((session) => ({
+        id: `${session.endpoint}{${session.bucket}}`,
         label: session.nickname || session.bucket,
         onClick: () => dispatch(setActiveSession(session)),
       }));
@@ -51,9 +52,14 @@ const Navigation = () => {
     <nav className="w-full h-[80px] bg-[var(--background)]">
       <div className="flex items-center justify-between h-full px-10 w-full">
         <Link href="/" className="flex items-center">
-          <span className="self-center text-3xl font-semibold whitespace-nowrap text-gray-800">
-            OpenBucket
-          </span>
+          <Image
+            src="/OpemBucket-Logo-Transparent-Dark.svg"
+            alt="OpenBucket"
+            width={52}
+            height={52}
+            priority
+          />
+          <span className="text-2xl font-bold text-gray-900">OpenBucket</span>
         </Link>
         <div className="flex gap-4 items-center">
           {dropdownItems.length > 0 && (
@@ -72,7 +78,11 @@ const Navigation = () => {
               </Link>
               <Dropdown
                 items={dropdownItems}
-                value={currentSession?.nickname || currentSession?.bucket}
+                value={
+                  currentSession
+                    ? `${currentSession.endpoint}{${currentSession.bucket}}`
+                    : undefined
+                }
               />
             </>
           )}

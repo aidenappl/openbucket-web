@@ -2,12 +2,7 @@
 
 import Button from "@/components/Button";
 import Input from "@/components/Input";
-import {
-  getSessionTokens,
-  removeSessionToken,
-  storeSessionToken,
-  setCurrentSessionBucket,
-} from "@/tools/sessionStore.tools";
+import { setCurrentSessionBucket } from "@/tools/sessionStore.tools";
 import { isValidUrl } from "@/tools/url.tools";
 import { Session } from "@/types";
 import { useEffect, useState } from "react";
@@ -15,7 +10,7 @@ import { useDispatch } from "react-redux";
 import { addSession, setActiveSession } from "@/store/slices/sessionSlice";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { reqPostSession, reqPutSession } from "@/services/session.service";
+import { reqPostSession, reqGetSessions } from "@/services/session.service";
 
 const Bucket = () => {
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -31,10 +26,9 @@ const Bucket = () => {
         !(
           s.endpoint === sessionToRemove.endpoint &&
           s.bucket === sessionToRemove.bucket
-        )
+        ),
     );
     setSessions(updatedSessions);
-    removeSessionToken(sessionToRemove.token);
   };
 
   const editSession = (sessionToEdit: Session) => {
@@ -82,35 +76,21 @@ const Bucket = () => {
 
     if (response.success) {
       toast.success("Bucket updated successfully!");
-      if (response.data.token) {
-        // Store in localStorage
-        storeSessionToken(response.data.token);
 
-        // Create session object
-        const updatedSession: Session = {
-          bucket: editFields.bucket,
-          nickname: editFields.nickname || editFields.bucket,
-          region: editFields.region,
-          endpoint: editFields.endpoint,
-          token: response.data.token,
-          exp: Date.now() + 7 * 24 * 60 * 60 * 1000,
-        };
+      // Add to Redux store
+      dispatch(addSession(response.data));
 
-        // Add to Redux store
-        dispatch(addSession(updatedSession));
+      // If this was the active session, set the updated one as active
+      dispatch(setActiveSession(response.data));
 
-        // If this was the active session, set the updated one as active
-        dispatch(setActiveSession(updatedSession));
+      // Refresh sessions list
+      fetchSessions();
 
-        // Refresh sessions list
-        fetchSessions();
-
-        // Close modal
-        closeEditModal();
-      }
+      // Close modal
+      closeEditModal();
     } else {
       toast.error(
-        `Error: ${response.error_message || "Failed to update bucket"}`
+        `Error: ${response.error_message || "Failed to update bucket"}`,
       );
     }
   };
@@ -135,50 +115,35 @@ const Bucket = () => {
     const response = await reqPostSession(fields);
     if (response.success) {
       toast.success("Bucket created successfully!");
-      if (response.data.token) {
-        // Store in localStorage
-        storeSessionToken(response.data.token);
 
-        // Create session object
-        const newSession: Session = {
-          bucket: fields.bucket,
-          nickname: fields.nickname || fields.bucket,
-          region: fields.region,
-          endpoint: fields.endpoint,
-          token: response.data.token,
-          exp: Date.now() + 7 * 24 * 60 * 60 * 1000, // Default 7 days from now
-        };
+      // Add to Redux store
+      dispatch(addSession(response.data));
 
-        // Add to Redux store
-        dispatch(addSession(newSession));
+      // Set as active session and persist to localStorage
+      dispatch(setActiveSession(response.data));
+      setCurrentSessionBucket(response.data.endpoint, response.data.bucket);
 
-        // Set as active session and persist to localStorage
-        dispatch(setActiveSession(newSession));
-        setCurrentSessionBucket(fields.endpoint, fields.bucket);
+      // Clear form
+      setFields({});
 
-        // Clear form
-        setFields({});
-
-        // Redirect to main page
-        router.push("/");
-      }
+      // Redirect to main page
+      router.push("/");
     } else {
       toast.error(
-        `Error: ${response.error_message || "Failed to create bucket"}`
+        `Error: ${response.error_message || "Failed to create bucket"}`,
       );
     }
   };
 
   const fetchSessions = async () => {
-    const tokens = getSessionTokens();
-    const response = await reqPutSession(tokens);
+    const response = await reqGetSessions();
     if (response.success) {
       setSessions(response.data);
     } else {
       toast.error(
         `Error fetching sessions: ${
           response.error_message || "Failed to fetch sessions"
-        }`
+        }`,
       );
     }
   };
@@ -289,7 +254,7 @@ const Bucket = () => {
           {sessions &&
             sessions.map((session) => (
               <div
-                key={session.nickname}
+                key={session.id}
                 className="mt-2 p-2 px-4 bg-gray-100 rounded-md flex justify-between items-center"
               >
                 <p className="break-all">{session.nickname}</p>

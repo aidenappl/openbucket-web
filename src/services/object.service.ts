@@ -13,11 +13,10 @@ const reqDeleteObject = async (objectKey: string): Promise<ApiResponse<null>> =>
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<null>(
         {
-            url: `/core/v1/${currentSession?.bucket}/object`,
+            url: `/core/v1/${currentSession?.id}/object`,
             method: "DELETE",
             params: { key: objectKey },
-        },
-        currentSession?.token
+        }
     );
 };
 
@@ -25,10 +24,9 @@ const reqFetchMultiObjectHead = async (): Promise<ApiResponse<ObjectHead[]>> => 
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<ObjectHead[]>(
         {
-            url: `/core/v1/${currentSession?.bucket}/head?multi=true`,
+            url: `/core/v1/${currentSession?.id}/head?multi=true`,
             method: "GET",
-        },
-        currentSession?.token
+        }
     );
 };
 
@@ -36,14 +34,13 @@ const reqPutObjectACL = async (key: string, acl: string): Promise<ApiResponse<nu
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<null>(
         {
-            url: `/core/v1/${currentSession?.bucket}/object/acl`,
+            url: `/core/v1/${currentSession?.id}/object/acl`,
             method: "PUT",
             params: { key },
             data: {
                 acl: acl.toLowerCase().trim(),
             },
-        },
-        currentSession?.token
+        }
     );
 };
 
@@ -51,11 +48,10 @@ const reqFetchObjectACL = async (objectKey: string): Promise<ApiResponse<ObjectA
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<ObjectACLResponse>(
         {
-            url: `/core/v1/${currentSession?.bucket}/object/acl`,
+            url: `/core/v1/${currentSession?.id}/object/acl`,
             method: "GET",
             params: { key: objectKey },
-        },
-        currentSession?.token
+        }
     );
 };
 
@@ -75,7 +71,7 @@ const reqPutObjectWithProgress = async ({
 
     return fetchApi(
         {
-            url: `/core/v1/${currentSession?.bucket}/object`,
+            url: `/core/v1/${currentSession?.id}/object`,
             method: "PUT",
             data: formData,
             onUploadProgress: (event) => {
@@ -87,8 +83,7 @@ const reqPutObjectWithProgress = async ({
                 }
             },
             headers: { "Content-Type": "multipart/form-data" },
-        },
-        currentSession?.token
+        }
     );
 };
 
@@ -96,11 +91,10 @@ const reqFetchObjectPresign = async (objectKey: string): Promise<ApiResponse<Pre
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<PresignResponse>(
         {
-            url: `/core/v1/${currentSession?.bucket}/object/presign`,
+            url: `/core/v1/${currentSession?.id}/object/presign`,
             method: "GET",
             params: { key: objectKey },
-        },
-        currentSession?.token
+        }
     );
 };
 
@@ -108,11 +102,10 @@ const reqPutRenameObject = async (oldPath: string, newPath: string): Promise<Api
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<null>(
         {
-            url: `/core/v1/${currentSession?.bucket}/object/rename`,
+            url: `/core/v1/${currentSession?.id}/object/rename`,
             method: "PUT",
             params: { key: oldPath, newKey: newPath },
-        },
-        currentSession?.token
+        }
     );
 };
 
@@ -120,11 +113,10 @@ const reqFetchObjectHead = async (key: string): Promise<ApiResponse<ObjectHead>>
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<ObjectHead>(
         {
-            url: `/core/v1/${currentSession?.bucket}/object/head`,
+            url: `/core/v1/${currentSession?.id}/object/head`,
             method: "GET",
             params: { key },
-        },
-        currentSession?.token
+        }
     );
 }
 
@@ -132,13 +124,12 @@ const reqFetchBulkObjectHead = async (keys: string[]): Promise<ApiResponse<Objec
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<ObjectHead[]>(
         {
-            url: `/core/v1/${currentSession?.bucket}/object/head?bulk`,
+            url: `/core/v1/${currentSession?.id}/object/head?bulk`,
             method: "POST",
             data: {
                 keys
             }
-        },
-        currentSession?.token
+        }
     );
 }
 
@@ -146,11 +137,10 @@ const reqFetchObjects = async (prefix: string): Promise<ApiResponse<S3ObjectMeta
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<S3ObjectMetadata[]>(
         {
-            url: `/core/v1/${currentSession?.bucket}/objects`,
+            url: `/core/v1/${currentSession?.id}/objects`,
             method: "GET",
             params: { prefix },
-        },
-        currentSession?.token
+        }
     );
 }
 

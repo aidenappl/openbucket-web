@@ -6,98 +6,46 @@ import Footer from "@/components/Footer";
 import "@fortawesome/fontawesome-svg-core/styles.css";
 import "react-loading-skeleton/dist/skeleton.css";
 import { config } from "@fortawesome/fontawesome-svg-core";
-import { useDispatch } from "react-redux";
 import ClientOnly from "@/components/ClientOnly";
 import { Toaster } from "react-hot-toast";
-import { useEffect, useState } from "react";
-import {
-  getCurrentSessionBucket,
-  getSessionTokens,
-  parseSessionKey,
-} from "@/tools/sessionStore.tools";
-import { setSessions, setActiveSession } from "@/store/slices/sessionSlice";
-import { reqFetchSession } from "@/services/session.service";
-import { Session } from "@/types";
 import StoreProvider from "@/store/StoreProvider";
 
 config.autoAddCss = false;
-
-// Module-level flag to ensure initialization only happens once
-let hasInitializedSessions = false;
-
-function SessionInitializer() {
-  const dispatch = useDispatch();
-
-  useEffect(() => {
-    if (hasInitializedSessions) return;
-    hasInitializedSessions = true;
-
-    const initializeSessions = async () => {
-      try {
-        const tokens = getSessionTokens();
-        if (tokens.length > 0) {
-          const response = await reqFetchSession(tokens);
-
-          if (response.success) {
-            dispatch(setSessions(response.data));
-
-            const savedSessionKey = getCurrentSessionBucket();
-            if (savedSessionKey) {
-              const parsed = parseSessionKey(savedSessionKey);
-              if (parsed) {
-                const savedSession = response.data.find(
-                  (session: Session) =>
-                    session.endpoint === parsed.endpoint &&
-                    session.bucket === parsed.bucket,
-                );
-                if (savedSession) {
-                  dispatch(setActiveSession(savedSession));
-                }
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Failed to initialize sessions:", error);
-      }
-    };
-
-    initializeSessions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return null;
-}
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   return (
     <html lang="en">
       <head>
         <title>OpenBucket - Appleby Cloud</title>
+        <meta name="application-name" content="OpenBucket" />
+        <meta name="apple-mobile-web-app-title" content="OpenBucket" />
+        <link
+          rel="icon"
+          type="image/png"
+          href="/favicon/favicon-96x96.png"
+          sizes="96x96"
+        />
+        <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
+        <link rel="shortcut icon" href="/favicon/favicon.ico" />
+        <link
+          rel="apple-touch-icon"
+          sizes="180x180"
+          href="/favicon/apple-touch-icon.png"
+        />
+        <link rel="manifest" href="/favicon/site.webmanifest" />
       </head>
       <body className="bg-[var(--background)]" suppressHydrationWarning={true}>
         <StoreProvider>
-          {mounted && (
-            <>
-              <SessionInitializer />
-              <Toaster position="top-center" reverseOrder={false} />
-              <Navigation />
-              <div className="px-10 max-w-[var(--max-page-width)] mx-auto">
-                <ClientOnly>{children}</ClientOnly>
-              </div>
-              <Footer />
-            </>
-          )}
+          <Toaster position="top-center" reverseOrder={false} />
+          <Navigation />
+          <div className="px-10 max-w-[var(--max-page-width)] mx-auto">
+            <ClientOnly>{children}</ClientOnly>
+          </div>
+          <Footer />
         </StoreProvider>
       </body>
     </html>

@@ -1,26 +1,13 @@
 // src/hooks/usePermissions.ts
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import { selectAllSessions, selectSessionsInitialized } from "@/store/slices/sessionSlice";
 
 export function usePermissions() {
-  const [hasAPI, setHasAPI] = useState<boolean | null>(null);
+  const sessions = useSelector(selectAllSessions);
+  const isInitialized = useSelector(selectSessionsInitialized);
 
-  useEffect(() => {
-    // Only access localStorage on client side
-    if (typeof window !== 'undefined') {
-      // get sessions from local storage
-      const sessions = localStorage.getItem("openbucket-sessions");
-      if (sessions) {
-        const parsedSessions = JSON.parse(sessions);
-        if (Array.isArray(parsedSessions.sessions) && parsedSessions.sessions.length > 0) {
-          setHasAPI(true);
-          return;
-        }
-      }
-      setHasAPI(false);
-    }
-  }, []);
-
-  return { hasAPI };
+  if (!isInitialized) return { hasAPI: null };
+  return { hasAPI: sessions.length > 0 };
 }

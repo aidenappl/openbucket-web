@@ -25,8 +25,8 @@ export const useBucketData = () => {
         return response.success ? response.data : null;
     }, []);
 
-    const loadBucketData = useCallback(async (bucket: string, prefix: string, token: string) => {
-        if (!bucket || !token) return;
+    const loadBucketData = useCallback(async (bucket: string, prefix: string) => {
+        if (!bucket) return;
 
         setFolders(null);
         setObjects(null);

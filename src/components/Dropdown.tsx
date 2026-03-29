@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 
 export type DropdownItem = {
+  id?: string;
   label: string;
   icon?: IconProp;
   followingIcon?: IconProp;
@@ -16,20 +17,28 @@ export type DropdownItem = {
 
 type DropdownProps = {
   items: DropdownItem[];
-  value?: DropdownItem["label"];
+  value?: string;
   onChange?: (value: string) => void;
 };
 
 const Dropdown = ({ items, value, onChange = () => {} }: DropdownProps) => {
   const [item, setItem] = useState<DropdownItem>(
-    items.find((item) => item.label === value) || items[0]
+    items.find((item) => (item.id ?? item.label) === value) || items[0],
   );
   const [visible, setVisible] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const found = items.find((i) => (i.id ?? i.label) === value);
+    if (found) setItem(found);
+  }, [value, items]);
+
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setVisible(false);
       }
     };
@@ -105,7 +114,9 @@ const Dropdown = ({ items, value, onChange = () => {} }: DropdownProps) => {
               key={index}
               className={
                 `flex items-center gap-2 cursor-pointer px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 truncate` +
-                (dropItem.label == item.label && " font-medium text-black")
+                (dropItem.label == item.label &&
+                  dropItem.id == item.id &&
+                  " font-medium text-black")
               }
               role="menuitem"
               id={`menu-item-${index}`}
@@ -115,7 +126,7 @@ const Dropdown = ({ items, value, onChange = () => {} }: DropdownProps) => {
               }}
             >
               {dropItem.icon && <FontAwesomeIcon icon={dropItem.icon} />}
-              {dropItem.label == item.label && (
+              {dropItem.label == item.label && dropItem.id == item.id && (
                 <div className="w-[7px] h-[7px] bg-blue-700 rounded-full" />
               )}
               {dropItem.label}
@@ -127,7 +138,7 @@ const Dropdown = ({ items, value, onChange = () => {} }: DropdownProps) => {
                 />
               )}
             </a>
-          )
+          ),
         )}
       </div>
     </div>
