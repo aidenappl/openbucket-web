@@ -162,13 +162,20 @@ const Home = () => {
     for (const key of selectedObjectKeys) {
       const res = await reqFetchObjectPresign(key);
       if (res.success && res.data?.url) {
-        const a = document.createElement("a");
-        a.href = res.data.url;
-        a.download = key.split("/").pop() || key;
-        a.rel = "noopener noreferrer";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        try {
+          const response = await fetch(res.data.url);
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = blobUrl;
+          a.download = key.split("/").pop() || key;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+          console.error("Download failed for", key, err);
+        }
       }
     }
   };
