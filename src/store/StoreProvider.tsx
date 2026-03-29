@@ -23,13 +23,19 @@ const StoreProvider = ({ children }: StoreProviderProps) => {
   const storeInstance = getStore();
 
   useEffect(() => {
-    reqFortaCheck().then((res) => {
-      if (res && res.authenticated && res.user) {
-        storeInstance.dispatch(setIsLogged(true));
-        storeInstance.dispatch(setUser(res.user));
-      }
-      storeInstance.dispatch(setIsLoading(false));
-    });
+    reqFortaCheck()
+      .then((res) => {
+        if (res && res.authenticated && res.user) {
+          storeInstance.dispatch(setIsLogged(true));
+          storeInstance.dispatch(setUser(res.user));
+          storeInstance.dispatch(setIsLoading(false));
+        } else {
+          window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/forta/login`;
+        }
+      })
+      .catch(() => {
+        window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/forta/login`;
+      });
   }, [storeInstance]);
 
   return <Provider store={storeInstance}>{children}</Provider>;

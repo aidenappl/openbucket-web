@@ -12,6 +12,17 @@ const axios_api = axios.create({
   withCredentials: true,
 });
 
+axios_api.interceptors.response.use((response) => {
+  if (
+    response.status === 401 &&
+    typeof window !== "undefined" &&
+    !response.config.url?.includes("/forta/check")
+  ) {
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/forta/login`;
+  }
+  return response;
+});
+
 const fetch = axios.create({
   headers: {
     "Content-Type": "application/json",

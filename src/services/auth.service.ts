@@ -23,8 +23,8 @@ export const fortaLogin = () => {
     }
 };
 
-export const fortaLogout = () => {
-    if (typeof window !== "undefined") {
-        window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/forta/logout`;
-    }
+export const openBucketLogout = () => {
+    // Intentionally only clears the local OpenBucket session.
+    // Does NOT call /forta/logout so the user remains signed in to Forta.
+    // Callers are responsible for dispatching auth state resets via Redux.
 };

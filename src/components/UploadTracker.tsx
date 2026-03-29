@@ -1,4 +1,4 @@
-import { RootState } from "@/store/store";
+import { RootState } from "@/store/index";
 import { removeUpload } from "@/store/slices/uploadSlice";
 import { useSelector, useDispatch } from "react-redux";
 import { useEffect, useRef } from "react";
@@ -11,7 +11,7 @@ const UploadTracker = () => {
   // Auto-remove completed uploads after 30 seconds (unless there are active uploads)
   useEffect(() => {
     const hasActiveUploads = uploads.some(
-      (upload) => upload.status === "uploading"
+      (upload) => upload.status === "uploading",
     );
     const timeouts = timeoutsRef.current;
 

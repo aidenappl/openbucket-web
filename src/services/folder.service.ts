@@ -7,7 +7,7 @@ const reqDeleteFolder = async (folderKey: string): Promise<ApiResponse<null>> =>
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<null>(
         {
-            url: `/${currentSession?.bucket}/folder`,
+            url: `/core/v1/${currentSession?.bucket}/folder`,
             method: "DELETE",
             params: { folder: folderKey },
         },
@@ -19,7 +19,7 @@ const reqFetchFolders = async (prefix: string): Promise<ApiResponse<string[]>> =
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<string[]>(
         {
-            url: `/${currentSession?.bucket}/folders`,
+            url: `/core/v1/${currentSession?.bucket}/folders`,
             method: "GET",
             params: { prefix },
         },
@@ -31,7 +31,7 @@ const reqPostFolder = async (folderKey: string): Promise<ApiResponse<null>> => {
     const currentSession = selectCurrentSession(getStore().getState());
     return await fetchApi(
         {
-            url: `/${currentSession?.bucket}/folder`,
+            url: `/core/v1/${currentSession?.bucket}/folder`,
             method: "POST",
             data: { folder: folderKey },
         },

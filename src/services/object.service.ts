@@ -13,7 +13,7 @@ const reqDeleteObject = async (objectKey: string): Promise<ApiResponse<null>> =>
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<null>(
         {
-            url: `/${currentSession?.bucket}/object`,
+            url: `/core/v1/${currentSession?.bucket}/object`,
             method: "DELETE",
             params: { key: objectKey },
         },
@@ -25,7 +25,7 @@ const reqFetchMultiObjectHead = async (): Promise<ApiResponse<ObjectHead[]>> => 
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<ObjectHead[]>(
         {
-            url: `/${currentSession?.bucket}/head?multi=true`,
+            url: `/core/v1/${currentSession?.bucket}/head?multi=true`,
             method: "GET",
         },
         currentSession?.token
@@ -36,7 +36,7 @@ const reqPutObjectACL = async (key: string, acl: string): Promise<ApiResponse<nu
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<null>(
         {
-            url: `/${currentSession?.bucket}/object/acl`,
+            url: `/core/v1/${currentSession?.bucket}/object/acl`,
             method: "PUT",
             params: { key },
             data: {
@@ -51,7 +51,7 @@ const reqFetchObjectACL = async (objectKey: string): Promise<ApiResponse<ObjectA
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<ObjectACLResponse>(
         {
-            url: `/${currentSession?.bucket}/object/acl`,
+            url: `/core/v1/${currentSession?.bucket}/object/acl`,
             method: "GET",
             params: { key: objectKey },
         },
@@ -75,7 +75,7 @@ const reqPutObjectWithProgress = async ({
 
     return fetchApi(
         {
-            url: `/${currentSession?.bucket}/object`,
+            url: `/core/v1/${currentSession?.bucket}/object`,
             method: "PUT",
             data: formData,
             onUploadProgress: (event) => {
@@ -96,7 +96,7 @@ const reqFetchObjectPresign = async (objectKey: string): Promise<ApiResponse<Pre
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<PresignResponse>(
         {
-            url: `/${currentSession?.bucket}/object/presign`,
+            url: `/core/v1/${currentSession?.bucket}/object/presign`,
             method: "GET",
             params: { key: objectKey },
         },
@@ -108,7 +108,7 @@ const reqPutRenameObject = async (oldPath: string, newPath: string): Promise<Api
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<null>(
         {
-            url: `/${currentSession?.bucket}/object/rename`,
+            url: `/core/v1/${currentSession?.bucket}/object/rename`,
             method: "PUT",
             params: { key: oldPath, newKey: newPath },
         },
@@ -120,7 +120,7 @@ const reqFetchObjectHead = async (key: string): Promise<ApiResponse<ObjectHead>>
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<ObjectHead>(
         {
-            url: `/${currentSession?.bucket}/object/head`,
+            url: `/core/v1/${currentSession?.bucket}/object/head`,
             method: "GET",
             params: { key },
         },
@@ -132,7 +132,7 @@ const reqFetchBulkObjectHead = async (keys: string[]): Promise<ApiResponse<Objec
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<ObjectHead[]>(
         {
-            url: `/${currentSession?.bucket}/object/head?bulk`,
+            url: `/core/v1/${currentSession?.bucket}/object/head?bulk`,
             method: "POST",
             data: {
                 keys
@@ -146,7 +146,7 @@ const reqFetchObjects = async (prefix: string): Promise<ApiResponse<S3ObjectMeta
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<S3ObjectMetadata[]>(
         {
-            url: `/${currentSession?.bucket}/objects`,
+            url: `/core/v1/${currentSession?.bucket}/objects`,
             method: "GET",
             params: { prefix },
         },

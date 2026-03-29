@@ -11,8 +11,10 @@ import {
   selectIsLogged,
   selectIsLoading,
   selectUser,
+  setIsLogged,
+  setUser,
 } from "@/store/slices/authSlice";
-import { fortaLogin, fortaLogout } from "@/services/auth.service";
+import { fortaLogin } from "@/services/auth.service";
 
 const Navigation = () => {
   const [dropdownItems, setDropdownItems] = useState<DropdownItem[]>([]);
@@ -22,6 +24,11 @@ const Navigation = () => {
   const isLogged = useSelector(selectIsLogged);
   const isLoading = useSelector(selectIsLoading);
   const user = useSelector(selectUser);
+
+  const handleLogout = () => {
+    dispatch(setIsLogged(false));
+    dispatch(setUser(null));
+  };
 
   useEffect(() => {
     if (sessions && sessions.length > 0) {
@@ -76,7 +83,7 @@ const Navigation = () => {
                   {user?.display_name || user?.email}
                 </span>
                 <button
-                  onClick={fortaLogout}
+                  onClick={handleLogout}
                   className="text-sm font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
                 >
                   Sign out

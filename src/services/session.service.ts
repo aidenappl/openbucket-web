@@ -3,7 +3,7 @@ import { ApiResponse, Session, SessionResponse } from "@/types";
 
 const reqFetchSession = async (tokens: string[]): Promise<ApiResponse<Session[]>> => {
     return fetchApi<Session[]>({
-        url: "/sessions",
+        url: "/core/v1/sessions",
         method: "PUT",
         data: { sessions: tokens },
     });
@@ -11,7 +11,7 @@ const reqFetchSession = async (tokens: string[]): Promise<ApiResponse<Session[]>
 
 const reqPutSession = async (tokens: string[]): Promise<ApiResponse<Session[]>> => {
     return fetchApi<Session[]>({
-        url: "/sessions",
+        url: "/core/v1/sessions",
         method: "PUT",
         data: { sessions: tokens },
     });
@@ -19,7 +19,7 @@ const reqPutSession = async (tokens: string[]): Promise<ApiResponse<Session[]>> 
 
 const reqPostSession = async (data: Record<string, string>): Promise<ApiResponse<SessionResponse>> => {
     return fetchApi<SessionResponse>({
-        url: "/session",
+        url: "/core/v1/session",
         method: "POST",
         data,
     });
