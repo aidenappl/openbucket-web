@@ -38,6 +38,7 @@ const ObjectPage = () => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const params = useParams();
   const currentSession = useSelector(selectCurrentSession);
   const { getParentPath } = useBreadcrumbs();
@@ -165,6 +166,7 @@ const ObjectPage = () => {
     if (!sessionReady || !currentSession) return;
 
     setIsLoading(true);
+    setPreviewUrl(null);
 
     const res = await reqFetchObjectHead(fullPath);
 
@@ -187,6 +189,12 @@ const ObjectPage = () => {
     }
 
     setIsLoading(false);
+
+    // Generate preview URL after loading completes
+    const presign = await generatePresignedUrl(fullPath);
+    if (presign?.url) {
+      setPreviewUrl(presign.url);
+    }
   }, [
     sessionReady,
     currentSession,
@@ -244,6 +252,9 @@ const ObjectPage = () => {
           object={object}
           objectACL={objectACL}
           fullPath={fullPath}
+          previewUrl={previewUrl}
+          endpoint={currentSession.endpoint}
+          bucket={currentSession.bucket}
           isLoading={isLoading}
           onBack={() => {
             const parentPath = getParentPath(fullPath);
