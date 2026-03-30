@@ -15,7 +15,7 @@ import {
 } from "@/store/slices/authSlice";
 import { fortaLogin, openBucketLogout } from "@/services/auth.service";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronDown } from "@fortawesome/pro-solid-svg-icons";
+import { faArrowUpRightFromSquare, faChevronDown } from "@fortawesome/pro-solid-svg-icons";
 
 const Navigation = () => {
   const [dropdownItems, setDropdownItems] = useState<DropdownItem[]>([]);
@@ -134,15 +134,19 @@ const Navigation = () => {
                   />
                 </button>
                 {userMenuOpen && (
-                  <div className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black/5 py-1">
+                  <div className="absolute right-0 top-full z-50 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black/5 py-1">
                     <a
-                      href="https://forta.appleby.cloud"
+                      href="https://forta.appleby.cloud/account"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => setUserMenuOpen(false)}
                     >
                       Manage Account
+                      <FontAwesomeIcon
+                        icon={faArrowUpRightFromSquare}
+                        className="text-[10px] text-slate-400"
+                      />
                     </a>
                     <button
                       onClick={() => {
