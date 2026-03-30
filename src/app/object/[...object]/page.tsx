@@ -238,7 +238,7 @@ const ObjectPage = () => {
   // Show loading spinner while waiting for session
   if (!sessionReady || !currentSession) {
     return (
-      <main className="w-full h-[calc(100vh-80px)] flex items-center justify-center gap-2 text-slate-500">
+      <main className="w-full h-[calc(100vh-80px)] flex items-center justify-center gap-2 text-slate-500 dark:text-slate-400">
         <Spinner />
         <span className="text-sm">Waiting for session...</span>
       </main>

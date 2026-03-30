@@ -168,9 +168,11 @@ const Bucket = () => {
 
   return (
     <div className="pb-10">
-      <div className="bg-white p-4 rounded-md shadow-sm gap-10 grid grid-cols-2">
+      <div className="bg-white dark:bg-[#161616] p-4 rounded-md shadow-sm gap-10 grid grid-cols-2 border border-transparent dark:border-gray-800">
         <div className="flex flex-col gap-3 w-full">
-          <h1 className="text-lg font-semibold">Add Bucket</h1>
+          <h1 className="text-lg font-semibold dark:text-gray-100">
+            Add Bucket
+          </h1>
           <Input
             placeholder="Enter bucket name"
             value={fields["bucket"] || ""}
@@ -246,18 +248,24 @@ const Bucket = () => {
         </div>
         <div>
           {sessions.length === 0 && (
-            <h1 className="text-lg font-semibold">No active sessions</h1>
+            <h1 className="text-lg font-semibold dark:text-gray-100">
+              No active sessions
+            </h1>
           )}
           {sessions.length > 0 && (
-            <h1 className="text-lg font-semibold">Active Sessions</h1>
+            <h1 className="text-lg font-semibold dark:text-gray-100">
+              Active Sessions
+            </h1>
           )}
           {sessions &&
             sessions.map((session) => (
               <div
                 key={session.id}
-                className="mt-2 p-2 px-4 bg-gray-100 rounded-md flex justify-between items-center"
+                className="mt-2 p-2 px-4 bg-gray-100 dark:bg-gray-800 rounded-md flex justify-between items-center"
               >
-                <p className="break-all">{session.nickname}</p>
+                <p className="break-all dark:text-gray-200">
+                  {session.nickname}
+                </p>
                 <div className="flex gap-1">
                   <Button variant="light" onClick={() => editSession(session)}>
                     Edit
@@ -276,14 +284,16 @@ const Bucket = () => {
           onClick={closeEditModal}
         >
           <div
-            className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto z-100"
+            className="bg-white dark:bg-[#161616] rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto z-100"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Edit Bucket Session</h2>
+              <h2 className="text-xl font-semibold dark:text-gray-100">
+                Edit Bucket Session
+              </h2>
               <button
                 onClick={closeEditModal}
-                className="text-gray-500 hover:text-gray-700 text-2xl cursor-pointer"
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl cursor-pointer"
               >
                 ×
               </button>

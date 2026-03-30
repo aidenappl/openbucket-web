@@ -15,7 +15,21 @@ import {
 } from "@/store/slices/authSlice";
 import { fortaLogin, openBucketLogout } from "@/services/auth.service";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowUpRightFromSquare, faChevronDown } from "@fortawesome/pro-solid-svg-icons";
+import {
+  faArrowUpRightFromSquare,
+  faChevronDown,
+  faSun,
+  faMoon,
+  faDesktop,
+} from "@fortawesome/pro-solid-svg-icons";
+import { useTheme, ThemePreference } from "@/context/ThemeContext";
+
+const THEME_CYCLE: ThemePreference[] = ["system", "light", "dark"];
+const THEME_ICONS = {
+  system: faDesktop,
+  light: faSun,
+  dark: faMoon,
+};
 
 const Navigation = () => {
   const [dropdownItems, setDropdownItems] = useState<DropdownItem[]>([]);
@@ -27,6 +41,13 @@ const Navigation = () => {
   const isLogged = useSelector(selectIsLogged);
   const isLoading = useSelector(selectIsLoading);
   const user = useSelector(selectUser);
+  const { preference, setPreference } = useTheme();
+
+  const cycleTheme = () => {
+    const idx = THEME_CYCLE.indexOf(preference);
+    const next = THEME_CYCLE[(idx + 1) % THEME_CYCLE.length];
+    setPreference(next);
+  };
 
   const handleLogout = () => {
     openBucketLogout();
@@ -77,20 +98,23 @@ const Navigation = () => {
             width={52}
             height={52}
             priority
+            className="dark:invert"
           />
-          <span className="text-2xl font-bold text-gray-900">OpenBucket</span>
+          <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            OpenBucket
+          </span>
         </Link>
         <div className="flex gap-4 items-center">
           {dropdownItems.length > 0 && (
             <>
               <Link
-                className="text-sm font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+                className="text-sm font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
                 href={"/"}
               >
                 Explorer
               </Link>
               <Link
-                className="text-sm font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+                className="text-sm font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
                 href={"/bucket"}
               >
                 Sessions
@@ -105,12 +129,22 @@ const Navigation = () => {
               />
             </>
           )}
+          <button
+            onClick={cycleTheme}
+            className="w-8 h-8 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+            title={`Theme: ${preference}`}
+          >
+            <FontAwesomeIcon
+              icon={THEME_ICONS[preference]}
+              className="text-sm"
+            />
+          </button>
           {!isLoading &&
             (isLogged ? (
               <div ref={userMenuRef} className="relative flex items-center">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="inline-flex items-center gap-2.5 text-sm font-medium text-slate-600 hover:text-slate-900 cursor-pointer transition-colors"
+                  className="inline-flex items-center gap-2.5 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer transition-colors"
                 >
                   {user?.profile_image_url ? (
                     <img
@@ -119,7 +153,7 @@ const Navigation = () => {
                       className="w-8 h-8 rounded-full object-cover shrink-0"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-semibold text-slate-500 shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-semibold text-slate-500 dark:text-slate-300 shrink-0">
                       {(user?.name || user?.email || "?")
                         .charAt(0)
                         .toUpperCase()}
@@ -134,12 +168,12 @@ const Navigation = () => {
                   />
                 </button>
                 {userMenuOpen && (
-                  <div className="absolute right-0 top-full z-50 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black/5 py-1">
+                  <div className="absolute right-0 top-full z-50 mt-2 w-48 origin-top-right rounded-md bg-white dark:bg-gray-900 shadow-lg ring-1 ring-black/5 dark:ring-white/10 py-1">
                     <a
                       href="https://forta.appleby.cloud/account"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                       onClick={() => setUserMenuOpen(false)}
                     >
                       Manage Account
@@ -153,7 +187,7 @@ const Navigation = () => {
                         setUserMenuOpen(false);
                         handleLogout();
                       }}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
                     >
                       Sign Out
                     </button>
@@ -163,7 +197,7 @@ const Navigation = () => {
             ) : (
               <button
                 onClick={fortaLogin}
-                className="text-sm font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+                className="text-sm font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
               >
                 Sign in
               </button>

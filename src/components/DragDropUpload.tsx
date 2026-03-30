@@ -70,7 +70,7 @@ const DragDropUpload: React.FC<DragDropUploadProps> = ({
         e.dataTransfer.clearData();
       }
     },
-    [disabled, multiple, onFileUpload]
+    [disabled, multiple, onFileUpload],
   );
 
   const handleFileInputChange = useCallback(
@@ -91,7 +91,7 @@ const DragDropUpload: React.FC<DragDropUploadProps> = ({
       // Reset the input value so the same file can be selected again
       e.target.value = "";
     },
-    [disabled, multiple, onFileUpload]
+    [disabled, multiple, onFileUpload],
   );
 
   const handleClick = useCallback(() => {
@@ -107,7 +107,7 @@ const DragDropUpload: React.FC<DragDropUploadProps> = ({
         handleClick();
       }
     },
-    [disabled, handleClick]
+    [disabled, handleClick],
   );
 
   return (
@@ -116,8 +116,8 @@ const DragDropUpload: React.FC<DragDropUploadProps> = ({
         relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all duration-200 
         ${
           isDragOver
-            ? "border-blue-500 bg-blue-50 scale-105"
-            : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
+            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 scale-105"
+            : "border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800"
         }
         ${disabled ? "opacity-50 cursor-not-allowed" : ""}
         ${className}

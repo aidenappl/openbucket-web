@@ -311,11 +311,11 @@ const Home = () => {
           />
         </div>
 
-        <div className="bg-white w-full p-4 border border-gray-200 shadow-sm rounded-md flex flex-col max-h-[calc(100vh-200px)]">
+        <div className="bg-white dark:bg-[#161616] w-full p-4 border border-gray-200 dark:border-gray-800 shadow-sm rounded-md flex flex-col max-h-[calc(100vh-200px)]">
           {/* Breadcrumbs & Controls */}
           <div className="flex justify-between items-center flex-shrink-0">
             {/* Left Breadcrumbs */}
-            <div className="flex items-center gap-1 text-md text-gray-700 font-semibold select-none">
+            <div className="flex items-center gap-1 text-md text-gray-700 dark:text-gray-300 font-semibold select-none">
               {breadcrumbs.map((fullPath, index) => {
                 const isLast = index === breadcrumbs.length - 1;
 
@@ -328,7 +328,7 @@ const Home = () => {
                   <span key={fullPath} className="flex items-center gap-1">
                     <span
                       className={`cursor-pointer hover:underline ${
-                        isLast ? "text-gray-900" : ""
+                        isLast ? "text-gray-900 dark:text-gray-100" : ""
                       }`}
                       onClick={() => {
                         navigateToBreadcrumb(index, (newPrefix) => {
@@ -441,7 +441,7 @@ const Home = () => {
               {/* Right Data */}
               <div>
                 <p
-                  className="text-sm text-gray-800"
+                  className="text-sm text-gray-800 dark:text-gray-200"
                   hidden={selectedCount === 0}
                 >
                   {selectedCount} selected
@@ -449,9 +449,9 @@ const Home = () => {
               </div>
             </div>
             {/* Files Table */}
-            <div className="border border-gray-200 overflow-hidden flex flex-col">
+            <div className="border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
               {/* Table Header - Fixed */}
-              <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] text-sm font-semibold border-b border-gray-300 h-[40px] items-center px-3 bg-gray-50 flex-shrink-0">
+              <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] text-sm font-semibold border-b border-gray-300 dark:border-gray-600 h-[40px] items-center px-3 bg-gray-50 dark:bg-[#1a1a1a] flex-shrink-0">
                 <Checkbox
                   state={masterCheckboxState}
                   onToggle={handleToggleAll}
@@ -475,7 +475,7 @@ const Home = () => {
                     ? folders.map((folder) => (
                         <div
                           key={folder}
-                          className="grid text-sm px-3  border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 cursor-pointer select-none"
+                          className="grid text-sm px-3  border-b border-gray-200 dark:border-gray-700 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] cursor-pointer select-none"
                           onClick={() => {
                             navigateToFolder(folder, (newPrefix) => {
                               updateUrlParams(newPrefix);
@@ -532,7 +532,7 @@ const Home = () => {
                     ? objects.map((object) => (
                         <div
                           key={object.Key}
-                          className="grid text-sm px-3 border-b border-gray-200 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 select-none"
+                          className="grid text-sm px-3 border-b border-gray-200 dark:border-gray-700 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] select-none"
                         >
                           <Checkbox
                             state={
@@ -641,7 +641,7 @@ const Home = () => {
                   folders.length === 0 &&
                   objects &&
                   objects.length === 0 ? (
-                    <div className="text-sm text-gray-500 p-3">
+                    <div className="text-sm text-gray-500 dark:text-gray-400 p-3">
                       No items found.
                     </div>
                   ) : null}

@@ -15,11 +15,11 @@ type GridItemProps = {
 const GridItem = ({ title, subtitle, icon, onClick }: GridItemProps) => {
   return (
     <div
-      className="cursor-pointer hover:bg-[#eeeeee] hover:shadow-sm transition-[0.1s] bg-[#f6f6f6] rounded-md w-full flex flex-col h-[150px] md:h-[175px] lg:h-[200px] border border-gray-200 overflow-hidden select-none cursor-pointer"
+      className="cursor-pointer hover:bg-[#eeeeee] dark:hover:bg-[#252525] hover:shadow-sm transition-[0.1s] bg-[#f6f6f6] dark:bg-[#1a1a1a] rounded-md w-full flex flex-col h-[150px] md:h-[175px] lg:h-[200px] border border-gray-200 dark:border-gray-700 overflow-hidden select-none"
       onClick={onClick}
     >
       {/* Icon/Image Preview */}
-      <div className="flex w-full h-full items-center justify-center text-slate-800">
+      <div className="flex w-full h-full items-center justify-center text-slate-800 dark:text-slate-300">
         {icon ? (
           <FontAwesomeIcon className="text-5xl" icon={icon} />
         ) : (
@@ -27,9 +27,9 @@ const GridItem = ({ title, subtitle, icon, onClick }: GridItemProps) => {
         )}
       </div>
       {/* Information Ticker */}
-      <div className="flex w-full h-[50px] bg-white items-center p-3 justify-between">
+      <div className="flex w-full h-[50px] bg-white dark:bg-[#161616] items-center p-3 justify-between">
         {/* Icon */}
-        <div className="pr-3 text-slate-800 flex-shrink-0">
+        <div className="pr-3 text-slate-800 dark:text-slate-300 flex-shrink-0">
           {icon ? (
             <FontAwesomeIcon className="text-2xl" icon={icon} />
           ) : (

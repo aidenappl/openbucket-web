@@ -92,8 +92,11 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
             width={52}
             height={52}
             priority
+            className="dark:invert"
           />
-          <span className="text-2xl font-bold text-gray-900">OpenBucket</span>
+          <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            OpenBucket
+          </span>
         </div>
         <FontAwesomeIcon
           icon={faSpinnerThird}
