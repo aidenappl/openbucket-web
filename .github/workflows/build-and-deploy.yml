@@ -53,6 +53,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: ${{ steps.keyring.outputs.build-args }}
+          secrets: ${{ steps.keyring.outputs.build-args }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

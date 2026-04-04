@@ -10,8 +10,9 @@ WORKDIR /app
 COPY package*.json ./
 COPY .npmrc ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (mount NPM_TOKEN as a secret to avoid leaking into image layers)
+RUN --mount=type=secret,id=NPM_TOKEN \
+    NPM_TOKEN=$(cat /run/secrets/NPM_TOKEN) npm ci
 
 # Copy source code
 COPY . .
@@ -22,10 +23,6 @@ RUN mkdir -p public
 # Build arg for API URL (baked into client bundle at build time)
 ARG NEXT_PUBLIC_OPENBUCKET_API
 ENV NEXT_PUBLIC_OPENBUCKET_API=$NEXT_PUBLIC_OPENBUCKET_API
-
-# Build arg for NPM token (baked into client bundle at build time)
-ARG NPM_TOKEN
-ENV NPM_TOKEN=$NPM_TOKEN
 
 # Build the application with standalone output
 RUN npm run build
