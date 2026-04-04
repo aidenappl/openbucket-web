@@ -6,23 +6,26 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Pass the token securely into build
-ARG NPM_TOKEN
-ENV NPM_TOKEN=${NPM_TOKEN}
-
-# Pass API URL for build-time embedding
-ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-
 # Copy dependency files first (for better caching)
 COPY package*.json ./
 COPY .npmrc ./
 
 # Install dependencies
-RUN npm ci --legacy-peer-deps
+RUN npm ci
 
 # Copy source code
 COPY . .
+
+# Ensure public exists even if empty
+RUN mkdir -p public
+
+# Build arg for API URL (baked into client bundle at build time)
+ARG NEXT_PUBLIC_OPENBUCKET_API
+ENV NEXT_PUBLIC_OPENBUCKET_API=$NEXT_PUBLIC_OPENBUCKET_API
+
+# Build arg for NPM token (baked into client bundle at build time)
+ARG NPM_TOKEN
+ENV NPM_TOKEN=$NPM_TOKEN
 
 # Build the application with standalone output
 RUN npm run build

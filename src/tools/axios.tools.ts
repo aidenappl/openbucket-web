@@ -3,7 +3,7 @@ import { ApiResponse } from "@/types";
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
 
 const axios_api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: process.env.NEXT_PUBLIC_OPENBUCKET_API,
   headers: {
     "Content-Type": "application/json",
   },
@@ -14,7 +14,7 @@ const axios_api = axios.create({
 
 axios_api.interceptors.response.use((response) => {
   if (response.status === 401 && typeof window !== "undefined") {
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/forta/login`;
+    window.location.href = `${process.env.NEXT_PUBLIC_OPENBUCKET_API}/forta/login`;
   }
   return response;
 });

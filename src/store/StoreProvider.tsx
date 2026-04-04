@@ -43,11 +43,11 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
           storeInstance.dispatch(setUser(authRes.data));
           storeInstance.dispatch(setIsLoading(false));
         } else {
-          window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/forta/login`;
+          window.location.href = `${process.env.NEXT_PUBLIC_OPENBUCKET_API}/forta/login`;
           return;
         }
       } catch {
-        window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/forta/login`;
+        window.location.href = `${process.env.NEXT_PUBLIC_OPENBUCKET_API}/forta/login`;
         return;
       }
 

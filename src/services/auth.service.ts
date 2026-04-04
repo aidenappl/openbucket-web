@@ -12,12 +12,12 @@ export const reqGetSelf = () =>
 export const fortaLogin = () => {
     if (typeof window !== "undefined") {
         sessionStorage.setItem("returnUrl", window.location.pathname);
-        window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/forta/login`;
+        window.location.href = `${process.env.NEXT_PUBLIC_OPENBUCKET_API}/forta/login`;
     }
 };
 
 export const openBucketLogout = () => {
     if (typeof window !== "undefined") {
-        window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/forta/logout`;
+        window.location.href = `${process.env.NEXT_PUBLIC_OPENBUCKET_API}/forta/logout`;
     }
 };

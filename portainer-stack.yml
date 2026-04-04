@@ -8,7 +8,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: "0.0.0.0"
-      NEXT_PUBLIC_API_URL: "http://sandbox.onprem.appleby.cloud:8003/core/v1"
+      NEXT_PUBLIC_OPENBUCKET_API: "http://sandbox.onprem.appleby.cloud:8003/core/v1"
       API_URL: http://openbucket-api:8004/core/v1
       NPM_TOKEN: ${NPM_TOKEN}
     restart: unless-stopped

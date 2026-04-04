@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  reactStrictMode: false,
+  serverExternalPackages: ["@aidenappleby/keyring-js"],
 };
 
 export default nextConfig;
