@@ -13,8 +13,15 @@ const axios_api = axios.create({
 });
 
 axios_api.interceptors.response.use((response) => {
-  if (response.status === 401 && typeof window !== "undefined") {
-    window.location.href = `${process.env.NEXT_PUBLIC_OPENBUCKET_API}/forta/login`;
+  if (typeof window !== "undefined") {
+    if (response.status === 401) {
+      window.location.href = `${process.env.NEXT_PUBLIC_OPENBUCKET_API}/forta/login`;
+    } else if (
+      response.status === 403 &&
+      response.data?.error_code === 4003
+    ) {
+      window.location.href = `${process.env.NEXT_PUBLIC_OPENBUCKET_API}/forta/login`;
+    }
   }
   return response;
 });
