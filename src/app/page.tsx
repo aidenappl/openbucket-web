@@ -601,7 +601,7 @@ const Home = () => {
                             {metadata === null ? (
                               <Skeleton width={60} />
                             ) : (
-                              metadata?.find((m) => m.ETag === object.ETag)
+                              metadata?.find((m) => m != null && m.ETag === object.ETag)
                                 ?.Metadata?.Acl || "No ACL"
                             )}
                           </div>
