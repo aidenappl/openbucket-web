@@ -47,6 +47,14 @@ export const useBucketActions = () => {
             toast.error("Folder name cannot be empty.");
             return false;
         }
+        if (folderName.includes('..') || folderName.includes('/') || folderName.includes('\\')) {
+            toast.error("Invalid folder name");
+            return false;
+        }
+        if (folderName.length > 255) {
+            toast.error("Folder name too long");
+            return false;
+        }
 
         const response = await reqPostFolder(folderName);
         if (response.success) {

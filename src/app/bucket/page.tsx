@@ -7,7 +7,7 @@ import { isValidUrl } from "@/tools/url.tools";
 import { Session } from "@/types";
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { addSession, setActiveSession } from "@/store/slices/sessionSlice";
+import { addSession, removeSession as removeSessionAction, setActiveSession } from "@/store/slices/sessionSlice";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { reqPostSession, reqGetSessions } from "@/services/session.service";
@@ -29,6 +29,7 @@ const Bucket = () => {
         ),
     );
     setSessions(updatedSessions);
+    dispatch(removeSessionAction(sessionToRemove));
   };
 
   const editSession = (sessionToEdit: Session) => {

@@ -264,8 +264,18 @@ const Home = () => {
   };
 
   // Handle file upload
+  const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5GB
   const handleFileUpload = (file: File) => {
     if (!currentSession?.bucket) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("File exceeds maximum size of 5GB");
+      return;
+    }
+    if (file.name.includes("..") || file.name.includes("\\")) {
+      toast.error("Invalid filename");
+      return;
+    }
 
     const id = uuidv4();
     const startedAt = Date.now();

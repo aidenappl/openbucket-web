@@ -30,6 +30,7 @@ const MoveObjectModal: React.FC<MoveObjectModalProps> = ({
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [newPath, setNewPath] = useState(currentPath);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -48,6 +49,11 @@ const MoveObjectModal: React.FC<MoveObjectModalProps> = ({
 
   const handleSubmit = () => {
     if (!isValid || isLoading) return;
+    if (formattedPath.includes("..")) {
+      setError("Path contains invalid characters");
+      return;
+    }
+    setError("");
     onConfirm(formattedPath);
   };
 
@@ -98,6 +104,10 @@ const MoveObjectModal: React.FC<MoveObjectModalProps> = ({
               placeholder="folder/subfolder/filename.ext"
             />
           </div>
+
+          {error && (
+            <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+          )}
 
           {formattedPath !== newPath && newPath.trim() !== "" && (
             <div className="flex flex-col gap-1">

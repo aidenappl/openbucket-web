@@ -34,6 +34,7 @@ const RenameModal: React.FC<RenameModalProps> = ({
   const originalExtension = getExtension(originalFilename);
 
   const [filename, setFilename] = useState(originalFilename);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -57,6 +58,11 @@ const RenameModal: React.FC<RenameModalProps> = ({
 
   const handleSubmit = () => {
     if (!isValid || isLoading) return;
+    if (filename.includes("..") || filename.includes("\\")) {
+      setError("Filename contains invalid characters");
+      return;
+    }
+    setError("");
     onConfirm(newFullPath);
   };
 
@@ -114,6 +120,10 @@ const RenameModal: React.FC<RenameModalProps> = ({
               placeholder={originalFilename}
             />
           </div>
+
+          {error && (
+            <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+          )}
 
           {extensionChanged && (
             <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200">
