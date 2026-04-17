@@ -133,6 +133,11 @@ interface SessionState {
   isInitialized: boolean;
 }
 
+type BulkACLResult = {
+  key: string;
+  success: boolean;
+};
+
 // Union type for API responses
 type ApiResponse<T> = ApiSuccess<T> | ApiError;
 
@@ -149,6 +154,7 @@ export type {
   Grant,
   SessionState,
   UploadStatus,
+  BulkACLResult,
   ApiSuccess,
   ApiError,
 };

@@ -1,5 +1,5 @@
 import { fetchApi } from "@/tools/axios.tools";
-import { ApiResponse, ObjectACLResponse, ObjectHead, PresignResponse, S3ObjectMetadata } from "@/types";
+import { ApiResponse, BulkACLResult, ObjectACLResponse, ObjectHead, PresignResponse, S3ObjectMetadata } from "@/types";
 import { getStore } from "@/store/StoreProvider";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
 
@@ -133,6 +133,15 @@ const reqFetchBulkObjectHead = async (keys: string[]): Promise<ApiResponse<Objec
     );
 }
 
+const reqPutBulkObjectACL = async (keys: string[], acl: string): Promise<ApiResponse<BulkACLResult[]>> => {
+    const currentSession = selectCurrentSession(getStore().getState());
+    return fetchApi<BulkACLResult[]>({
+        url: `/core/v1/${currentSession?.id}/object/acl?bulk`,
+        method: "POST",
+        data: { keys, acl: acl.toLowerCase().trim() },
+    });
+};
+
 const reqFetchObjects = async (prefix: string): Promise<ApiResponse<S3ObjectMetadata[]>> => {
     const currentSession = selectCurrentSession(getStore().getState());
     return fetchApi<S3ObjectMetadata[]>(
@@ -154,5 +163,6 @@ export {
     reqFetchObjectHead,
     reqFetchMultiObjectHead,
     reqFetchBulkObjectHead,
+    reqPutBulkObjectACL,
     reqPutObjectWithProgress
 }

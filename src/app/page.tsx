@@ -18,7 +18,6 @@ import {
 } from "@/store/slices/uploadSlice";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
 import {
-  faArrowUpRight,
   faChevronRight,
   faCloudUpload,
   faDownload,
@@ -27,6 +26,7 @@ import {
   faFolderPlus,
   faGrid2,
   faListCheck,
+  faLock,
   faTrash,
 } from "@fortawesome/pro-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -47,9 +47,11 @@ import toast from "react-hot-toast";
 import {
   reqDeleteObject,
   reqFetchObjectPresign,
+  reqPutBulkObjectACL,
   reqPutObjectWithProgress,
 } from "@/services/object.service";
 import { reqDeleteFolder } from "@/services/folder.service";
+import ChangeAccessModal from "@/components/ChangeAccessModal";
 
 const Home = () => {
   const dispatch = useDispatch();
@@ -61,6 +63,8 @@ const Home = () => {
   const [isFullscreenDragActive, setIsFullscreenDragActive] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isBulkACLModalOpen, setIsBulkACLModalOpen] = useState(false);
+  const [isBulkACLLoading, setIsBulkACLLoading] = useState(false);
   const previousSessionIdRef = useRef<number | null>(null);
 
   // Custom hooks
@@ -229,6 +233,34 @@ const Home = () => {
 
     setIsDeleting(false);
     setIsDeleteModalOpen(false);
+  };
+
+  // Handle bulk ACL change
+  const handleBulkACL = () => {
+    if (!currentSession?.bucket || selectedCount === 0) return;
+    const selectedObjectKeys = getSelectedItems(objectKeys);
+    if (selectedObjectKeys.length === 0) return;
+    setIsBulkACLModalOpen(true);
+  };
+
+  const handleConfirmBulkACL = async (acl: string) => {
+    if (!currentSession?.bucket) return;
+    const selectedObjectKeys = getSelectedItems(objectKeys);
+    setIsBulkACLLoading(true);
+    const res = await reqPutBulkObjectACL(selectedObjectKeys, acl);
+    setIsBulkACLLoading(false);
+    setIsBulkACLModalOpen(false);
+    if (res.success) {
+      toast.success(
+        `Updated access for ${selectedObjectKeys.length} object${
+          selectedObjectKeys.length === 1 ? "" : "s"
+        }`,
+      );
+      clearSelection();
+      loadBucketData(currentSession.bucket, prefix);
+    } else {
+      toast.error("Failed to update access");
+    }
   };
 
   // Handle file upload
@@ -417,8 +449,12 @@ const Home = () => {
             <div className="flex justify-between items-center my-3 flex-shrink-0">
               {/* Left Controls */}
               <div className="flex gap-2">
-                <Button faIcon={faArrowUpRight} active={selectedCount > 0}>
-                  Share Selected
+                <Button
+                  faIcon={faLock}
+                  active={selectedCount > 0}
+                  onClick={handleBulkACL}
+                >
+                  Change Access
                 </Button>
                 <Button
                   variant="light"
@@ -682,6 +718,17 @@ const Home = () => {
           isDeleting={isDeleting}
         />
       )}
+
+      {/* Bulk ACL Modal */}
+      <ChangeAccessModal
+        isOpen={isBulkACLModalOpen}
+        onClose={() => setIsBulkACLModalOpen(false)}
+        onConfirm={handleConfirmBulkACL}
+        currentAcl="private"
+        isLoading={isBulkACLLoading}
+        title={`Change Access for ${getSelectedItems(objectKeys).length} Object${getSelectedItems(objectKeys).length === 1 ? "" : "s"}`}
+        subtitle="This will apply to all selected objects"
+      />
     </main>
   );
 };

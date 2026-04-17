@@ -11,6 +11,8 @@ interface ChangeAccessModalProps {
   onConfirm: (acl: string) => void;
   currentAcl: string;
   isLoading?: boolean;
+  title?: string;
+  subtitle?: string;
 }
 
 const ACL_OPTIONS = [
@@ -34,6 +36,8 @@ const ChangeAccessModal: React.FC<ChangeAccessModalProps> = ({
   onConfirm,
   currentAcl,
   isLoading = false,
+  title = "Change Object Access",
+  subtitle = "Choose who can access this object",
 }) => {
   const [selected, setSelected] = useState(currentAcl || "private");
 
@@ -61,10 +65,10 @@ const ChangeAccessModal: React.FC<ChangeAccessModalProps> = ({
       <div className="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
         <div className="px-6 pt-6 pb-4">
           <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-            Change Object Access
+            {title}
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Choose who can access this object
+            {subtitle}
           </p>
         </div>
 
