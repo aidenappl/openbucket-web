@@ -14,6 +14,5 @@ export const getStore = () => {
 
 export default function StoreProvider({ children }: { children: React.ReactNode }) {
   const storeInstance = getStore();
-          storeInstance.dispatch(setIsLogged(true));
   return <Provider store={storeInstance}>{children}</Provider>;
 }
