@@ -20,7 +20,7 @@ axios_api.interceptors.response.use((response) => {
       response.status === 403 &&
       response.data?.error_code === 4003
     ) {
-      window.location.href = `${process.env.NEXT_PUBLIC_OPENBUCKET_API}/forta/login`;
+      window.location.href = "/unauthorized";
     }
   }
   return response;
