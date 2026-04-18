@@ -35,6 +35,12 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initialize = async () => {
+      // Skip auth check on /unauthorized to prevent redirect loops
+      if (typeof window !== "undefined" && window.location.pathname === "/unauthorized") {
+        setIsReady(true);
+        return;
+      }
+
       // Auth check
       try {
         const authRes = await reqGetSelf();
@@ -42,6 +48,9 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
           storeInstance.dispatch(setIsLogged(true));
           storeInstance.dispatch(setUser(authRes.data));
           storeInstance.dispatch(setIsLoading(false));
+        } else if (!authRes.success && authRes.error_code === 4003) {
+          // Grant revoked — axios interceptor already redirecting to /unauthorized
+          return;
         } else {
           window.location.href = `${process.env.NEXT_PUBLIC_OPENBUCKET_API}/forta/login`;
           return;
