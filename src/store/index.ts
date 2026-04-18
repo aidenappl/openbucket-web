@@ -1,12 +1,10 @@
 import { configureStore } from "@reduxjs/toolkit";
-import authReducer from "./slices/authSlice";
 import uploadReducer from "./slices/uploadSlice";
 import sessionReducer from "./slices/sessionSlice";
 
 export const makeStore = () => {
 	return configureStore({
 		reducer: {
-			auth: authReducer,
 			upload: uploadReducer,
 			session: sessionReducer,
 		},

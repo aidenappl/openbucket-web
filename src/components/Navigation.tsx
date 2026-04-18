@@ -1,23 +1,16 @@
 import Link from "next/link";
 import Image from "next/image";
 import Dropdown, { DropdownItem } from "./Dropdown";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   setActiveSession,
   selectCurrentSession,
   selectAllSessions,
 } from "@/store/slices/sessionSlice";
-import {
-  selectIsLogged,
-  selectIsLoading,
-  selectUser,
-} from "@/store/slices/authSlice";
-import { fortaLogin, openBucketLogout } from "@/services/auth.service";
+import { useForta, UserDropdown } from "forta-js/react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faArrowUpRightFromSquare,
-  faChevronDown,
   faSun,
   faMoon,
   faDesktop,
@@ -33,14 +26,10 @@ const THEME_ICONS = {
 
 const Navigation = () => {
   const [dropdownItems, setDropdownItems] = useState<DropdownItem[]>([]);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement>(null);
   const dispatch = useDispatch();
   const currentSession = useSelector(selectCurrentSession);
   const sessions = useSelector(selectAllSessions);
-  const isLogged = useSelector(selectIsLogged);
-  const isLoading = useSelector(selectIsLoading);
-  const user = useSelector(selectUser);
+  const { isLoggedIn: isLogged, isLoading, user, login, logout } = useForta();
   const { preference, setPreference } = useTheme();
 
   const cycleTheme = () => {
@@ -48,27 +37,6 @@ const Navigation = () => {
     const next = THEME_CYCLE[(idx + 1) % THEME_CYCLE.length];
     setPreference(next);
   };
-
-  const handleLogout = () => {
-    openBucketLogout();
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        userMenuRef.current &&
-        !userMenuRef.current.contains(event.target as Node)
-      ) {
-        setUserMenuOpen(false);
-      }
-    };
-    if (userMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [userMenuOpen]);
 
   useEffect(() => {
     if (sessions && sessions.length > 0) {
@@ -140,63 +108,17 @@ const Navigation = () => {
             />
           </button>
           {!isLoading &&
-            (isLogged ? (
-              <div ref={userMenuRef} className="relative flex items-center">
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="inline-flex items-center gap-2.5 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer transition-colors"
-                >
-                  {user?.profile_image_url ? (
-                    <img
-                      src={user.profile_image_url}
-                      alt=""
-                      className="w-8 h-8 rounded-full object-cover shrink-0"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-semibold text-slate-500 dark:text-slate-300 shrink-0">
-                      {(user?.name || user?.email || "?")
-                        .charAt(0)
-                        .toUpperCase()}
-                    </div>
-                  )}
-                  {user?.name || user?.display_name || user?.email}
-                  <FontAwesomeIcon
-                    icon={faChevronDown}
-                    className={`text-[10px] text-slate-400 transition-transform ${
-                      userMenuOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-                {userMenuOpen && (
-                  <div className="absolute right-0 top-full z-50 mt-2 w-48 origin-top-right rounded-md bg-white dark:bg-gray-900 shadow-lg ring-1 ring-black/5 dark:ring-white/10 py-1">
-                    <a
-                      href="https://forta.appleby.cloud/account"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                      onClick={() => setUserMenuOpen(false)}
-                    >
-                      Manage Account
-                      <FontAwesomeIcon
-                        icon={faArrowUpRightFromSquare}
-                        className="text-[10px] text-slate-400"
-                      />
-                    </a>
-                    <button
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        handleLogout();
-                      }}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
-                    >
-                      Sign Out
-                    </button>
-                  </div>
-                )}
-              </div>
+            (isLogged && user ? (
+              <UserDropdown
+                user={user}
+                onLogout={logout}
+                items={[
+                  { label: "Manage Account", href: "https://forta.appleby.cloud/account", external: true },
+                ]}
+              />
             ) : (
               <button
-                onClick={fortaLogin}
+                onClick={login}
                 className="text-sm font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
               >
                 Sign in

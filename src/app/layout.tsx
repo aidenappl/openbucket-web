@@ -8,10 +8,29 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { config } from "@fortawesome/fontawesome-svg-core";
 import ClientOnly from "@/components/ClientOnly";
 import { Toaster } from "react-hot-toast";
-import StoreProvider from "@/store/StoreProvider";
+import StoreProvider, { getStore } from "@/store/StoreProvider";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { FortaProvider, LoadingScreen } from "forta-js/react";
+import type { User } from "forta-js/react";
+import Image from "next/image";
+import { reqGetSessions } from "@/services/session.service";
+import { setSessions } from "@/store/slices/sessionSlice";
 
 config.autoAddCss = false;
+
+const handleAuthStateChange = async (user: User | null) => {
+  if (user) {
+    try {
+      const sessionRes = await reqGetSessions();
+      if (sessionRes.success) {
+        const store = getStore();
+        store.dispatch(setSessions(sessionRes.data));
+      }
+    } catch (error) {
+      console.error("Failed to initialize sessions:", error);
+    }
+  }
+};
 
 export default function RootLayout({
   children,
@@ -49,14 +68,44 @@ export default function RootLayout({
         suppressHydrationWarning={true}
       >
         <ThemeProvider>
-          <StoreProvider>
-            <Toaster position="top-center" reverseOrder={false} />
-            <Navigation />
-            <div className="px-10 max-w-[var(--max-page-width)] mx-auto">
-              <ClientOnly>{children}</ClientOnly>
-            </div>
-            <Footer />
-          </StoreProvider>
+          <FortaProvider
+            config={{
+              apiUrl: process.env.NEXT_PUBLIC_OPENBUCKET_API ?? "",
+              selfEndpoint: "/self",
+              loginUrl: `${process.env.NEXT_PUBLIC_OPENBUCKET_API}/forta/login`,
+              logoutUrl: `${process.env.NEXT_PUBLIC_OPENBUCKET_API}/forta/logout`,
+              redirectOnUnauthenticated: true,
+              onAuthStateChange: handleAuthStateChange,
+            }}
+            loadingFallback={
+              <LoadingScreen
+                logo={
+                  <div className="flex items-center gap-1.5">
+                    <Image
+                      src="/OpemBucket-Logo-Transparent-Dark.svg"
+                      alt="OpenBucket"
+                      width={52}
+                      height={52}
+                      priority
+                      className="dark:invert"
+                    />
+                    <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                      OpenBucket
+                    </span>
+                  </div>
+                }
+              />
+            }
+          >
+            <StoreProvider>
+              <Toaster position="top-center" reverseOrder={false} />
+              <Navigation />
+              <div className="px-10 max-w-[var(--max-page-width)] mx-auto">
+                <ClientOnly>{children}</ClientOnly>
+              </div>
+              <Footer />
+            </StoreProvider>
+          </FortaProvider>
         </ThemeProvider>
       </body>
     </html>
