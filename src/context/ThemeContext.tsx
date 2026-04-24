@@ -25,15 +25,7 @@ const ThemeContext = createContext<ThemeContextValue>({
 
 export const useTheme = () => useContext(ThemeContext);
 
-function getCookie(name: string): string | null {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = document.cookie.match(new RegExp(`(?:^|; )${escaped}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-function writeCookie(name: string, value: string) {
-  document.cookie = `${name}=${encodeURIComponent(value)}; domain=.appleby.cloud; path=/; max-age=31536000; SameSite=Lax`;
-}
+const THEME_KEY = "ob-theme";
 
 function getSystemTheme(): ResolvedTheme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -54,7 +46,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<ResolvedTheme>("light");
 
   useEffect(() => {
-    const saved = getCookie("forta-appearance");
+    const saved = localStorage.getItem(THEME_KEY);
     const pref: ThemePreference =
       saved && ["system", "dark", "light"].includes(saved)
         ? (saved as ThemePreference)
@@ -79,7 +71,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setPreference = useCallback((pref: ThemePreference) => {
     setPreferenceState(pref);
-    writeCookie("forta-appearance", pref);
+    localStorage.setItem(THEME_KEY, pref);
     const resolved = resolveTheme(pref);
     setTheme(resolved);
     applyTheme(resolved);

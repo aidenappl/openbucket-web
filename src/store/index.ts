@@ -1,12 +1,14 @@
 import { configureStore } from "@reduxjs/toolkit";
 import uploadReducer from "./slices/uploadSlice";
 import sessionReducer from "./slices/sessionSlice";
+import authReducer from "./slices/authSlice";
 
 export const makeStore = () => {
 	return configureStore({
 		reducer: {
 			upload: uploadReducer,
 			session: sessionReducer,
+			auth: authReducer,
 		},
 		middleware: (getDefaultMiddleware) => getDefaultMiddleware(),
 	});

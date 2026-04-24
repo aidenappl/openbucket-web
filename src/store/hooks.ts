@@ -22,3 +22,11 @@ export const useSessions = () => {
     const sessions = useAppSelector((state) => state.session.sessions);
     return sessions;
 };
+
+export const useAuth = () => {
+    const dispatch = useAppDispatch();
+    const isLoggedIn = useAppSelector((state) => state.auth.isLoggedIn);
+    const user = useAppSelector((state) => state.auth.user);
+    const isLoading = useAppSelector((state) => state.auth.isLoading);
+    return { dispatch, isLoggedIn, user, isLoading };
+};

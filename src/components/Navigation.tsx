@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import Dropdown, { DropdownItem } from "./Dropdown";
+import UserDropdown from "./UserDropdown";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -8,7 +9,7 @@ import {
   selectCurrentSession,
   selectAllSessions,
 } from "@/store/slices/sessionSlice";
-import { useForta, UserDropdown } from "forta-js/react";
+import { useAuthContext } from "@/context/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faSun,
@@ -16,6 +17,7 @@ import {
   faDesktop,
 } from "@fortawesome/pro-solid-svg-icons";
 import { useTheme, ThemePreference } from "@/context/ThemeContext";
+import { useRouter } from "next/navigation";
 
 const THEME_CYCLE: ThemePreference[] = ["system", "light", "dark"];
 const THEME_ICONS = {
@@ -29,8 +31,9 @@ const Navigation = () => {
   const dispatch = useDispatch();
   const currentSession = useSelector(selectCurrentSession);
   const sessions = useSelector(selectAllSessions);
-  const { isLoggedIn: isLogged, isLoading, user, login, logout } = useForta();
+  const { isLoggedIn, isLoading, user, logout } = useAuthContext();
   const { preference, setPreference } = useTheme();
+  const router = useRouter();
 
   const cycleTheme = () => {
     const idx = THEME_CYCLE.indexOf(preference);
@@ -108,17 +111,11 @@ const Navigation = () => {
             />
           </button>
           {!isLoading &&
-            (isLogged && user ? (
-              <UserDropdown
-                user={user}
-                onLogout={logout}
-                items={[
-                  { label: "Manage Account", href: "https://forta.appleby.cloud/account", external: true },
-                ]}
-              />
+            (isLoggedIn && user ? (
+              <UserDropdown user={user} onLogout={logout} />
             ) : (
               <button
-                onClick={login}
+                onClick={() => router.push("/login")}
                 className="text-sm font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
               >
                 Sign in
