@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { usePathname } from "next/navigation";
 import { setUser, clearUser, selectUser, selectIsLoggedIn, selectIsLoading } from "@/store/slices/authSlice";
 import { reqGetSelf, reqLogout } from "@/services/auth.service";
 import { reqGetSessions } from "@/services/session.service";
@@ -27,12 +28,19 @@ export const useAuthContext = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
+  const pathname = usePathname();
   const user = useSelector(selectUser);
   const isLoggedIn = useSelector(selectIsLoggedIn);
   const isLoading = useSelector(selectIsLoading);
 
   useEffect(() => {
     const init = async () => {
+      // Don't attempt auth on the login page
+      if (pathname === "/login") {
+        dispatch(clearUser());
+        return;
+      }
+
       // Check if logged_in cookie exists before making a request
       const loggedIn = Cookies.get("logged_in");
       if (!loggedIn) {
@@ -55,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     init();
-  }, [dispatch]);
+  }, [dispatch, pathname]);
 
   const logout = useCallback(async () => {
     await reqLogout();

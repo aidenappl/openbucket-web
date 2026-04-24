@@ -61,7 +61,9 @@ axios_api.interceptors.response.use(async (response) => {
 
     // Refresh failed — clear logged_in cookie and redirect to login
     document.cookie = "logged_in=; Max-Age=0; path=/";
-    window.location.href = "/login";
+    if (window.location.pathname !== "/login") {
+      window.location.href = "/login";
+    }
     return response;
   }
 
