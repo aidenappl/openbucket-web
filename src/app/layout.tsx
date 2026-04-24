@@ -46,7 +46,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className="bg-[var(--background)] text-[var(--foreground)]"
+        className="bg-[var(--background)] text-[var(--foreground)] flex flex-col min-h-screen"
         suppressHydrationWarning={true}
       >
         <ThemeProvider>
@@ -54,7 +54,7 @@ export default function RootLayout({
             <AuthProvider>
               <Toaster position="top-center" reverseOrder={false} />
               <Navigation />
-              <div className="px-10 max-w-[var(--max-page-width)] mx-auto">
+              <div className="px-10 max-w-[var(--max-page-width)] mx-auto flex-1">
                 <ClientOnly>{children}</ClientOnly>
               </div>
               <Footer />

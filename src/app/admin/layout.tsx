@@ -10,6 +10,7 @@ const navItems = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/instances", label: "Instances" },
+  { href: "/admin/sso", label: "SSO" },
 ];
 
 export default function AdminLayout({

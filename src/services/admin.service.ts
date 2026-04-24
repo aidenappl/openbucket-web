@@ -1,5 +1,5 @@
 import { fetchApi } from "@/tools/axios.tools";
-import { ApiResponse, User } from "@/types";
+import { ApiResponse, User, AdminSSOConfig, UpdateSSOConfigPayload } from "@/types";
 
 // ── User Management ──────────────────────────────────────────────────────
 
@@ -199,3 +199,15 @@ export const reqProxyDeleteGrant = (
   bucket: string,
   grantId: number
 ) => proxyFetch<null>(instanceId, `buckets/${bucket}/grants/${grantId}`, "DELETE");
+
+// ── SSO Configuration ───────────────────────────────────────────────────
+
+export const reqAdminGetSSOConfig = async (): Promise<ApiResponse<AdminSSOConfig>> => {
+  return fetchApi<AdminSSOConfig>({ url: "/admin/sso-config", method: "GET" });
+};
+
+export const reqAdminUpdateSSOConfig = async (
+  data: UpdateSSOConfigPayload
+): Promise<ApiResponse<null>> => {
+  return fetchApi<null>({ url: "/admin/sso-config", method: "PUT", data });
+};

@@ -22,6 +22,7 @@ import {
   InstanceBucketStats,
 } from "@/services/admin.service";
 import Button from "@/components/Button";
+import Input from "@/components/Input";
 import Spinner from "@/components/Spinner";
 import toast from "react-hot-toast";
 import { formatBytes } from "@/tools/formatBytes.tools";
@@ -124,7 +125,7 @@ export default function InstancesPage() {
     setExpandedView("credentials");
     setSubLoading(true);
     const res = await reqProxyListCredentials(inst.id);
-    if (res.success) setCredentials(res.data);
+    if (res.success) setCredentials(res.data ?? []);
     else toast.error("Failed to load credentials");
     setSubLoading(false);
   };
@@ -140,11 +141,12 @@ export default function InstancesPage() {
     setSubLoading(true);
     const res = await reqProxyListBuckets(inst.id);
     if (res.success) {
-      setBuckets(res.data);
+      const bucketData = res.data ?? [];
+      setBuckets(bucketData);
       // Load stats for each bucket
       const statsMap: Record<string, InstanceBucketStats> = {};
       await Promise.all(
-        res.data.map(async (b) => {
+        bucketData.map(async (b) => {
           const statsRes = await reqProxyGetBucketStats(inst.id, b.name);
           if (statsRes.success) statsMap[b.name] = statsRes.data;
         })
@@ -169,7 +171,7 @@ export default function InstancesPage() {
         });
       }
       const refreshRes = await reqProxyListCredentials(expandedId);
-      if (refreshRes.success) setCredentials(refreshRes.data);
+      if (refreshRes.success) setCredentials(refreshRes.data ?? []);
     } else {
       toast.error(res.error_message);
     }
@@ -181,7 +183,7 @@ export default function InstancesPage() {
     if (res.success) {
       toast.success("Credential deleted");
       const refreshRes = await reqProxyListCredentials(expandedId);
-      if (refreshRes.success) setCredentials(refreshRes.data);
+      if (refreshRes.success) setCredentials(refreshRes.data ?? []);
     } else {
       toast.error(res.error_message);
     }
@@ -285,24 +287,27 @@ export default function InstancesPage() {
       {showCreate && (
         <div className="mb-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 space-y-3">
           <div className="grid grid-cols-3 gap-3">
-            <input
-              placeholder="Name"
+            <Input
+              label="Name"
+              placeholder="Instance name"
               value={createFields.name}
               onChange={(e) =>
                 setCreateFields({ ...createFields, name: e.target.value })
               }
-              className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100"
+              required
             />
-            <input
-              placeholder="Endpoint (https://...)"
+            <Input
+              label="Endpoint"
+              placeholder="https://..."
               value={createFields.endpoint}
               onChange={(e) =>
                 setCreateFields({ ...createFields, endpoint: e.target.value })
               }
-              className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100"
+              required
             />
-            <input
-              placeholder="Admin Token"
+            <Input
+              label="Admin Token"
+              placeholder="Admin token"
               type="password"
               value={createFields.admin_token}
               onChange={(e) =>
@@ -311,15 +316,15 @@ export default function InstancesPage() {
                   admin_token: e.target.value,
                 })
               }
-              className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100"
+              required
             />
           </div>
           <Button
             variant="dark"
-                        onClick={handleCreate}
+            onClick={handleCreate}
             active={!creating}
           >
-            Create
+            {creating ? "Creating..." : "Create"}
           </Button>
         </div>
       )}

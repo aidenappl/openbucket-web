@@ -9,6 +9,7 @@ import {
 } from "@/services/admin.service";
 import { User } from "@/types";
 import Button from "@/components/Button";
+import Input from "@/components/Input";
 import Spinner from "@/components/Spinner";
 import toast from "react-hot-toast";
 
@@ -107,49 +108,57 @@ export default function UsersPage() {
       {showCreate && (
         <div className="mb-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <input
-              placeholder="Email"
+            <Input
+              label="Email"
+              placeholder="user@example.com"
               value={createFields.email}
               onChange={(e) =>
                 setCreateFields({ ...createFields, email: e.target.value })
               }
-              className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100"
+              required
             />
-            <input
-              placeholder="Name"
+            <Input
+              label="Name"
+              placeholder="Full Name"
               value={createFields.name}
               onChange={(e) =>
                 setCreateFields({ ...createFields, name: e.target.value })
               }
-              className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100"
+              required
             />
-            <input
+            <Input
+              label="Password"
               placeholder="Password"
               type="password"
               value={createFields.password}
               onChange={(e) =>
                 setCreateFields({ ...createFields, password: e.target.value })
               }
-              className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100"
+              required
             />
-            <select
-              value={createFields.role}
-              onChange={(e) =>
-                setCreateFields({ ...createFields, role: e.target.value })
-              }
-              className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100"
-            >
-              <option value="viewer">Viewer</option>
-              <option value="editor">Editor</option>
-              <option value="admin">Admin</option>
-            </select>
+            <div className="w-full flex flex-col gap-1">
+              <label className="text-sm leading-none font-medium text-gray-900 dark:text-gray-100">
+                Role
+              </label>
+              <select
+                value={createFields.role}
+                onChange={(e) =>
+                  setCreateFields({ ...createFields, role: e.target.value })
+                }
+                className="min-w-[200px] mt-1 text-sm block bg-white dark:bg-gray-900 dark:text-gray-100 pl-3 py-1.5 pr-3 rounded-sm outline-1 -outline-offset-1 outline-gray-300 dark:outline-gray-600"
+              >
+                <option value="viewer">Viewer</option>
+                <option value="editor">Editor</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
           </div>
           <Button
             variant="dark"
-                        onClick={handleCreate}
+            onClick={handleCreate}
             active={!creating}
           >
-            Create
+            {creating ? "Creating..." : "Create"}
           </Button>
         </div>
       )}

@@ -16,7 +16,15 @@ const reqPostSession = async (data: Record<string, string>): Promise<ApiResponse
     });
 };
 
+const reqDeleteSession = async (id: number): Promise<ApiResponse<null>> => {
+    return fetchApi<null>({
+        url: `/core/v1/session/${id}`,
+        method: "DELETE",
+    });
+};
+
 export {
     reqGetSessions,
-    reqPostSession
+    reqPostSession,
+    reqDeleteSession,
 };
