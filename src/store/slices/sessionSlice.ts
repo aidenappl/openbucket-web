@@ -22,7 +22,7 @@ const sessionSlice = createSlice({
       setCurrentSessionBucket(action.payload.endpoint, action.payload.bucket);
     },
     setSessions: (state, action: PayloadAction<Session[]>) => {
-      state.sessions = action.payload;
+      state.sessions = action.payload ?? [];
       state.isInitialized = true;
 
       // Try to restore previously selected session from localStorage

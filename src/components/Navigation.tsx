@@ -42,7 +42,7 @@ const Navigation = () => {
   };
 
   useEffect(() => {
-    if (sessions && sessions.length > 0) {
+    if (sessions && Array.isArray(sessions) && sessions.length > 0) {
       const items = sessions.map((session) => ({
         id: `${session.endpoint}{${session.bucket}}`,
         label: session.nickname || session.bucket,

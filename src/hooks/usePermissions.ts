@@ -9,5 +9,5 @@ export function usePermissions() {
   const isInitialized = useSelector(selectSessionsInitialized);
 
   if (!isInitialized) return { hasAPI: null };
-  return { hasAPI: sessions.length > 0 };
+  return { hasAPI: (sessions ?? []).length > 0 };
 }
