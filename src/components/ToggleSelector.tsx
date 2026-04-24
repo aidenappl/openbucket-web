@@ -21,7 +21,7 @@ const ToggleSelector = ({
   }, [value]);
 
   return (
-    <div className="flex border border-gray-200 dark:border-gray-700 overflow-hidden rounded-sm cursor-pointer text-sm">
+    <div className="flex border border-gray-200 dark:border-zinc-700 overflow-hidden rounded-sm cursor-pointer text-sm">
       {children.map((child, index) =>
         cloneElement(child, {
           selected: index === activeIndex,

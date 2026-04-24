@@ -23,14 +23,14 @@ const Button = ({
   const baseStyles = "text-sm py-1.5 rounded-sm px-3 shadow-sm cursor-pointer";
   const variantStyles =
     variant === "light"
-      ? "bg-[#f6f6f6] dark:bg-[#252525] text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700"
-      : "bg-[#393939] dark:bg-[#2a2a2a] text-white";
+      ? "bg-[#f6f6f6] dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 border border-gray-200 dark:border-zinc-700"
+      : "bg-[#393939] dark:bg-zinc-800 text-white";
   const hoverStyles = active
     ? hoverVariant === "danger"
       ? "hover:bg-red-500 hover:text-white"
       : variant === "light"
-        ? "hover:bg-gray-200 dark:hover:bg-[#333] hover:shadow-sm transition-[0.2s]"
-        : "hover:bg-slate-900 dark:hover:bg-[#1a1a1a] hover:shadow-sm transition-[0.2s]"
+        ? "hover:bg-gray-200 dark:hover:bg-zinc-700 hover:shadow-sm transition-[0.2s]"
+        : "hover:bg-slate-900 dark:hover:bg-zinc-900 hover:shadow-sm transition-[0.2s]"
     : "";
 
   const activeStyles = active

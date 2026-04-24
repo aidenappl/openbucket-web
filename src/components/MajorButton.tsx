@@ -19,7 +19,7 @@ const MajorButton = ({
 
   const containerClasses = `
     p-4 w-fit flex flex-col text-sm gap-3 min-w-[180px] rounded-md shadow-sm font-light cursor-pointer
-    ${isDark ? "bg-[#101010] dark:bg-[#1a1a1a] text-white" : "bg-white dark:bg-gray-900 text-black dark:text-gray-100 font-medium"}
+    ${isDark ? "bg-[#101010] dark:bg-zinc-900 text-white" : "bg-white dark:bg-zinc-900 text-black dark:text-zinc-100 font-medium"}
   `;
 
   const iconClasses = `

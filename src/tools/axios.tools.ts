@@ -71,6 +71,10 @@ axios_api.interceptors.response.use(async (response) => {
     window.location.href = "/unauthorized";
   }
 
+  if (response.status === 403 && response.data?.error_code === 4004) {
+    window.location.href = "/pending";
+  }
+
   return response;
 });
 

@@ -3,6 +3,7 @@
 import Button from "@/components/Button";
 import Checkbox from "@/components/Checkbox";
 import GridItem from "@/components/GridItem";
+import Input from "@/components/Input";
 import MajorButton from "@/components/MajorButton";
 import Spinner from "@/components/Spinner";
 import ToggleOption from "@/components/ToggleOption";
@@ -65,6 +66,9 @@ const Home = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isBulkACLModalOpen, setIsBulkACLModalOpen] = useState(false);
   const [isBulkACLLoading, setIsBulkACLLoading] = useState(false);
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const previousSessionIdRef = useRef<number | null>(null);
 
   // Custom hooks
@@ -140,12 +144,15 @@ const Home = () => {
 
   // Handle create folder
   const handleCreateFolder = async () => {
-    const folderName = prompt("Enter folder name:");
-    if (folderName && currentSession?.bucket) {
-      const success = await createFolder(folderName);
-      if (success) {
-        loadBucketData(currentSession.bucket, prefix);
-      }
+    if (!newFolderName.trim() || !currentSession?.bucket) return;
+    setIsCreatingFolder(true);
+    const success = await createFolder(newFolderName.trim());
+    setIsCreatingFolder(false);
+    if (success) {
+      toast.success(`Folder "${newFolderName.trim()}" created`);
+      setNewFolderName("");
+      setIsCreateFolderOpen(false);
+      loadBucketData(currentSession.bucket, prefix);
     }
   };
 
@@ -310,7 +317,7 @@ const Home = () => {
   // Effects
   useEffect(() => {
     if (hasAPI === false) {
-      router.replace("/bucket");
+      router.replace("/sessions");
     }
   }, [hasAPI, router]);
 
@@ -328,6 +335,22 @@ const Home = () => {
       previousSessionIdRef.current = currentSession.id;
     }
   }, [currentSession?.id, resetToRoot, updateUrlParams]);
+
+  // Create folder keyboard shortcuts
+  useEffect(() => {
+    if (!isCreateFolderOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsCreateFolderOpen(false);
+        setNewFolderName("");
+      }
+      if (e.key === "Enter" && newFolderName.trim()) {
+        handleCreateFolder();
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [isCreateFolderOpen, newFolderName]);
 
   // Loading states
   if (hasAPI === null) return <p>Loading...</p>;
@@ -349,15 +372,15 @@ const Home = () => {
             label="Create Folder"
             variant="light"
             faIcon={faFolderPlus}
-            onClick={handleCreateFolder}
+            onClick={() => setIsCreateFolderOpen(true)}
           />
         </div>
 
-        <div className="bg-white dark:bg-[#161616] w-full p-4 border border-gray-200 dark:border-gray-800 shadow-sm rounded-md flex flex-col max-h-[calc(100vh-200px)]">
+        <div className="bg-white dark:bg-zinc-900 w-full p-4 border border-gray-200 dark:border-zinc-800 shadow-sm rounded-md flex flex-col max-h-[calc(100vh-200px)]">
           {/* Breadcrumbs & Controls */}
           <div className="flex justify-between items-center flex-shrink-0">
             {/* Left Breadcrumbs */}
-            <div className="flex items-center gap-1 text-md text-gray-700 dark:text-gray-300 font-semibold select-none">
+            <div className="flex items-center gap-1 text-md text-gray-700 dark:text-zinc-300 font-semibold select-none">
               {breadcrumbs.map((fullPath, index) => {
                 const isLast = index === breadcrumbs.length - 1;
 
@@ -370,7 +393,7 @@ const Home = () => {
                   <span key={fullPath} className="flex items-center gap-1">
                     <span
                       className={`cursor-pointer hover:underline ${
-                        isLast ? "text-gray-900 dark:text-gray-100" : ""
+                        isLast ? "text-gray-900 dark:text-zinc-100" : ""
                       }`}
                       onClick={() => {
                         navigateToBreadcrumb(index, (newPrefix) => {
@@ -487,7 +510,7 @@ const Home = () => {
               {/* Right Data */}
               <div>
                 <p
-                  className="text-sm text-gray-800 dark:text-gray-200"
+                  className="text-sm text-gray-800 dark:text-zinc-200"
                   hidden={selectedCount === 0}
                 >
                   {selectedCount} selected
@@ -495,9 +518,9 @@ const Home = () => {
               </div>
             </div>
             {/* Files Table */}
-            <div className="border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
+            <div className="border border-gray-200 dark:border-zinc-700 overflow-hidden flex flex-col">
               {/* Table Header - Fixed */}
-              <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] text-sm font-semibold border-b border-gray-300 dark:border-gray-600 h-[40px] items-center px-3 bg-gray-50 dark:bg-[#1a1a1a] flex-shrink-0">
+              <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] text-sm font-semibold border-b border-gray-300 dark:border-zinc-600 h-[40px] items-center px-3 bg-gray-50 dark:bg-zinc-900 flex-shrink-0">
                 <Checkbox
                   state={masterCheckboxState}
                   onToggle={handleToggleAll}
@@ -521,7 +544,7 @@ const Home = () => {
                     ? folders.map((folder) => (
                         <div
                           key={folder}
-                          className="grid text-sm px-3  border-b border-gray-200 dark:border-gray-700 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] cursor-pointer select-none"
+                          className="grid text-sm px-3  border-b border-gray-200 dark:border-zinc-700 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 dark:hover:bg-zinc-900 cursor-pointer select-none"
                           onClick={() => {
                             navigateToFolder(folder, (newPrefix) => {
                               updateUrlParams(newPrefix);
@@ -578,7 +601,7 @@ const Home = () => {
                     ? objects.map((object) => (
                         <div
                           key={object.Key}
-                          className="grid text-sm px-3 border-b border-gray-200 dark:border-gray-700 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] select-none"
+                          className="grid text-sm px-3 border-b border-gray-200 dark:border-zinc-700 h-[40px] items-center grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr] hover:bg-gray-50 dark:hover:bg-zinc-900 select-none"
                         >
                           <Checkbox
                             state={
@@ -687,7 +710,7 @@ const Home = () => {
                   folders.length === 0 &&
                   objects &&
                   objects.length === 0 ? (
-                    <div className="text-sm text-gray-500 dark:text-gray-400 p-3">
+                    <div className="text-sm text-gray-500 dark:text-zinc-400 p-3">
                       No items found.
                     </div>
                   ) : null}
@@ -739,6 +762,73 @@ const Home = () => {
         title={`Change Access for ${getSelectedItems(objectKeys).length} Object${getSelectedItems(objectKeys).length === 1 ? "" : "s"}`}
         subtitle="This will apply to all selected objects"
       />
+
+      {/* Create Folder Modal */}
+      {isCreateFolderOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-40"
+            onClick={() => {
+              setIsCreateFolderOpen(false);
+              setNewFolderName("");
+            }}
+          />
+          <div
+            className="fixed inset-0 flex items-center justify-center z-50 p-4"
+            onClick={() => {
+              setIsCreateFolderOpen(false);
+              setNewFolderName("");
+            }}
+          >
+            <div
+              className="bg-white dark:bg-zinc-900 rounded-lg w-full max-w-sm shadow-xl border border-gray-200 dark:border-zinc-700"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center p-5 pb-0">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-100">
+                  Create Folder
+                </h2>
+                <button
+                  onClick={() => {
+                    setIsCreateFolderOpen(false);
+                    setNewFolderName("");
+                  }}
+                  className="text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300 text-xl cursor-pointer"
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="p-5">
+                <Input
+                  label="Folder Name"
+                  placeholder="New folder"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  required
+                />
+                <div className="flex gap-2 mt-4">
+                  <Button
+                    variant="dark"
+                    onClick={handleCreateFolder}
+                    active={!isCreatingFolder && newFolderName.trim().length > 0}
+                  >
+                    {isCreatingFolder ? "Creating..." : "Create"}
+                  </Button>
+                  <Button
+                    variant="light"
+                    onClick={() => {
+                      setIsCreateFolderOpen(false);
+                      setNewFolderName("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </main>
   );
 };

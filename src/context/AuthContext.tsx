@@ -52,6 +52,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.success) {
         dispatch(setUser(res.data));
 
+        // Redirect pending users to the pending page
+        if (res.data.role === "pending") {
+          if (pathname !== "/pending") {
+            window.location.href = "/pending";
+          }
+          return;
+        }
+
         // Load sessions after auth
         const sessionRes = await reqGetSessions();
         if (sessionRes.success) {

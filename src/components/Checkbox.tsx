@@ -16,12 +16,12 @@ const Checkbox = ({ state, onToggle }: CheckboxProps) => {
 
   return (
     <div
-      className={`flex items-center justify-center w-[20px] h-[20px] rounded-sm border border-gray-300 dark:border-gray-600 cursor-pointer select-none ${
+      className={`flex items-center justify-center w-[20px] h-[20px] rounded-sm border border-gray-300 dark:border-zinc-600 cursor-pointer select-none ${
         state === "checked"
           ? "bg-[#47b577] hover:bg-green-600"
           : state === "indeterminate"
             ? "bg-yellow-400 hover:bg-yellow-500"
-            : "bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+            : "bg-white dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700"
       } `}
       onClick={handleClick}
     >

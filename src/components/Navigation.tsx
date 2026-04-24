@@ -53,7 +53,7 @@ const Navigation = () => {
         {
           label: "Create New Session",
           variant: "action" as const,
-          href: "/bucket",
+          href: "/sessions",
         },
       ]);
     }
@@ -71,7 +71,7 @@ const Navigation = () => {
             priority
             className="dark:invert"
           />
-          <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <span className="text-2xl font-bold text-gray-900 dark:text-zinc-100">
             OpenBucket
           </span>
         </Link>
@@ -86,7 +86,7 @@ const Navigation = () => {
               </Link>
               <Link
                 className="text-sm font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
-                href={"/bucket"}
+                href={"/sessions"}
               >
                 Sessions
               </Link>
@@ -102,7 +102,7 @@ const Navigation = () => {
           )}
           <button
             onClick={cycleTheme}
-            className="w-8 h-8 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+            className="w-8 h-8 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
             title={`Theme: ${preference}`}
           >
             <FontAwesomeIcon

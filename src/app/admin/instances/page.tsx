@@ -273,7 +273,7 @@ export default function InstancesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+        <h1 className="text-xl font-bold text-gray-900 dark:text-zinc-100">
           Instances
         </h1>
         <Button
@@ -285,7 +285,7 @@ export default function InstancesPage() {
       </div>
 
       {showCreate && (
-        <div className="mb-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 space-y-3">
+        <div className="mb-6 p-4 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 space-y-3">
           <div className="grid grid-cols-3 gap-3">
             <Input
               label="Name"
@@ -333,7 +333,7 @@ export default function InstancesPage() {
         {instances.map((inst) => (
           <div
             key={inst.id}
-            className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 overflow-hidden"
+            className="border border-gray-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 overflow-hidden"
           >
             {/* Instance header */}
             <div className="flex items-center justify-between px-4 py-3">
@@ -344,10 +344,10 @@ export default function InstancesPage() {
                   }`}
                 />
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  <p className="text-sm font-medium text-gray-900 dark:text-zinc-100">
                     {inst.name}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-gray-500 dark:text-zinc-400">
                     {inst.endpoint}
                   </p>
                 </div>
@@ -358,7 +358,7 @@ export default function InstancesPage() {
                   className={`text-xs px-3 py-1 rounded-md border cursor-pointer transition-colors ${
                     expandedId === inst.id && expandedView === "credentials"
                       ? "border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
-                      : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      : "border-gray-300 dark:border-zinc-600 text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700"
                   }`}
                 >
                   Credentials
@@ -368,7 +368,7 @@ export default function InstancesPage() {
                   className={`text-xs px-3 py-1 rounded-md border cursor-pointer transition-colors ${
                     expandedId === inst.id && expandedView === "buckets"
                       ? "border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
-                      : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      : "border-gray-300 dark:border-zinc-600 text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700"
                   }`}
                 >
                   Buckets
@@ -394,7 +394,7 @@ export default function InstancesPage() {
 
             {/* Expanded credentials view */}
             {expandedId === inst.id && expandedView === "credentials" && (
-              <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-3">
+              <div className="border-t border-gray-200 dark:border-zinc-700 px-4 py-3">
                 {subLoading ? (
                   <div className="flex justify-center py-4">
                     <Spinner />
@@ -406,7 +406,7 @@ export default function InstancesPage() {
                         placeholder="Credential name"
                         value={newCredName}
                         onChange={(e) => setNewCredName(e.target.value)}
-                        className="flex-1 px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100"
+                        className="flex-1 px-3 py-1.5 rounded-md border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-zinc-100"
                       />
                       <Button
                         variant="dark"
@@ -417,7 +417,7 @@ export default function InstancesPage() {
                     </div>
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="text-left text-gray-500 dark:text-gray-400">
+                        <tr className="text-left text-gray-500 dark:text-zinc-400">
                           <th className="pb-1 font-medium">Name</th>
                           <th className="pb-1 font-medium">Key ID</th>
                           <th className="pb-1 font-medium">Created</th>
@@ -428,15 +428,15 @@ export default function InstancesPage() {
                         {credentials.map((c) => (
                           <tr
                             key={c.id}
-                            className="border-t border-gray-100 dark:border-gray-700"
+                            className="border-t border-gray-100 dark:border-zinc-700"
                           >
-                            <td className="py-1.5 text-gray-900 dark:text-gray-100">
+                            <td className="py-1.5 text-gray-900 dark:text-zinc-100">
                               {c.name}
                             </td>
-                            <td className="py-1.5 font-mono text-xs text-gray-600 dark:text-gray-400">
+                            <td className="py-1.5 font-mono text-xs text-gray-600 dark:text-zinc-400">
                               {c.key_id}
                             </td>
-                            <td className="py-1.5 text-gray-500 dark:text-gray-400">
+                            <td className="py-1.5 text-gray-500 dark:text-zinc-400">
                               {new Date(c.date_created).toLocaleDateString()}
                             </td>
                             <td className="py-1.5 text-right">
@@ -468,7 +468,7 @@ export default function InstancesPage() {
 
             {/* Expanded buckets view */}
             {expandedId === inst.id && expandedView === "buckets" && (
-              <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-3">
+              <div className="border-t border-gray-200 dark:border-zinc-700 px-4 py-3">
                 {subLoading ? (
                   <div className="flex justify-center py-4">
                     <Spinner />
@@ -480,13 +480,13 @@ export default function InstancesPage() {
                         placeholder="Bucket name"
                         value={newBucketName}
                         onChange={(e) => setNewBucketName(e.target.value)}
-                        className="flex-1 px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100"
+                        className="flex-1 px-3 py-1.5 rounded-md border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-zinc-100"
                       />
                       <input
                         placeholder="Owner Key ID"
                         value={newBucketOwner}
                         onChange={(e) => setNewBucketOwner(e.target.value)}
-                        className="flex-1 px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100"
+                        className="flex-1 px-3 py-1.5 rounded-md border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-zinc-100"
                       />
                       <Button
                         variant="dark"
@@ -499,11 +499,11 @@ export default function InstancesPage() {
                     {buckets.map((b) => (
                       <div
                         key={b.id}
-                        className="mb-3 p-3 rounded-md border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50"
+                        className="mb-3 p-3 rounded-md border border-gray-100 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50"
                       >
                         <div className="flex items-center justify-between mb-2">
                           <div>
-                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            <span className="text-sm font-medium text-gray-900 dark:text-zinc-100">
                               {b.name}
                             </span>
                             {bucketStats[b.name] && (
@@ -519,7 +519,7 @@ export default function InstancesPage() {
                               onChange={(e) =>
                                 handleUpdateACL(b.name, e.target.value)
                               }
-                              className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                              className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100"
                             >
                               <option value="PRIVATE">PRIVATE</option>
                               <option value="PUBLIC_READ">PUBLIC_READ</option>
@@ -539,7 +539,7 @@ export default function InstancesPage() {
 
                         {/* Grants */}
                         <div className="text-xs">
-                          <p className="font-medium text-gray-500 dark:text-gray-400 mb-1">
+                          <p className="font-medium text-gray-500 dark:text-zinc-400 mb-1">
                             Grants
                           </p>
                           {b.grants && b.grants.length > 0 ? (
@@ -549,7 +549,7 @@ export default function InstancesPage() {
                                   key={g.id}
                                   className="flex items-center justify-between"
                                 >
-                                  <span className="text-gray-700 dark:text-gray-300">
+                                  <span className="text-gray-700 dark:text-zinc-300">
                                     {g.display_name}{" "}
                                     <span className="text-gray-400">
                                       ({g.key_id})
@@ -578,14 +578,14 @@ export default function InstancesPage() {
                                 placeholder="Key ID"
                                 value={grantKeyId}
                                 onChange={(e) => setGrantKeyId(e.target.value)}
-                                className="flex-1 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                className="flex-1 px-2 py-1 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100"
                               />
                               <select
                                 value={grantPermission}
                                 onChange={(e) =>
                                   setGrantPermission(e.target.value)
                                 }
-                                className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                className="px-2 py-1 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100"
                               >
                                 <option value="READ">READ</option>
                                 <option value="WRITE">WRITE</option>
@@ -603,7 +603,7 @@ export default function InstancesPage() {
                               </button>
                               <button
                                 onClick={() => setGrantBucket(null)}
-                                className="px-2 py-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer"
+                                className="px-2 py-1 text-gray-500 hover:text-gray-700 dark:hover:text-zinc-300 cursor-pointer"
                               >
                                 Cancel
                               </button>

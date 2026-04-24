@@ -50,7 +50,7 @@ export default function AdminOverview() {
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+      <h1 className="text-xl font-bold text-gray-900 dark:text-zinc-100 mb-6">
         Admin Overview
       </h1>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -58,12 +58,12 @@ export default function AdminOverview() {
           <Link
             key={stat.label}
             href={stat.href}
-            className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-sm transition-all"
+            className="p-4 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-sm transition-all"
           >
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <p className="text-2xl font-bold text-gray-900 dark:text-zinc-100">
               {stat.value}
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1">
               {stat.label}
             </p>
           </Link>

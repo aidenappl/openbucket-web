@@ -133,9 +133,9 @@ const ObjectInspectPanel: React.FC<ObjectInspectPanelProps> = ({
   };
 
   return (
-    <div className="flex flex-col bg-white dark:bg-[#161616] w-full border border-gray-200 dark:border-gray-800 shadow-sm rounded-xl overflow-hidden">
+    <div className="flex flex-col bg-white dark:bg-zinc-900 w-full border border-gray-200 dark:border-zinc-800 shadow-sm rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="flex justify-between gap-10 items-center px-6 pt-5 pb-5 border-b border-gray-100 dark:border-gray-800">
+      <div className="flex justify-between gap-10 items-center px-6 pt-5 pb-5 border-b border-gray-100 dark:border-zinc-800">
         <div className="flex-1 min-w-0">
           <button
             className="flex items-center gap-1 text-xs font-medium text-slate-400 cursor-pointer hover:text-slate-700 transition-colors mb-3"
@@ -153,7 +153,7 @@ const ObjectInspectPanel: React.FC<ObjectInspectPanelProps> = ({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight">
+                <h1 className="text-lg font-semibold text-gray-900 dark:text-zinc-100 truncate leading-tight">
                   {filename}
                 </h1>
                 <button
@@ -213,7 +213,7 @@ const ObjectInspectPanel: React.FC<ObjectInspectPanelProps> = ({
               {/* Metadata grid */}
               <div className="grid grid-cols-[140px_1fr] gap-x-8 gap-y-4 items-baseline">
                 <MetaRow label="Path">
-                  <span className="font-mono text-xs leading-6 text-gray-700 dark:text-gray-300 break-all inline-flex items-baseline gap-2">
+                  <span className="font-mono text-xs leading-6 text-gray-700 dark:text-zinc-300 break-all inline-flex items-baseline gap-2">
                     {fullPath || "N/A"}
                     <FontAwesomeIcon
                       icon={faEdit}
@@ -224,13 +224,13 @@ const ObjectInspectPanel: React.FC<ObjectInspectPanelProps> = ({
                 </MetaRow>
 
                 <MetaRow label="Type">
-                  <span className="font-mono text-xs leading-6 text-gray-700 dark:text-gray-300">
+                  <span className="font-mono text-xs leading-6 text-gray-700 dark:text-zinc-300">
                     {object.ContentType || "N/A"}
                   </span>
                 </MetaRow>
 
                 <MetaRow label="Size">
-                  <span className="text-gray-800 dark:text-gray-200 leading-6">
+                  <span className="text-gray-800 dark:text-zinc-200 leading-6">
                     {formatBytes(object.ContentLength || 0)}
                   </span>
                 </MetaRow>
@@ -248,7 +248,7 @@ const ObjectInspectPanel: React.FC<ObjectInspectPanelProps> = ({
                 <MetaRow label="Owner">
                   {objectACL ? (
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-gray-800 dark:text-gray-200">
+                      <span className="text-gray-800 dark:text-zinc-200">
                         {objectACL.Owner.DisplayName}
                       </span>
                       <span className="font-mono text-xs text-slate-400">
@@ -267,13 +267,13 @@ const ObjectInspectPanel: React.FC<ObjectInspectPanelProps> = ({
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
                     Grants
                   </p>
-                  <div className="flex flex-col divide-y divide-gray-100 dark:divide-gray-800 border border-gray-100 dark:border-gray-800 rounded-lg overflow-hidden">
+                  <div className="flex flex-col divide-y divide-gray-100 dark:divide-zinc-800 border border-gray-100 dark:border-zinc-800 rounded-lg overflow-hidden">
                     {objectACL.Grants.map((grant, index) => (
                       <div
                         key={"grant_" + index}
-                        className="flex items-center justify-between px-4 py-3 bg-white dark:bg-[#1a1a1a] hover:bg-slate-50 dark:hover:bg-[#222] transition-colors"
+                        className="flex items-center justify-between px-4 py-3 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
                       >
-                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                        <span className="text-sm text-gray-700 dark:text-zinc-300">
                           {grant.Grantee.DisplayName || grant.Grantee.URI}
                         </span>
                         <span className="text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
@@ -289,7 +289,7 @@ const ObjectInspectPanel: React.FC<ObjectInspectPanelProps> = ({
         </div>
 
         {/* Right: Preview */}
-        <div className="flex-1 border-l border-gray-100 dark:border-gray-800 bg-slate-50 dark:bg-[#111] flex items-center justify-center p-5 min-h-[300px]">
+        <div className="flex-1 border-l border-gray-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 flex items-center justify-center p-5 min-h-[300px]">
           {isLoading ? (
             <div className="flex flex-col items-center gap-2 text-slate-400">
               <Spinner />
@@ -312,7 +312,7 @@ const ObjectInspectPanel: React.FC<ObjectInspectPanelProps> = ({
             <iframe
               src={previewUrl}
               title={filename}
-              className="w-full h-[500px] rounded-lg border border-gray-200 dark:border-gray-700"
+              className="w-full h-[500px] rounded-lg border border-gray-200 dark:border-zinc-700"
             />
           ) : previewType === "video" ? (
             <video
@@ -337,7 +337,7 @@ const ObjectInspectPanel: React.FC<ObjectInspectPanelProps> = ({
             <iframe
               src={previewUrl}
               title={filename}
-              className="w-full h-[500px] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              className="w-full h-[500px] rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
             />
           ) : (
             <div className="flex flex-col items-center gap-3 text-slate-400">

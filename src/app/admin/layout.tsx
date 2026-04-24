@@ -39,7 +39,7 @@ export default function AdminLayout({
   return (
     <div className="flex gap-8 mt-4">
       <nav className="w-48 shrink-0">
-        <h2 className="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-wider">
+        <h2 className="text-xs font-semibold uppercase text-gray-400 dark:text-zinc-500 mb-3 tracking-wider">
           Admin
         </h2>
         <ul className="space-y-1">
@@ -55,7 +55,7 @@ export default function AdminLayout({
                   className={`block px-3 py-1.5 rounded-md text-sm transition-colors ${
                     isActive
                       ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 font-medium"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      : "text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
                   }`}
                 >
                   {item.label}

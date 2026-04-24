@@ -94,7 +94,7 @@ export default function UsersPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+        <h1 className="text-xl font-bold text-gray-900 dark:text-zinc-100">
           Users
         </h1>
         <Button
@@ -106,7 +106,7 @@ export default function UsersPage() {
       </div>
 
       {showCreate && (
-        <div className="mb-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 space-y-3">
+        <div className="mb-6 p-4 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Email"
@@ -137,7 +137,7 @@ export default function UsersPage() {
               required
             />
             <div className="w-full flex flex-col gap-1">
-              <label className="text-sm leading-none font-medium text-gray-900 dark:text-gray-100">
+              <label className="text-sm leading-none font-medium text-gray-900 dark:text-zinc-100">
                 Role
               </label>
               <select
@@ -145,7 +145,7 @@ export default function UsersPage() {
                 onChange={(e) =>
                   setCreateFields({ ...createFields, role: e.target.value })
                 }
-                className="min-w-[200px] mt-1 text-sm block bg-white dark:bg-gray-900 dark:text-gray-100 pl-3 py-1.5 pr-3 rounded-sm outline-1 -outline-offset-1 outline-gray-300 dark:outline-gray-600"
+                className="min-w-[200px] mt-1 text-sm block bg-white dark:bg-zinc-900 dark:text-zinc-100 pl-3 py-1.5 pr-3 rounded-sm outline-1 -outline-offset-1 outline-gray-300 dark:outline-zinc-600"
               >
                 <option value="viewer">Viewer</option>
                 <option value="editor">Editor</option>
@@ -163,26 +163,26 @@ export default function UsersPage() {
         </div>
       )}
 
-      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+      <div className="border border-gray-200 dark:border-zinc-700 rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 dark:bg-gray-800 text-left">
-              <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">
+            <tr className="bg-gray-50 dark:bg-zinc-800 text-left">
+              <th className="px-4 py-2 font-medium text-gray-500 dark:text-zinc-400">
                 Email
               </th>
-              <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">
+              <th className="px-4 py-2 font-medium text-gray-500 dark:text-zinc-400">
                 Name
               </th>
-              <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">
+              <th className="px-4 py-2 font-medium text-gray-500 dark:text-zinc-400">
                 Auth
               </th>
-              <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">
+              <th className="px-4 py-2 font-medium text-gray-500 dark:text-zinc-400">
                 Role
               </th>
-              <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">
+              <th className="px-4 py-2 font-medium text-gray-500 dark:text-zinc-400">
                 Status
               </th>
-              <th className="px-4 py-2 font-medium text-gray-500 dark:text-gray-400">
+              <th className="px-4 py-2 font-medium text-gray-500 dark:text-zinc-400">
                 Actions
               </th>
             </tr>
@@ -191,16 +191,16 @@ export default function UsersPage() {
             {users.map((user) => (
               <tr
                 key={user.id}
-                className="border-t border-gray-200 dark:border-gray-700"
+                className="border-t border-gray-200 dark:border-zinc-700"
               >
-                <td className="px-4 py-2 text-gray-900 dark:text-gray-100">
+                <td className="px-4 py-2 text-gray-900 dark:text-zinc-100">
                   {user.email}
                 </td>
-                <td className="px-4 py-2 text-gray-600 dark:text-gray-400">
+                <td className="px-4 py-2 text-gray-600 dark:text-zinc-400">
                   {user.name ?? "—"}
                 </td>
                 <td className="px-4 py-2">
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-zinc-300">
                     {user.auth_type}
                   </span>
                 </td>
@@ -208,7 +208,7 @@ export default function UsersPage() {
                   <select
                     value={user.role}
                     onChange={(e) => handleRoleChange(user, e.target.value)}
-                    className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100"
                   >
                     {ROLE_OPTIONS.map((r) => (
                       <option key={r} value={r}>

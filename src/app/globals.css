@@ -9,13 +9,13 @@
 }
 
 .dark {
-  --background: #0f0f0f;
-  --foreground: #e5e5e5;
-  --background-dark: #080808;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --background-dark: #09090b;
   color-scheme: dark;
 }
 
-@theme static {
+:root {
   --max-page-width: 1800px;
 }
 

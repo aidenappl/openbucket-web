@@ -93,7 +93,7 @@ const FullscreenDropZone: React.FC<FullscreenDropZoneProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-xs">
-      <div className="w-full max-w-md p-12 mx-4 bg-white dark:bg-gray-900 border-4 border-blue-500 border-dashed shadow-2xl rounded-2xl">
+      <div className="w-full max-w-md p-12 mx-4 bg-white dark:bg-zinc-900 border-4 border-blue-500 border-dashed shadow-2xl rounded-2xl">
         <div className="flex flex-col items-center justify-center space-y-6 text-center">
           <div className="text-6xl text-blue-500 animate-bounce">
             <FontAwesomeIcon icon={faFile} />

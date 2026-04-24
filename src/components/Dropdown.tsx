@@ -66,7 +66,7 @@ const Dropdown = ({ items, value, onChange = () => {} }: DropdownProps) => {
       <div>
         <button
           type="button"
-          className="inline-flex w-full cursor-pointer items-center justify-center gap-x-1.5 rounded-md bg-white dark:bg-gray-900 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-gray-100 shadow-xs ring-1 ring-gray-300 dark:ring-gray-600 ring-inset hover:bg-gray-50 dark:hover:bg-gray-800"
+          className="inline-flex w-full cursor-pointer items-center justify-center gap-x-1.5 rounded-md bg-white dark:bg-zinc-900 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-zinc-100 shadow-xs ring-1 ring-gray-300 dark:ring-zinc-600 ring-inset hover:bg-gray-50 dark:hover:bg-zinc-800"
           id="menu-button"
           aria-expanded="true"
           aria-haspopup="true"
@@ -82,7 +82,7 @@ const Dropdown = ({ items, value, onChange = () => {} }: DropdownProps) => {
       </div>
 
       <div
-        className="absolute right-0 z-10 mt-2 w-56 origin-top-right divide-y divide-gray-100 dark:divide-gray-700 rounded-md bg-white dark:bg-gray-900 shadow-lg ring-1 ring-black/5 dark:ring-white/10 focus:outline-hidden"
+        className="absolute right-0 z-10 mt-2 w-56 origin-top-right divide-y divide-gray-100 dark:divide-zinc-700 rounded-md bg-white dark:bg-zinc-900 shadow-lg ring-1 ring-black/5 dark:ring-white/10 focus:outline-hidden"
         role="menu"
         hidden={!visible}
         aria-orientation="vertical"
@@ -94,7 +94,7 @@ const Dropdown = ({ items, value, onChange = () => {} }: DropdownProps) => {
             <Link
               key={index}
               href={dropItem.href}
-              className={`block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 ${
+              className={`block px-4 py-2 text-sm text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 ${
                 dropItem.variant === "action" ? "font-semibold" : ""
               }`}
               role="menuitem"
@@ -113,7 +113,7 @@ const Dropdown = ({ items, value, onChange = () => {} }: DropdownProps) => {
             <a
               key={index}
               className={
-                `flex items-center gap-2 cursor-pointer px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 truncate` +
+                `flex items-center gap-2 cursor-pointer px-4 py-2 text-sm text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 truncate` +
                 (dropItem.label == item.label &&
                   dropItem.id == item.id &&
                   " font-medium text-black")

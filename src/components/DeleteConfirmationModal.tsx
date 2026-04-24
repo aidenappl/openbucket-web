@@ -78,10 +78,10 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
             />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-zinc-100">
               {title}
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            <p className="text-sm text-gray-600 dark:text-zinc-400 mt-1">
               {isBulkDelete
                 ? `You are about to delete ${itemCount} items`
                 : "You are about to delete 1 item"}
@@ -91,7 +91,7 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
 
         {/* Content */}
         <div className="px-6 pb-4">
-          <p className="text-gray-700 dark:text-gray-300 mb-4">
+          <p className="text-gray-700 dark:text-zinc-300 mb-4">
             {isBulkDelete
               ? "Are you sure you want to delete these items? This action cannot be undone."
               : "Are you sure you want to delete this item? This action cannot be undone."}
@@ -99,15 +99,15 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
 
           {/* Items Preview */}
           {showPreview ? (
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-3 max-h-48 overflow-y-auto">
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
+            <div className="bg-gray-50 dark:bg-zinc-800 rounded-md p-3 max-h-48 overflow-y-auto">
+              <p className="text-sm font-medium text-gray-800 dark:text-zinc-200 mb-2">
                 {isBulkDelete ? "Items to delete:" : "Item to delete:"}
               </p>
               <ul className="space-y-1">
                 {items.map((item, index) => (
                   <li
                     key={index}
-                    className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2"
+                    className="text-sm text-gray-600 dark:text-zinc-400 flex items-center gap-2"
                   >
                     <FontAwesomeIcon
                       icon={faTrash}
@@ -121,8 +121,8 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
               </ul>
             </div>
           ) : (
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-3">
-              <p className="text-sm text-gray-700 dark:text-gray-300">
+            <div className="bg-gray-50 dark:bg-zinc-800 rounded-md p-3">
+              <p className="text-sm text-gray-700 dark:text-zinc-300">
                 <FontAwesomeIcon icon={faTrash} className="text-red-500 mr-2" />
                 <span className="font-medium">{itemCount} items</span> will be
                 permanently deleted
@@ -132,7 +132,7 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 p-6 pt-2 bg-gray-50 dark:bg-gray-800 rounded-b-lg">
+        <div className="flex gap-3 p-6 pt-2 bg-gray-50 dark:bg-zinc-800 rounded-b-lg">
           <Button
             onClick={onClose}
             variant="light"

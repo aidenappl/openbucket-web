@@ -78,7 +78,7 @@ export default function SSOPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+        <h1 className="text-xl font-bold text-gray-900 dark:text-zinc-100">
           SSO Configuration
         </h1>
         <Button variant="dark" onClick={handleSave} active={!saving}>
@@ -88,12 +88,12 @@ export default function SSOPage() {
 
       <div className="space-y-6">
         {/* General */}
-        <section className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-          <h2 className="text-sm font-semibold uppercase text-gray-400 dark:text-gray-500 mb-4 tracking-wider">
+        <section className="p-4 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+          <h2 className="text-sm font-semibold uppercase text-gray-400 dark:text-zinc-500 mb-4 tracking-wider">
             General
           </h2>
           <div className="flex items-center gap-4 mb-4">
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            <span className="text-sm font-medium text-gray-900 dark:text-zinc-100">
               SSO Status
             </span>
             <button
@@ -116,8 +116,8 @@ export default function SSOPage() {
         </section>
 
         {/* OAuth Provider URLs */}
-        <section className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-          <h2 className="text-sm font-semibold uppercase text-gray-400 dark:text-gray-500 mb-4 tracking-wider">
+        <section className="p-4 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+          <h2 className="text-sm font-semibold uppercase text-gray-400 dark:text-zinc-500 mb-4 tracking-wider">
             OAuth Provider
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -161,8 +161,8 @@ export default function SSOPage() {
         </section>
 
         {/* Client Credentials */}
-        <section className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-          <h2 className="text-sm font-semibold uppercase text-gray-400 dark:text-gray-500 mb-4 tracking-wider">
+        <section className="p-4 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+          <h2 className="text-sm font-semibold uppercase text-gray-400 dark:text-zinc-500 mb-4 tracking-wider">
             Client Credentials
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -181,7 +181,7 @@ export default function SSOPage() {
                 onChange={(e) => setSecret(e.target.value)}
               />
               {config?.has_secret && (
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1">
                   Leave blank to keep existing secret
                 </p>
               )}
@@ -190,8 +190,8 @@ export default function SSOPage() {
         </section>
 
         {/* Behavior */}
-        <section className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-          <h2 className="text-sm font-semibold uppercase text-gray-400 dark:text-gray-500 mb-4 tracking-wider">
+        <section className="p-4 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+          <h2 className="text-sm font-semibold uppercase text-gray-400 dark:text-zinc-500 mb-4 tracking-wider">
             Behavior
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -209,7 +209,7 @@ export default function SSOPage() {
             />
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            <span className="text-sm font-medium text-gray-900 dark:text-zinc-100">
               Auto-provision Users
             </span>
             <button
@@ -217,12 +217,12 @@ export default function SSOPage() {
               className={`text-xs px-3 py-1 rounded-full cursor-pointer font-medium transition-colors ${
                 form.auto_provision
                   ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                  : "bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-zinc-400"
               }`}
             >
               {form.auto_provision ? "Enabled" : "Disabled"}
             </button>
-            <span className="text-xs text-gray-400 dark:text-gray-500">
+            <span className="text-xs text-gray-400 dark:text-zinc-500">
               Automatically create accounts for new SSO users (pending approval)
             </span>
           </div>

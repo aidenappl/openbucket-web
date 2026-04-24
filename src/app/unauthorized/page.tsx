@@ -13,10 +13,10 @@ export default function Page() {
         height={52}
         className="dark:invert mb-4"
       />
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100 mb-2">
         Access Denied
       </h1>
-      <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm">
+      <p className="text-gray-500 dark:text-zinc-400 mb-6 max-w-sm">
         Your account does not have permission to access this resource. Contact
         an administrator if you believe this is an error.
       </p>

@@ -29,7 +29,7 @@ const Input = ({
       {label && (
         <label
           htmlFor={inputId}
-          className="text-sm leading-none font-medium text-gray-900 dark:text-gray-100"
+          className="text-sm leading-none font-medium text-gray-900 dark:text-zinc-100"
         >
           {label}
           {required && <span className="text-red-500 ml-0.5">*</span>}
@@ -37,7 +37,7 @@ const Input = ({
       )}
       <input
         id={inputId}
-        className="min-w-[200px] mt-1 text-sm block bg-white dark:bg-gray-900 dark:text-gray-100 pl-3 py-1.5 pr-3 rounded-sm outline-1 -outline-offset-1 outline-gray-300 dark:outline-gray-600"
+        className="min-w-[200px] mt-1 text-sm block bg-white dark:bg-zinc-900 dark:text-zinc-100 pl-3 py-1.5 pr-3 rounded-sm outline-1 -outline-offset-1 outline-gray-300 dark:outline-zinc-600"
         type={type}
         placeholder={placeholder}
         value={value}

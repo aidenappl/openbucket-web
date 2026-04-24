@@ -54,7 +54,7 @@ export default function RootLayout({
             <AuthProvider>
               <Toaster position="top-center" reverseOrder={false} />
               <Navigation />
-              <div className="px-10 max-w-[var(--max-page-width)] mx-auto flex-1">
+              <div className="px-10 w-full max-w-[var(--max-page-width)] mx-auto flex-1">
                 <ClientOnly>{children}</ClientOnly>
               </div>
               <Footer />

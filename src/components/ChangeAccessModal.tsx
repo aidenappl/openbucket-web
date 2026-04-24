@@ -62,9 +62,9 @@ const ChangeAccessModal: React.FC<ChangeAccessModalProps> = ({
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+      <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
         <div className="px-6 pt-6 pb-4">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-100">
             {title}
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
@@ -80,7 +80,7 @@ const ChangeAccessModal: React.FC<ChangeAccessModalProps> = ({
               className={`w-full text-left flex items-start gap-3.5 px-4 py-3.5 rounded-lg border transition-all ${
                 selected === option.value
                   ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-500"
-                  : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-slate-50 dark:hover:bg-gray-800"
+                  : "border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
               }`}
             >
               <div
@@ -97,7 +97,7 @@ const ChangeAccessModal: React.FC<ChangeAccessModalProps> = ({
                   className={`text-sm font-medium ${
                     selected === option.value
                       ? "text-blue-900 dark:text-blue-300"
-                      : "text-gray-800 dark:text-gray-200"
+                      : "text-gray-800 dark:text-zinc-200"
                   }`}
                 >
                   {option.label}
@@ -110,7 +110,7 @@ const ChangeAccessModal: React.FC<ChangeAccessModalProps> = ({
           ))}
         </div>
 
-        <div className="flex justify-end gap-2 px-6 py-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex justify-end gap-2 px-6 py-4 bg-gray-50 dark:bg-zinc-800 border-t border-gray-100 dark:border-zinc-700">
           <Button onClick={onClose} variant="light">
             Cancel
           </Button>

@@ -117,7 +117,7 @@ const DragDropUpload: React.FC<DragDropUploadProps> = ({
         ${
           isDragOver
             ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 scale-105"
-            : "border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800"
+            : "border-gray-300 dark:border-zinc-600 hover:border-gray-400 dark:hover:border-zinc-500 hover:bg-gray-50 dark:hover:bg-zinc-800"
         }
         ${disabled ? "opacity-50 cursor-not-allowed" : ""}
         ${className}

@@ -53,7 +53,7 @@ const UploadTracker = () => {
   const hiddenCount = uploads.length - displayedUploads.length;
 
   return (
-    <div className="fixed bottom-4 right-4 w-80 bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 shadow-md rounded-md p-3">
+    <div className="fixed bottom-4 right-4 w-80 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 shadow-md rounded-md p-3">
       {hiddenCount > 0 && (
         <div className="mb-2 text-xs text-gray-500 text-center">
           +{hiddenCount} more upload{hiddenCount > 1 ? "s" : ""} in progress
@@ -61,10 +61,10 @@ const UploadTracker = () => {
       )}
       {displayedUploads.map((upload) => (
         <div key={upload.id} className="mb-2">
-          <p className="text-sm font-medium truncate dark:text-gray-100">
+          <p className="text-sm font-medium truncate dark:text-zinc-100">
             {upload.fileName}
           </p>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded h-2">
+          <div className="w-full bg-gray-200 dark:bg-zinc-700 rounded h-2">
             <div
               className={`h-2 rounded ${
                 upload.status === "error" ? "bg-red-500" : "bg-green-500"
@@ -72,7 +72,7 @@ const UploadTracker = () => {
               style={{ width: `${upload.progress}%` }}
             ></div>
           </div>
-          <p className="text-xs text-gray-400 dark:text-gray-500">
+          <p className="text-xs text-gray-400 dark:text-zinc-500">
             {upload.status === "uploading" && (
               <>
                 {upload.progress == 100

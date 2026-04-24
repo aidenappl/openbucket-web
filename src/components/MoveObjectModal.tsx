@@ -76,9 +76,9 @@ const MoveObjectModal: React.FC<MoveObjectModalProps> = ({
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
         <div className="px-6 pt-6 pb-4">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-100">
             Move Object
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
@@ -90,14 +90,14 @@ const MoveObjectModal: React.FC<MoveObjectModalProps> = ({
           <div className="flex flex-col gap-1">
             <label
               htmlFor="move-input"
-              className="text-sm font-medium text-gray-900 dark:text-gray-100 leading-none"
+              className="text-sm font-medium text-gray-900 dark:text-zinc-100 leading-none"
             >
               New Path
             </label>
             <input
               ref={inputRef}
               id="move-input"
-              className="mt-1 text-sm font-mono block w-full bg-white dark:bg-gray-800 dark:text-gray-100 pl-3 py-2 pr-3 rounded-lg outline-1 -outline-offset-1 outline-gray-300 dark:outline-gray-600 focus:outline-blue-500 focus:outline-2"
+              className="mt-1 text-sm font-mono block w-full bg-white dark:bg-zinc-800 dark:text-zinc-100 pl-3 py-2 pr-3 rounded-lg outline-1 -outline-offset-1 outline-gray-300 dark:outline-zinc-600 focus:outline-blue-500 focus:outline-2"
               type="text"
               value={newPath}
               onChange={handleChange}
@@ -121,7 +121,7 @@ const MoveObjectModal: React.FC<MoveObjectModalProps> = ({
           )}
         </div>
 
-        <div className="flex justify-end gap-2 px-6 py-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex justify-end gap-2 px-6 py-4 bg-gray-50 dark:bg-zinc-800 border-t border-gray-100 dark:border-zinc-700">
           <Button onClick={onClose} variant="light">
             Cancel
           </Button>
