@@ -21,6 +21,10 @@ import {
   InstanceBucket,
   InstanceBucketStats,
 } from "@/services/admin.service";
+import { reqPostSession } from "@/services/session.service";
+import { addSession, setActiveSession } from "@/store/slices/sessionSlice";
+import { setCurrentSessionBucket } from "@/tools/sessionStore.tools";
+import { useDispatch } from "react-redux";
 import Button from "@/components/Button";
 import Input from "@/components/Input";
 import Spinner from "@/components/Spinner";
@@ -61,6 +65,20 @@ export default function InstancesPage() {
   const [grantBucket, setGrantBucket] = useState<string | null>(null);
   const [grantKeyId, setGrantKeyId] = useState("");
   const [grantPermission, setGrantPermission] = useState("READ");
+
+  // Add as session modal
+  const [sessionModal, setSessionModal] = useState<{
+    instance: Instance;
+    buckets: string[];
+    credentials: InstanceCredential[];
+  } | null>(null);
+  const [sessionNicknames, setSessionNicknames] = useState<Record<string, string>>({});
+  const [sessionCredentialId, setSessionCredentialId] = useState("");
+  const [sessionSecretKey, setSessionSecretKey] = useState("");
+  const [sessionRegion, setSessionRegion] = useState("us-east-1");
+  const [sessionCreating, setSessionCreating] = useState(false);
+
+  const dispatch = useDispatch();
 
   const loadInstances = async () => {
     const res = await reqAdminListInstances();
@@ -260,6 +278,77 @@ export default function InstancesPage() {
     } else {
       toast.error(res.error_message);
     }
+  };
+
+  // ── Add buckets as sessions ─────────────────────────────────────────
+
+  const openSessionModal = async (inst: Instance, bucketNames: string[]) => {
+    // Load credentials for credential picker
+    const credRes = await reqProxyListCredentials(inst.id);
+    const creds = credRes.success ? (credRes.data ?? []) : [];
+    if (creds.length === 0) {
+      toast.error("No credentials found. Create a credential first.");
+      return;
+    }
+    setSessionModal({ instance: inst, buckets: bucketNames, credentials: creds });
+    setSessionCredentialId(creds[0].key_id);
+    setSessionSecretKey("");
+    setSessionRegion("us-east-1");
+    setSessionNicknames(
+      Object.fromEntries(bucketNames.map((name) => [name, name]))
+    );
+  };
+
+  const closeSessionModal = () => {
+    setSessionModal(null);
+    setSessionNicknames({});
+    setSessionCredentialId("");
+    setSessionSecretKey("");
+    setSessionRegion("us-east-1");
+  };
+
+  const handleCreateSessions = async () => {
+    if (!sessionModal || !sessionCredentialId || !sessionSecretKey) {
+      toast.error("Please select a credential and enter the secret key.");
+      return;
+    }
+
+    setSessionCreating(true);
+    let successCount = 0;
+    let lastSession = null;
+
+    for (const bucketName of sessionModal.buckets) {
+      const res = await reqPostSession({
+        bucket: bucketName,
+        nickname: sessionNicknames[bucketName] || bucketName,
+        region: sessionRegion,
+        endpoint: sessionModal.instance.endpoint,
+        access_key_id: sessionCredentialId,
+        secret_access_key: sessionSecretKey,
+      });
+      if (res.success) {
+        successCount++;
+        lastSession = res.data;
+        dispatch(addSession(res.data));
+      } else {
+        toast.error(`Failed to add "${bucketName}": ${res.error_message}`);
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(
+        successCount === 1
+          ? "Session created"
+          : `${successCount} sessions created`
+      );
+      if (lastSession) {
+        dispatch(setActiveSession(lastSession));
+        setCurrentSessionBucket(lastSession.endpoint, lastSession.bucket);
+      }
+    }
+
+    setSessionCreating(false);
+    closeSessionModal();
   };
 
   if (loading) {
@@ -496,6 +585,22 @@ export default function InstancesPage() {
                       </Button>
                     </div>
 
+                    {buckets.length > 0 && (
+                      <div className="flex justify-end mb-3">
+                        <button
+                          onClick={() =>
+                            openSessionModal(
+                              inst,
+                              buckets.map((b) => b.name)
+                            )
+                          }
+                          className="text-xs px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer"
+                        >
+                          Add All as Sessions
+                        </button>
+                      </div>
+                    )}
+
                     {buckets.map((b) => (
                       <div
                         key={b.id}
@@ -514,6 +619,12 @@ export default function InstancesPage() {
                             )}
                           </div>
                           <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => openSessionModal(inst, [b.name])}
+                              className="text-xs px-2 py-1 rounded-md border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer"
+                            >
+                              Add as Session
+                            </button>
                             <select
                               value={b.acl}
                               onChange={(e) =>
@@ -638,6 +749,133 @@ export default function InstancesPage() {
           </p>
         )}
       </div>
+
+      {/* Add as Session Modal */}
+      {sessionModal && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-40"
+            onClick={closeSessionModal}
+          />
+          <div
+            className="fixed inset-0 flex items-center justify-center z-50 p-4"
+            onClick={closeSessionModal}
+          >
+            <div
+              className="bg-white dark:bg-zinc-900 rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl border border-gray-200 dark:border-zinc-700"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center p-5 pb-0">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-100">
+                  {sessionModal.buckets.length === 1
+                    ? "Add Bucket as Session"
+                    : `Add ${sessionModal.buckets.length} Buckets as Sessions`}
+                </h2>
+                <button
+                  onClick={closeSessionModal}
+                  className="text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300 text-xl cursor-pointer"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {/* Instance info */}
+                <div className="text-xs text-gray-500 dark:text-zinc-400 bg-gray-50 dark:bg-zinc-800 rounded-md px-3 py-2">
+                  <span className="font-medium text-gray-700 dark:text-zinc-300">
+                    {sessionModal.instance.name}
+                  </span>
+                  <span className="mx-1.5">&middot;</span>
+                  <span className="font-mono">{sessionModal.instance.endpoint}</span>
+                </div>
+
+                {/* Credential selector */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-900 dark:text-zinc-100">
+                    Credential<span className="text-red-500 ml-0.5">*</span>
+                  </label>
+                  <select
+                    value={sessionCredentialId}
+                    onChange={(e) => setSessionCredentialId(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-sm text-sm border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100"
+                  >
+                    {sessionModal.credentials.map((c) => (
+                      <option key={c.id} value={c.key_id}>
+                        {c.name} ({c.key_id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Secret key */}
+                <Input
+                  label="Secret Access Key"
+                  placeholder="Enter the secret key for the selected credential"
+                  type="password"
+                  value={sessionSecretKey}
+                  onChange={(e) => setSessionSecretKey(e.target.value)}
+                  required
+                />
+
+                {/* Region */}
+                <Input
+                  label="Region"
+                  placeholder="us-east-1"
+                  value={sessionRegion}
+                  onChange={(e) => setSessionRegion(e.target.value)}
+                  required
+                />
+
+                {/* Bucket nicknames */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-900 dark:text-zinc-100">
+                    {sessionModal.buckets.length === 1 ? "Nickname" : "Nicknames"}
+                  </label>
+                  <div className="space-y-2">
+                    {sessionModal.buckets.map((name) => (
+                      <div key={name} className="flex items-center gap-3">
+                        {sessionModal.buckets.length > 1 && (
+                          <span className="text-xs font-mono text-gray-500 dark:text-zinc-400 w-32 shrink-0 truncate">
+                            {name}
+                          </span>
+                        )}
+                        <input
+                          value={sessionNicknames[name] ?? name}
+                          onChange={(e) =>
+                            setSessionNicknames((prev) => ({
+                              ...prev,
+                              [name]: e.target.value,
+                            }))
+                          }
+                          placeholder={name}
+                          className="flex-1 min-w-0 px-3 py-1.5 rounded-sm text-sm bg-white dark:bg-zinc-900 dark:text-zinc-100 outline-1 -outline-offset-1 outline-gray-300 dark:outline-zinc-600"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    variant="dark"
+                    onClick={handleCreateSessions}
+                    active={!sessionCreating}
+                  >
+                    {sessionCreating
+                      ? "Creating..."
+                      : sessionModal.buckets.length === 1
+                        ? "Add Session"
+                        : `Add ${sessionModal.buckets.length} Sessions`}
+                  </Button>
+                  <Button variant="light" onClick={closeSessionModal}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
