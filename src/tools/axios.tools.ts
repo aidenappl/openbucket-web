@@ -59,8 +59,8 @@ axios_api.interceptors.response.use(async (response) => {
       return axios_api.request(response.config);
     }
 
-    // Refresh failed — clear logged_in cookie and redirect to login
-    document.cookie = "logged_in=; Max-Age=0; path=/";
+    // Refresh failed — clear ob-logged-in cookie and redirect to login
+    document.cookie = "ob-logged-in=; Max-Age=0; path=/";
     if (window.location.pathname !== "/login") {
       window.location.href = "/login";
     }

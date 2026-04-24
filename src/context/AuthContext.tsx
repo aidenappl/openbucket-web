@@ -41,8 +41,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Check if logged_in cookie exists before making a request
-      const loggedIn = Cookies.get("logged_in");
+      // Check if ob-logged-in cookie exists before making a request
+      const loggedIn = Cookies.get("ob-logged-in");
       if (!loggedIn) {
         dispatch(clearUser());
         return;
