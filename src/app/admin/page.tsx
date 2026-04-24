@@ -17,8 +17,8 @@ export default function AdminOverview() {
         reqAdminListUsers(),
         reqAdminListInstances(),
       ]);
-      if (userRes.success) setUsers(userRes.data);
-      if (instanceRes.success) setInstances(instanceRes.data);
+      if (userRes.success) setUsers(userRes.data ?? []);
+      if (instanceRes.success) setInstances(instanceRes.data ?? []);
       setLoading(false);
     };
     load();
