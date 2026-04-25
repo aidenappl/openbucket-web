@@ -23,8 +23,12 @@ export default function AdminLayout({
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && (!isLoggedIn || user?.role !== "admin")) {
-      router.replace("/");
+    if (!isLoading) {
+      if (!isLoggedIn) {
+        router.replace("/login");
+      } else if (user?.role !== "admin") {
+        router.replace("/");
+      }
     }
   }, [isLoading, isLoggedIn, user, router]);
 

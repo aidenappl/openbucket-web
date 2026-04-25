@@ -53,11 +53,13 @@ import {
 } from "@/services/object.service";
 import { reqDeleteFolder } from "@/services/folder.service";
 import ChangeAccessModal from "@/components/ChangeAccessModal";
+import { useAuthContext } from "@/context/AuthContext";
 
 const Home = () => {
   const dispatch = useDispatch();
   const currentSession = useSelector(selectCurrentSession);
   const router = useRouter();
+  const { isLoggedIn, isLoading: authLoading } = useAuthContext();
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { hasAPI } = usePermissions();
@@ -352,8 +354,15 @@ const Home = () => {
     return () => document.removeEventListener("keydown", handleKey);
   }, [isCreateFolderOpen, newFolderName]);
 
-  // Loading states
-  if (hasAPI === null) return <p>Loading...</p>;
+  // Auth & loading guards
+  if (authLoading || hasAPI === null) {
+    return (
+      <div className="flex justify-center py-16">
+        <Spinner />
+      </div>
+    );
+  }
+  if (!isLoggedIn) return null;
   if (hasAPI === false) return null;
 
   return (

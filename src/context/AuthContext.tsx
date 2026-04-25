@@ -26,12 +26,20 @@ const AuthContext = createContext<AuthContextValue>({
 
 export const useAuthContext = () => useContext(AuthContext);
 
+const PUBLIC_PATHS = ["/login", "/unauthorized"];
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
   const pathname = usePathname();
   const user = useSelector(selectUser);
   const isLoggedIn = useSelector(selectIsLoggedIn);
   const isLoading = useSelector(selectIsLoading);
+
+  const redirectToLogin = () => {
+    if (!PUBLIC_PATHS.includes(pathname)) {
+      window.location.href = "/login";
+    }
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -45,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const loggedIn = Cookies.get("ob-logged-in");
       if (!loggedIn) {
         dispatch(clearUser());
+        redirectToLogin();
         return;
       }
 
@@ -67,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         dispatch(clearUser());
+        redirectToLogin();
       }
     };
 

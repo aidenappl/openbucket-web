@@ -51,7 +51,7 @@ export default function SessionsPage() {
 
   const dispatch = useDispatch();
   const router = useRouter();
-  const { user } = useAuthContext();
+  const { user, isLoggedIn, isLoading: authLoading } = useAuthContext();
   const isAdmin = user?.role === "admin";
 
   const fetchSessions = async () => {
@@ -237,13 +237,14 @@ export default function SessionsPage() {
     return () => document.removeEventListener("keydown", handleEscape);
   }, [editingSession, showCreate]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex justify-center py-16">
         <Spinner />
       </div>
     );
   }
+  if (!isLoggedIn) return null;
 
   return (
     <div className="mt-4 pb-10">
