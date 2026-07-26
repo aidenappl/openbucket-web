@@ -6,7 +6,6 @@ import Image from "next/image";
 import { reqLogin, reqGetSSOConfig } from "@/services/auth.service";
 import { useAuthContext } from "@/context/AuthContext";
 import { SSOConfig } from "@/types";
-import Spinner from "@/components/Spinner";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -74,105 +73,186 @@ export default function LoginPage() {
     window.location.href = `${process.env.NEXT_PUBLIC_OPENBUCKET_API}/auth/sso/login`;
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Spinner />
-      </div>
-    );
-  }
-
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
+    <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-zinc-950">
+      <div className="w-full max-w-sm flex flex-col items-center">
+        <div className="flex items-center gap-3 mb-6">
           <Image
-            src="/OpemBucket-Logo-Transparent-Dark.svg"
+            src="/OpenBucket-Logo.svg"
             alt="OpenBucket"
-            width={52}
-            height={52}
+            width={40}
+            height={40}
+            className="w-10 h-10 shadow-md rounded-xl"
             priority
-            className="dark:invert mb-3"
           />
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">
-            Sign in to OpenBucket
-          </h1>
+          <span className="text-xl font-semibold tracking-tight dark:text-white">
+            OpenBucket
+          </span>
+          <span className="h-4 w-px bg-gray-300 dark:bg-zinc-600" />
+          <span className="text-sm text-gray-500 dark:text-zinc-400">
+            Appleby Cloud
+          </span>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
-            {error}
-          </div>
-        )}
+        <div className="w-full bg-white dark:bg-zinc-900 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800">
+          <p className="text-sm text-gray-500 dark:text-zinc-400 text-center mb-5">
+            Sign in to continue
+          </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1"
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+          {isLoading ? (
+            <InlineLoading message="Checking session…" />
+          ) : (
+            <div className="flex flex-col gap-5">
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <Field
+                  id="email"
+                  label="Email"
+                  type="email"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  value={email}
+                  onChange={setEmail}
+                />
+                <Field
+                  id="password"
+                  label="Password"
+                  type="password"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={setPassword}
+                />
 
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1"
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+                {error && <ErrorAlert message={error} />}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full py-2 px-4 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            {isSubmitting ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="cursor-pointer bg-blue-600 text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
+                >
+                  {isSubmitting ? "Signing in…" : "Sign in"}
+                </button>
+              </form>
 
-        {ssoConfig && (
-          <>
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300 dark:border-zinc-600" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-[var(--background)] text-gray-500">
-                  or
-                </span>
-              </div>
+              {ssoConfig && (
+                <>
+                  <Divider />
+                  <button
+                    type="button"
+                    onClick={handleSSOLogin}
+                    disabled={isSubmitting}
+                    className="cursor-pointer w-full flex items-center justify-center gap-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg py-2.5 text-sm font-medium dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-zinc-800 hover:border-gray-400 dark:hover:border-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    <SSOIcon />
+                    {ssoConfig.button_label || "Sign in with SSO"}
+                  </button>
+                </>
+              )}
             </div>
-
-            <button
-              onClick={handleSSOLogin}
-              className="w-full py-2 px-4 rounded-md border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 font-medium hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
-            >
-              {ssoConfig.button_label || "Sign in with SSO"}
-            </button>
-          </>
-        )}
+          )}
+        </div>
       </div>
+
+      <footer className="absolute bottom-6 text-xs text-gray-400 dark:text-zinc-500">
+        © {new Date().getFullYear()} Appleby Cloud
+      </footer>
+    </main>
+  );
+}
+
+// Sub-components
+
+function Field({
+  id,
+  label,
+  type,
+  placeholder,
+  autoComplete,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  type: string;
+  placeholder: string;
+  autoComplete: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label
+        htmlFor={id}
+        className="text-sm font-medium text-gray-700 dark:text-zinc-300"
+      >
+        {label}
+      </label>
+      <input
+        id={id}
+        type={type}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required
+        className="border border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+      />
+    </div>
+  );
+}
+
+function ErrorAlert({ message }: { message: string }) {
+  return (
+    <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 border border-red-200 dark:text-red-400 dark:bg-red-950 dark:border-red-800 rounded-lg p-3">
+      <svg
+        className="w-4 h-4 mt-0.5 shrink-0"
+        fill="currentColor"
+        viewBox="0 0 20 20"
+      >
+        <path
+          fillRule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+          clipRule="evenodd"
+        />
+      </svg>
+      <span>{message}</span>
+    </div>
+  );
+}
+
+function Divider() {
+  return (
+    <div className="flex items-center gap-3 my-4">
+      <div className="flex-1 h-px bg-gray-200 dark:bg-zinc-700" />
+      <span className="text-xs text-gray-400 dark:text-zinc-500 uppercase tracking-wide">
+        or continue with
+      </span>
+      <div className="flex-1 h-px bg-gray-200 dark:bg-zinc-700" />
+    </div>
+  );
+}
+
+function SSOIcon() {
+  return (
+    <svg
+      className="w-4 h-4 text-blue-500"
+      fill="currentColor"
+      viewBox="0 0 20 20"
+    >
+      <path
+        fillRule="evenodd"
+        d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function InlineLoading({ message = "Loading…" }: { message?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-8 gap-3">
+      <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 dark:border-zinc-600 dark:border-t-zinc-300 rounded-full animate-spin" />
+      <p className="text-sm text-gray-500 dark:text-zinc-400">{message}</p>
     </div>
   );
 }

@@ -11,14 +11,21 @@ import { Toaster } from "react-hot-toast";
 import StoreProvider from "@/store/StoreProvider";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { usePathname } from "next/navigation";
 
 config.autoAddCss = false;
+
+// Routes that render their own full-screen shell (no nav/footer chrome).
+const BARE_ROUTES = ["/login"];
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = usePathname();
+  const isBare = BARE_ROUTES.includes(pathname);
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -53,11 +60,17 @@ export default function RootLayout({
           <StoreProvider>
             <AuthProvider>
               <Toaster position="top-center" reverseOrder={false} />
-              <Navigation />
-              <div className="px-10 w-full max-w-[var(--max-page-width)] mx-auto flex-1">
+              {!isBare && <Navigation />}
+              <div
+                className={
+                  isBare
+                    ? "flex-1"
+                    : "px-10 w-full max-w-[var(--max-page-width)] mx-auto flex-1"
+                }
+              >
                 <ClientOnly>{children}</ClientOnly>
               </div>
-              <Footer />
+              {!isBare && <Footer />}
             </AuthProvider>
           </StoreProvider>
         </ThemeProvider>
