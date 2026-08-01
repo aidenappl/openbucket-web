@@ -13,9 +13,31 @@ export type User = {
   inserted_at: string;
 };
 
+/**
+ * One entry from the shared `GET /auth/sso/config` contract.
+ *
+ * ⚠️ Shared with monitor-core and lattice-api. Nullable fields are nullable ON
+ * PURPOSE — null means "plain text button in the default style", which is the
+ * state before branding is configured and the state a failed icon fetch returns to.
+ */
+export type SSOProvider = {
+  name: string;
+  display_name: string;
+  display_icon: string | null;
+  button_color: string | null;
+  button_text_color: string | null;
+  login_url: string;
+  sort_order: number;
+};
+
 export type SSOConfig = {
   enabled: boolean;
-  button_label: string;
+  providers?: SSOProvider[];
+
+  /** @deprecated legacy single-provider shape; drop once every API serves `providers`. */
+  button_label?: string;
+  /** @deprecated legacy single-provider shape. */
+  login_url?: string;
 };
 
 export type AdminSSOConfig = {

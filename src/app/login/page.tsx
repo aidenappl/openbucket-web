@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { reqLogin, reqGetSSOConfig } from "@/services/auth.service";
 import { useAuthContext } from "@/context/AuthContext";
-import { SSOConfig } from "@/types";
+import { SSOProviderButtons } from "@/components/sso-provider-buttons";
+import { SSOConfig, SSOProvider } from "@/types";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -69,9 +70,37 @@ export default function LoginPage() {
     }
   };
 
-  const handleSSOLogin = () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_OPENBUCKET_API}/auth/sso/login`;
-  };
+  // ⚠️ The SSO login URL used to be BUILT HERE, client-side, as a hardcoded
+  // "/auth/sso/login". That works only while there is exactly one provider and it
+  // lives at exactly that path — it cannot express a second provider, and it
+  // silently breaks if the route ever moves. The server now computes login_url per
+  // provider and returns it in the config contract; the component below validates
+  // it before rendering it as a link.
+  const API_URL = process.env.NEXT_PUBLIC_OPENBUCKET_API ?? "";
+
+  // Prefer the shared `providers` array; fall back to the legacy single-provider
+  // fields so this page still works against an API that has not deployed the new
+  // contract yet.
+  //
+  // ⚠️ DATED. Delete the fallback once all three APIs serve `providers` — keeping
+  // it means maintaining two rendering paths forever, and only one supports icons
+  // or more than one provider.
+  const providers: SSOProvider[] =
+    ssoConfig?.providers && ssoConfig.providers.length > 0
+      ? ssoConfig.providers
+      : ssoConfig?.enabled
+        ? [
+            {
+              name: "sso",
+              display_name: ssoConfig.button_label || "Sign in with SSO",
+              display_icon: null,
+              button_color: null,
+              button_text_color: null,
+              login_url: ssoConfig.login_url || "/auth/sso/login",
+              sort_order: 0,
+            },
+          ]
+        : [];
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-zinc-950">
@@ -134,18 +163,14 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              {ssoConfig && (
+              {providers.length > 0 && (
                 <>
                   <Divider />
-                  <button
-                    type="button"
-                    onClick={handleSSOLogin}
-                    disabled={isSubmitting}
-                    className="cursor-pointer w-full flex items-center justify-center gap-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg py-2.5 text-sm font-medium dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-zinc-800 hover:border-gray-400 dark:hover:border-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    <SSOIcon />
-                    {ssoConfig.button_label || "Sign in with SSO"}
-                  </button>
+                  {/* Each href is validated inside the component: login_url is
+                      rendered as a clickable anchor on an unauthenticated page, so
+                      javascript: and absolute URLs are refused there rather than
+                      trusted from the API. */}
+                  <SSOProviderButtons providers={providers} apiURL={API_URL} />
                 </>
               )}
             </div>
@@ -232,21 +257,6 @@ function Divider() {
   );
 }
 
-function SSOIcon() {
-  return (
-    <svg
-      className="w-4 h-4 text-blue-500"
-      fill="currentColor"
-      viewBox="0 0 20 20"
-    >
-      <path
-        fillRule="evenodd"
-        d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
 
 function InlineLoading({ message = "Loading…" }: { message?: string }) {
   return (
