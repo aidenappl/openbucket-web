@@ -28,6 +28,7 @@ export default function SSOPage() {
         authorize_url: res.data.authorize_url,
         token_url: res.data.token_url,
         userinfo_url: res.data.userinfo_url,
+        introspect_url: res.data.introspect_url ?? "",
         redirect_url: res.data.redirect_url,
         logout_url: res.data.logout_url,
         scopes: res.data.scopes,
@@ -138,6 +139,18 @@ export default function SSOPage() {
               placeholder="https://provider.com/userinfo"
               value={form.userinfo_url ?? ""}
               onChange={(e) => update("userinfo_url", e.target.value)}
+            />
+            {/*
+              Optional on purpose. An SSO setup without introspection still logs
+              people in correctly; what it loses is the ability to notice the
+              provider has revoked a grant. Requiring it would block every
+              provider that does not implement RFC 7662.
+            */}
+            <Input
+              label="Introspection URL (enables revocation checks)"
+              placeholder="https://provider.com/oauth/introspect"
+              value={form.introspect_url ?? ""}
+              onChange={(e) => update("introspect_url", e.target.value)}
             />
             <Input
               label="Redirect URL"

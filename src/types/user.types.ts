@@ -24,6 +24,13 @@ export type AdminSSOConfig = {
   authorize_url: string;
   token_url: string;
   userinfo_url: string;
+  /**
+   * RFC 7662 introspection endpoint. Optional, but WITHOUT IT THE REVOCATION
+   * CHECKPOINT CANNOT RUN — there is no endpoint to ask whether the upstream
+   * grant is still live, so a revocation at the provider stays invisible until
+   * the local session expires on its own.
+   */
+  introspect_url: string;
   redirect_url: string;
   logout_url: string;
   scopes: string;
@@ -41,6 +48,7 @@ export type UpdateSSOConfigPayload = {
   authorize_url?: string;
   token_url?: string;
   userinfo_url?: string;
+  introspect_url?: string;
   redirect_url?: string;
   logout_url?: string;
   scopes?: string;
