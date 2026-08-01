@@ -64,10 +64,13 @@ src/
   app/
     api/health/route.ts       # GET /api/health → {status:"ok"} — the Docker HEALTHCHECK hits this
     layout.tsx                # "use client" root: providers, Navigation, Footer, Toaster, theme boot script
-    globals.css               # Inter @import + Tailwind v4 + CSS-variable theme tokens
+    globals.css               # Inter @import + Tailwind v4 + the shared design-token layer
     page.tsx                  # "/" bucket browser
     <feature>/page.tsx        # one page per feature (see Page map)
   components/                 # 21 from-scratch primitives + feature components — PascalCase
+    ui/                       # Shared primitives ported from lattice-web — button, input, alert,
+                              # badge, modal, switch (kebab-case, matching lattice)
+  lib/utils.ts                # cn() — dependency-free class joiner
   context/                    # AuthContext (session + role gating), ThemeContext (light/dark/system)
   hooks/                      # useBucketData, useBucketActions, useSelection, useBreadcrumbs,
                               # usePermissions, useViewFormat
@@ -79,6 +82,38 @@ src/
   types/                      # index.ts (domain + ApiResponse/ApiSuccess/ApiError), user.types.ts
   __tests__/                  # adminService, authService, authSlice, axios + setup.ts
 ```
+
+### The shared design-token layer and `components/ui/`
+
+`globals.css` carries a token layer **ported from lattice-web** so the SSO surfaces across
+monitor-web, lattice-web and openbucket-web are one design language rather than three. Surface,
+border, text, semantic-accent and radius families are defined as CSS custom properties and bridged
+into Tailwind utilities through `@theme inline` — `bg-surface`, `text-secondary`,
+`border-border-strong`, `text-healthy` and so on.
+
+**⚠️ THE POLARITY IS THE OPPOSITE OF LATTICE-WEB'S, DELIBERATELY.** lattice-web is dark-first: it
+defines dark values in `:root` and light in `:root:not(.dark)`. This app is light-first and every
+existing page is written as `bg-white dark:bg-zinc-900`. So the same token NAMES carry light values
+in `:root` and dark values in `.dark`. Components written against the tokens are portable between
+the apps unchanged — which is the point — while pages written against zinc utilities are untouched.
+**Do not "fix" this to match lattice.** Flipping it inverts the entire dashboard.
+
+`src/components/ui/` holds the ported primitives: `button`, `input`, `alert`, `badge`, `modal`,
+`switch`. `src/lib/utils.ts` has a dependency-free `cn()` — deliberately not clsx + tailwind-merge,
+because the primitives put `className` last in every `cn(...)` call, so a caller's utility already
+wins without a merge step.
+
+Two things differ from lattice's originals on purpose:
+
+- `Button`'s `primary` variant is the accent fill, not `bg-white text-black`. White-on-white is
+  invisible in a light-first app.
+- `Input` generates an `id` when none is passed (lattice's renders `htmlFor={undefined}`, a label
+  bound to nothing) and wires `aria-invalid` + `aria-describedby` for its error.
+
+**Scope is bounded on purpose.** The token layer and primitives exist app-wide; only the **SSO
+admin and login surfaces** are converted to them. Other pages keep working on their current classes
+and get converted opportunistically. A full restyle of the dashboard is separate work, not
+something to smuggle into an auth change.
 
 **Deviations from the global standard, both deliberate:**
 - The axios wrapper lives in **`tools/axios.tools.ts`**, not `services/api.service.ts`. That's the

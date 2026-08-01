@@ -103,7 +103,7 @@ export default function LoginPage() {
         : [];
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-zinc-950">
+    <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-background">
       <div className="w-full max-w-sm flex flex-col items-center">
         <div className="flex items-center gap-3 mb-6">
           <Image
@@ -117,14 +117,14 @@ export default function LoginPage() {
           <span className="text-xl font-semibold tracking-tight dark:text-white">
             OpenBucket
           </span>
-          <span className="h-4 w-px bg-gray-300 dark:bg-zinc-600" />
-          <span className="text-sm text-gray-500 dark:text-zinc-400">
+          <span className="h-4 w-px bg-border-strong" />
+          <span className="text-sm text-muted">
             Appleby Cloud
           </span>
         </div>
 
-        <div className="w-full bg-white dark:bg-zinc-900 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800">
-          <p className="text-sm text-gray-500 dark:text-zinc-400 text-center mb-5">
+        <div className="w-full bg-surface rounded-xl p-6 shadow-sm border border-border">
+          <p className="text-sm text-muted text-center mb-5">
             Sign in to continue
           </p>
 
@@ -178,7 +178,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <footer className="absolute bottom-6 text-xs text-gray-400 dark:text-zinc-500">
+      <footer className="absolute bottom-6 text-xs text-dimmed">
         © {new Date().getFullYear()} Appleby Cloud
       </footer>
     </main>
@@ -208,7 +208,7 @@ function Field({
     <div className="flex flex-col gap-1.5">
       <label
         htmlFor={id}
-        className="text-sm font-medium text-gray-700 dark:text-zinc-300"
+        className="text-sm font-medium text-secondary"
       >
         {label}
       </label>
@@ -220,7 +220,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required
-        className="border border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+        className="border border-border-strong bg-surface-elevated text-primary placeholder:text-muted rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-shadow"
       />
     </div>
   );
@@ -248,11 +248,11 @@ function ErrorAlert({ message }: { message: string }) {
 function Divider() {
   return (
     <div className="flex items-center gap-3 my-4">
-      <div className="flex-1 h-px bg-gray-200 dark:bg-zinc-700" />
-      <span className="text-xs text-gray-400 dark:text-zinc-500 uppercase tracking-wide">
+      <div className="flex-1 h-px bg-border" />
+      <span className="text-xs text-dimmed uppercase tracking-wide">
         or continue with
       </span>
-      <div className="flex-1 h-px bg-gray-200 dark:bg-zinc-700" />
+      <div className="flex-1 h-px bg-border" />
     </div>
   );
 }
@@ -261,8 +261,8 @@ function Divider() {
 function InlineLoading({ message = "Loading…" }: { message?: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-8 gap-3">
-      <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 dark:border-zinc-600 dark:border-t-zinc-300 rounded-full animate-spin" />
-      <p className="text-sm text-gray-500 dark:text-zinc-400">{message}</p>
+      <div className="w-5 h-5 border-2 border-border-strong border-t-secondary rounded-full animate-spin" />
+      <p className="text-sm text-muted">{message}</p>
     </div>
   );
 }
