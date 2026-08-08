@@ -40,7 +40,16 @@ export default function LoginPage() {
   useEffect(() => {
     const loadSSO = async () => {
       const res = await reqGetSSOConfig();
-      if (res.success && res.data.enabled) {
+      if (!res.success) return;
+      // ⚠️ ACCEPT EITHER SHAPE. `enabled` is a LEGACY field this API still emits
+      // alongside the shared `providers` contract. Gating only on it means the
+      // day it is dropped this condition goes false, the config is discarded,
+      // and every SSO button vanishes from the login page — silently, with
+      // `providers` present in the very response being thrown away. monitor-web
+      // shipped that bug and locked SSO-only users out of Monitor. The
+      // derivation below already prefers `providers`; this gate must not be the
+      // thing that stops it ever seeing them.
+      if (Array.isArray(res.data?.providers) || res.data?.enabled) {
         setSsoConfig(res.data);
       }
     };

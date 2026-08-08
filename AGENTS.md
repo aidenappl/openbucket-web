@@ -180,6 +180,20 @@ with` divider → SSO button, and a `© <year> Appleby Cloud` footer. Colours ar
 not at all. The root layout hides `Navigation` and `Footer` on `/login` via `BARE_ROUTES` so the
 page owns the viewport; add any future full-screen route to that list.
 
+> ### ⚠️ `/auth/sso/config` — accept the response on `providers` OR `enabled`
+>
+> `enabled`, `button_label` and `login_url` are **legacy** fields `openbucket-api` still emits
+> beside the shared `providers` contract. Gating the fetch solely on `res.data.enabled` — which
+> this page did — is a latent outage: the day the API drops it, the payload is discarded,
+> `setSsoConfig` never fires, and every SSO button vanishes from the login page while
+> `providers` sits unread in the very response being thrown away. `monitor-web` shipped that
+> exact bug and locked SSO-only users out of Monitor on 2026-08-07 — silently, with no error and
+> no empty state.
+>
+> The provider derivation already prefers `providers` and falls back to the legacy shape. Keep
+> the gate permissive so it can reach it, and delete the fallback only once every API has
+> stopped serving the legacy fields.
+
 ## 7. Running, building & testing
 
 Commands come from `Devfile.yaml` via the `dev` CLI.
