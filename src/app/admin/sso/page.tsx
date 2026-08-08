@@ -50,6 +50,7 @@ export default function SSOPage() {
       setForm({
         enabled: res.data.enabled,
         client_id: res.data.client_id,
+        issuer_url: res.data.issuer_url ?? "",
         authorize_url: res.data.authorize_url,
         token_url: res.data.token_url,
         userinfo_url: res.data.userinfo_url,
@@ -141,6 +142,27 @@ export default function SSOPage() {
         </Section>
 
         <Section title="OAuth Provider">
+          {/*
+            Issuer URL is first and full-width because it is the field that decides
+            whether this integration verifies a signed id_token at all. With it set,
+            the library discovers the provider's metadata, verifies the id_token,
+            checks the nonce, and gets the `sid` back-channel logout needs. Left
+            empty, identity comes from an unsigned UserInfo response — anything able
+            to obtain an access token can become that user.
+          */}
+          <Input
+            label="Issuer URL — enables OIDC (recommended)"
+            placeholder="https://auth.appleby.cloud"
+            value={form.issuer_url ?? ""}
+            onChange={(e) => update("issuer_url", e.target.value)}
+          />
+          <p className="text-xs text-muted -mt-2 mb-4">
+            Set this to verify a signed id_token instead of trusting an unsigned
+            UserInfo response. Leaving it blank keeps the weaker OAuth2 mode and
+            makes back-channel logout impossible. Existing sessions must sign in
+            again once after setting it.
+          </p>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Authorize URL"

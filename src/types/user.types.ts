@@ -43,6 +43,7 @@ export type SSOConfig = {
 export type AdminSSOConfig = {
   enabled: boolean;
   client_id: string;
+  issuer_url: string;
   authorize_url: string;
   token_url: string;
   userinfo_url: string;
@@ -67,6 +68,7 @@ export type UpdateSSOConfigPayload = {
   enabled?: boolean;
   client_id?: string;
   client_secret?: string;
+  issuer_url?: string;
   authorize_url?: string;
   token_url?: string;
   userinfo_url?: string;
