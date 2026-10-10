@@ -245,7 +245,9 @@ Docker build as a `--mount=type=secret`.
   to 2026-07-26. Every push in that window reported a green *build* while the deploy step failed
   with `HTTP 000` (curl exit 6) and nothing shipped. If the UI looks stale, check the deploy step's
   HTTP code before anything else.
-- Do **not** deploy by hand from here (repo guardrails).
+- Deploys go through CI, not by hand from here. A push/merge that triggers one happens **only after
+  asking Aiden and getting an explicit yes** (see `~/CLAUDE.md` *Ask-first actions*); verify it
+  landed afterward using the signals above.
 
 ## 10. Rules & guardrails
 
