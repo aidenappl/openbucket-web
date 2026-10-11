@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { usePathname } from "next/navigation";
 import { setUser, clearUser, selectUser, selectIsLoggedIn, selectIsLoading } from "@/store/slices/authSlice";
 import { reqGetSelf, reqLogout } from "@/services/auth.service";
+import { finishSignOut } from "@/tools/sso.tools";
 import { reqGetSessions } from "@/services/session.service";
 import { setSessions } from "@/store/slices/sessionSlice";
 import { User } from "@/types";
@@ -84,9 +85,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [dispatch, pathname]);
 
   const logout = useCallback(async () => {
-    await reqLogout();
+    const res = await reqLogout();
     dispatch(clearUser());
-    window.location.href = "/login";
+    finishSignOut(res.success ? res.data?.redirect_url : null);
   }, [dispatch]);
 
   return (
