@@ -182,8 +182,7 @@ empty bucket view.
   `/login?error=login_required` and the form renders (no error shown for that code). The attempt
   is skipped when the page has `?error=`, `?signed_out=1` or `?local=1`, and at most once a minute
   (`openbucket-sso-silent-at` in `sessionStorage`) so a session that will not stick cannot loop.
-- **Logout** follows `data.redirect_url` from `POST /auth/logout` (the provider's end-session
-  URL for an SSO session) or lands on `/login?signed_out=1` (`finishSignOut`).
+- **Logout** follows `data.redirect_url` from `POST /auth/logout` (`/login?signed_out=1` — sign-out ends only this app's session; Forta and other apps stay signed in) or lands on `/login?signed_out=1` (`finishSignOut`).
 - `withCredentials` is on, so **local dev must be HTTPS on a `.local.appleby.cloud` subdomain** or
   cookies are silently dropped. That's what `dev dev` / `npm run dev:ssl` is for — `server.js`
   binds `openbucket.local.appleby.cloud:3010`. Plain `npm run dev` (port 3000, HTTP) cannot log in.
