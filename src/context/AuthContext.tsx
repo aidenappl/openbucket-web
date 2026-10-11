@@ -5,11 +5,10 @@ import { useDispatch, useSelector } from "react-redux";
 import { usePathname } from "next/navigation";
 import { setUser, clearUser, selectUser, selectIsLoggedIn, selectIsLoading } from "@/store/slices/authSlice";
 import { reqGetSelf, reqLogout } from "@/services/auth.service";
-import { finishSignOut } from "@/tools/sso.tools";
+import { finishSignOut, redirectToLogin as goToLogin } from "@/tools/sso.tools";
 import { reqGetSessions } from "@/services/session.service";
 import { setSessions } from "@/store/slices/sessionSlice";
 import { User } from "@/types";
-import Cookies from "js-cookie";
 
 interface AuthContextValue {
   user: User | null;
@@ -38,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const redirectToLogin = () => {
     if (!PUBLIC_PATHS.includes(pathname)) {
-      window.location.href = "/login";
+      goToLogin();
     }
   };
 
@@ -50,14 +49,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Check if ob-logged-in cookie exists before making a request
-      const loggedIn = Cookies.get("ob-logged-in");
-      if (!loggedIn) {
-        dispatch(clearUser());
-        redirectToLogin();
-        return;
-      }
-
+      // Always ask the API. An SSO session lives in the HttpOnly
+      // openbucket_session cookie, which JS cannot see, and SSO sign-in sets no
+      // ob-logged-in marker — gating on that marker sent every freshly
+      // signed-in SSO user straight back to /login.
       const res = await reqGetSelf();
       if (res.success) {
         dispatch(setUser(res.data));
