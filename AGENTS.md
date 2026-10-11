@@ -161,7 +161,10 @@ every object/folder call is scoped by it. Losing it, not an auth failure, is the
 empty bucket view.
 
 **Auth model — cookies issued by the API:**
-- `AuthContext` is the gate. On mount it calls `reqGetSelf`; on failure it redirects to `/login`.
+- `AuthContext` is the gate. On mount it **always** calls `reqGetSelf` (an SSO session is the
+  HttpOnly `openbucket_session` cookie, invisible to JS, and SSO sets no `ob-logged-in` marker —
+  gating on that marker bounced every freshly signed-in SSO user back to `/login`); on failure it
+  redirects to `/login?return_to=<path>`.
   `PUBLIC_PATHS = ["/login", "/unauthorized"]`. A user with `role: "pending"` is pushed to
   `/pending`.
 - `tools/axios.tools.ts` handles the rest: on **401** it POSTs `/auth/refresh` behind a
