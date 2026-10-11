@@ -78,7 +78,8 @@ src/
   store/                      # Redux Toolkit — index.ts, hooks.ts, StoreProvider.tsx
     slices/                   # authSlice, sessionSlice, uploadSlice
   tools/                      # axios.tools.ts (THE client), formatBytes, formatDate,
-                              # sessionStore (localStorage), url
+                              # sessionStore (localStorage), url, sso.tools.ts (silent SSO,
+                              # return_to, sign-out)
   types/                      # index.ts (domain + ApiResponse/ApiSuccess/ApiError), user.types.ts
   __tests__/                  # adminService, authService, authSlice, axios + setup.ts
 ```
@@ -165,8 +166,21 @@ empty bucket view.
   `/pending`.
 - `tools/axios.tools.ts` handles the rest: on **401** it POSTs `/auth/refresh` behind a
   **`refreshPromise` singleton** so concurrent 401s trigger exactly one refresh, then retries.
-  `/auth/login` and `/auth/refresh` are exempt to avoid recursion. **403 + `error_code 4003`** →
-  `/unauthorized`; **403 + `4004`** → `/pending`.
+  `/auth/login` and `/auth/refresh` are exempt to avoid recursion. When the refresh fails the
+  browser goes to `/login?return_to=<path>` (`redirectToLogin` in `tools/sso.tools.ts`).
+  **403 + `error_code 4003`** → `/unauthorized`; **403 + `4004`** → `/pending`.
+- **SSO users have no OpenBucket JWTs.** `openbucket-api` holds their session server-side
+  (`openbucket_session` cookie) and refreshes it against the identity provider, so it lives as
+  long as the provider session. `/auth/refresh` answers 401 for them; that is the expected path to
+  `/login` when the provider session has ended.
+- **Silent SSO on `/login`.** With exactly one provider, `/login` first navigates to
+  `<api><login_url>?prompt=none&return_to=…` (`startSilentSSO`). A user still signed in at the
+  provider comes straight back signed in and never sees the form; otherwise the API redirects to
+  `/login?error=login_required` and the form renders (no error shown for that code). The attempt
+  is skipped when the page has `?error=`, `?signed_out=1` or `?local=1`, and at most once a minute
+  (`openbucket-sso-silent-at` in `sessionStorage`) so a session that will not stick cannot loop.
+- **Logout** follows `data.redirect_url` from `POST /auth/logout` (the provider's end-session
+  URL for an SSO session) or lands on `/login?signed_out=1` (`finishSignOut`).
 - `withCredentials` is on, so **local dev must be HTTPS on a `.local.appleby.cloud` subdomain** or
   cookies are silently dropped. That's what `dev dev` / `npm run dev:ssl` is for — `server.js`
   binds `openbucket.local.appleby.cloud:3010`. Plain `npm run dev` (port 3000, HTTP) cannot log in.

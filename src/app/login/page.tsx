@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { reqLogin, reqGetSSOConfig } from "@/services/auth.service";
 import { useAuthContext } from "@/context/AuthContext";
 import { SSOProviderButtons } from "@/components/sso-provider-buttons";
+import Spinner from "@/components/Spinner";
 import { SSOConfig, SSOProvider } from "@/types";
+import { clearSilentSSO, loginReturnTo, silentSSOAllowed, SSO_ERRORS, startSilentSSO } from "@/tools/sso.tools";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -14,25 +16,25 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ssoConfig, setSsoConfig] = useState<SSOConfig | null>(null);
-  const router = useRouter();
+  const [ssoLoaded, setSsoLoaded] = useState(false);
+  // Decided once, at mount: arriving with ?error= (including login_required),
+  // ?signed_out=1 or ?local=1 means no silent attempt, and neither does one
+  // made in the last minute (loop guard).
+  const [skipSilent] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const p = new URLSearchParams(window.location.search);
+    return p.has("error") || p.has("signed_out") || p.has("local") || !silentSSOAllowed();
+  });
   const searchParams = useSearchParams();
   const { isLoggedIn, isLoading } = useAuthContext();
 
   // Check for SSO errors in query params
   useEffect(() => {
     const ssoError = searchParams.get("error");
-    if (ssoError) {
-      const messages: Record<string, string> = {
-        sso_denied: "SSO login was denied.",
-        sso_missing_params: "SSO callback missing required parameters.",
-        sso_state_expired: "SSO session expired. Please try again.",
-        sso_exchange_failed: "SSO authentication failed.",
-        sso_userinfo_failed: "Failed to retrieve user information from SSO.",
-        sso_no_email: "SSO provider did not return an email address.",
-        sso_provision_failed: "Failed to create account. Contact an administrator.",
-        sso_account_disabled: "Your account has been disabled.",
-      };
-      setError(messages[ssoError] ?? "An SSO error occurred.");
+    // login_required is the provider's "not signed in" answer to a silent
+    // attempt — the expected reason to be here, not an error to show.
+    if (ssoError && ssoError !== "login_required") {
+      setError(SSO_ERRORS[ssoError] ?? "An SSO error occurred.");
     }
   }, [searchParams]);
 
@@ -40,6 +42,7 @@ export default function LoginPage() {
   useEffect(() => {
     const loadSSO = async () => {
       const res = await reqGetSSOConfig();
+      setSsoLoaded(true);
       if (!res.success) return;
       // ⚠️ ACCEPT EITHER SHAPE. `enabled` is a LEGACY field this API still emits
       // alongside the shared `providers` contract. Gating only on it means the
@@ -59,9 +62,10 @@ export default function LoginPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (!isLoading && isLoggedIn) {
-      router.replace("/");
+      clearSilentSSO();
+      window.location.replace(loginReturnTo());
     }
-  }, [isLoggedIn, isLoading, router]);
+  }, [isLoggedIn, isLoading]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -73,7 +77,7 @@ export default function LoginPage() {
 
     if (res.success) {
       // Cookies are set by the API — reload to pick up auth state
-      window.location.href = "/";
+      window.location.href = loginReturnTo();
     } else {
       setError(res.error_message);
     }
@@ -110,6 +114,27 @@ export default function LoginPage() {
             },
           ]
         : [];
+
+  // Silent SSO: with exactly one provider and nothing telling us not to, try a
+  // prompt=none sign-in before showing the form. A user still signed in at the
+  // identity provider comes straight back signed in; otherwise the provider
+  // answers login_required and this page renders normally.
+  const candidate = providers.length === 1 ? providers[0].login_url : null;
+  const silentLoginURL =
+    candidate && candidate.startsWith("/") && !candidate.startsWith("//") && !skipSilent && !isLoggedIn ? candidate : null;
+  const deciding = isLoading || !ssoLoaded || silentLoginURL !== null;
+  useEffect(() => {
+    if (isLoading || !ssoLoaded || !silentLoginURL) return;
+    startSilentSSO(API_URL, silentLoginURL, loginReturnTo());
+  }, [isLoading, ssoLoaded, silentLoginURL, API_URL]);
+
+  if (deciding) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-background">
+        <Spinner />
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-background">
@@ -179,7 +204,7 @@ export default function LoginPage() {
                       rendered as a clickable anchor on an unauthenticated page, so
                       javascript: and absolute URLs are refused there rather than
                       trusted from the API. */}
-                  <SSOProviderButtons providers={providers} apiURL={API_URL} />
+                  <SSOProviderButtons providers={providers} apiURL={API_URL} returnTo={loginReturnTo()} />
                 </>
               )}
             </div>

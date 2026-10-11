@@ -19,8 +19,8 @@ const reqRefresh = async (): Promise<ApiResponse<null>> => {
   });
 };
 
-const reqLogout = async (): Promise<ApiResponse<null>> => {
-  return fetchApi<null>({
+const reqLogout = async (): Promise<ApiResponse<{ redirect_url?: string }>> => {
+  return fetchApi<{ redirect_url?: string }>({
     url: "/auth/logout",
     method: "POST",
   });

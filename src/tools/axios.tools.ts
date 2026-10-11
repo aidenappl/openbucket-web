@@ -1,4 +1,5 @@
 import { ApiResponse } from "@/types";
+import { redirectToLogin } from "@/tools/sso.tools";
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
 import Cookies from "js-cookie";
 
@@ -59,10 +60,11 @@ axios_api.interceptors.response.use(async (response) => {
       return axios_api.request(response.config);
     }
 
-    // Refresh failed — clear ob-logged-in cookie and redirect to login
+    // Refresh failed — clear ob-logged-in cookie and go to /login, which
+    // tries a silent SSO sign-in first and comes back here (return_to).
     document.cookie = "ob-logged-in=; Max-Age=0; path=/";
     if (window.location.pathname !== "/login") {
-      window.location.href = "/login";
+      redirectToLogin();
     }
     return response;
   }

@@ -1,5 +1,7 @@
 "use client";
 
+import { ssoLoginURL } from "@/tools/sso.tools";
+
 /**
  * SSOProvider is one entry from `GET /auth/sso/config`.
  *
@@ -76,9 +78,12 @@ function cachedIconSrc(apiURL: string, displayIcon: string | null): string | nul
 export function SSOProviderButtons({
   providers,
   apiURL,
+  returnTo,
 }: {
   providers: SSOProvider[];
   apiURL: string;
+  /** Where the API sends the browser after sign-in (?return_to=). */
+  returnTo?: string;
 }) {
   const sorted = [...providers].sort(
     (a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name),
@@ -87,8 +92,9 @@ export function SSOProviderButtons({
   return (
     <div className="flex flex-col gap-3">
       {sorted.map((p) => {
-        const href = ssoHref(apiURL, p.login_url);
-        if (!href) return null;
+        const base = ssoHref(apiURL, p.login_url);
+        if (!base) return null;
+        const href = returnTo ? ssoLoginURL(apiURL, p.login_url, { returnTo }) : base;
 
         const bg = safeColor(p.button_color);
         const fg = safeColor(p.button_text_color);
