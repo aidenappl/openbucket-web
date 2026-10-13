@@ -242,6 +242,15 @@ Docker build as a `--mount=type=secret`.
 
 ## 9. Operations
 
+- **CI runners:** every GitHub Actions job runs on `[self-hosted, lattice-worker]` — a
+  single-use runner started by `aidenappl/gh-runner-broker` on the CI host (`aplb-actions`,
+  10.15.10.78), with the toolchain and shared Go/npm caches provisioned by
+  `TeamTrailblaze/runner-setup`. Images build through the host's `lattice-builder` BuildKit
+  (`builder: lattice-builder`), never `docker/setup-buildx-action`, which races other runners
+  on the shared Docker daemon; its local layer cache replaces the gha cache. `setup-go` runs
+  with `cache: false`. Jobs stuck in "Queued" mean the broker or the host is down — check the
+  `gh-runner-broker` service in Monitor (zone `appleby`).
+
 - **Image:** `registry.appleby.cloud/openbucket-web`, built by
   `.github/workflows/build-and-deploy.yml` on push to `main`. `node:20-alpine`, two-stage,
   `output: "standalone"`, non-root `nextjs` (UID 1001), `EXPOSE 3000`, `HEALTHCHECK` on
