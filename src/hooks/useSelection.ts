@@ -1,87 +1,70 @@
-import { useState, useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from "react";
 
-export type CheckboxState = "checked" | "unchecked" | "indeterminate";
+/**
+ * Multi-select over an ordered list of keys, with Shift-click ranges.
+ *
+ * The range extends from the last plainly-clicked key (the anchor) and applies
+ * the anchor's state, matching Finder and Gmail. Keys that disappear from the
+ * list (deleted, navigated away from) are dropped by `prune`.
+ */
+export const useSelection = (keys: string[]) => {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const anchor = useRef<string | null>(null);
 
-export const useSelection = () => {
-    const [selectedObjects, setSelectedObjects] = useState<Record<string, boolean>>({});
-    const lastSelectedRef = useRef<string | null>(null);
+  const toggle = useCallback(
+    (key: string, shift = false) => {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        const from = anchor.current ? keys.indexOf(anchor.current) : -1;
+        const to = keys.indexOf(key);
+        if (shift && from !== -1 && to !== -1) {
+          const on = prev.has(anchor.current as string);
+          const [a, b] = from < to ? [from, to] : [to, from];
+          for (const k of keys.slice(a, b + 1)) {
+            if (on) next.add(k);
+            else next.delete(k);
+          }
+          return next;
+        }
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        anchor.current = key;
+        return next;
+      });
+    },
+    [keys],
+  );
 
-    const toggleObject = useCallback((key: string, shiftKey: boolean = false, allItems: string[] = []) => {
-        setSelectedObjects(prev => {
-            if (shiftKey && lastSelectedRef.current && allItems.length > 0) {
-                // Handle shift-click range selection
-                const lastIndex = allItems.indexOf(lastSelectedRef.current);
-                const currentIndex = allItems.indexOf(key);
+  const setAll = useCallback(
+    (on: boolean) => {
+      setSelected(on ? new Set(keys) : new Set());
+      anchor.current = null;
+    },
+    [keys],
+  );
 
-                if (lastIndex !== -1 && currentIndex !== -1) {
-                    const startIndex = Math.min(lastIndex, currentIndex);
-                    const endIndex = Math.max(lastIndex, currentIndex);
-                    const rangeItems = allItems.slice(startIndex, endIndex + 1);
+  const clear = useCallback(() => {
+    setSelected(new Set());
+    anchor.current = null;
+  }, []);
 
-                    // Determine the state to apply (based on the last selected item)
-                    const targetState = prev[lastSelectedRef.current] || false;
+  const visibleSelected = useMemo(
+    () => keys.filter((k) => selected.has(k)),
+    [keys, selected],
+  );
+  const state: "none" | "some" | "all" =
+    visibleSelected.length === 0
+      ? "none"
+      : visibleSelected.length === keys.length
+        ? "all"
+        : "some";
 
-                    const newSelection = { ...prev };
-                    rangeItems.forEach(item => {
-                        newSelection[item] = targetState;
-                    });
-
-                    return newSelection;
-                }
-            }
-
-            // Normal toggle behavior
-            const newState = !prev[key];
-            lastSelectedRef.current = key;
-
-            return {
-                ...prev,
-                [key]: newState,
-            };
-        });
-    }, []);
-
-    const toggleAll = useCallback((items: string[], newState: boolean) => {
-        const newSelection = Object.fromEntries(
-            items.map(item => [item, newState])
-        );
-        setSelectedObjects(newSelection);
-        lastSelectedRef.current = null; // Clear last selected on select all
-    }, []);
-
-    const clearSelection = useCallback(() => {
-        setSelectedObjects({});
-        lastSelectedRef.current = null; // Clear last selected on clear
-    }, []);
-
-    const getSelectedItems = useCallback((items: string[]) => {
-        return items.filter(item => selectedObjects[item]);
-    }, [selectedObjects]);
-
-    const getSelectionStats = useCallback((items: string[]) => {
-        const selectedCount = items.filter(item => selectedObjects[item]).length;
-        const totalCount = items.length;
-
-        const masterCheckboxState: CheckboxState =
-            selectedCount === 0
-                ? "unchecked"
-                : selectedCount === totalCount
-                    ? "checked"
-                    : "indeterminate";
-
-        return {
-            selectedCount,
-            totalCount,
-            masterCheckboxState
-        };
-    }, [selectedObjects]);
-
-    return {
-        selectedObjects,
-        toggleObject,
-        toggleAll,
-        clearSelection,
-        getSelectedItems,
-        getSelectionStats
-    };
+  return {
+    selected,
+    selectedKeys: visibleSelected,
+    state,
+    toggle,
+    setAll,
+    clear,
+  };
 };

@@ -1,5 +1,10 @@
 import { fetchApi } from "@/tools/axios.tools";
-import { ApiResponse, User, AdminSSOConfig, UpdateSSOConfigPayload } from "@/types";
+import {
+  ApiResponse,
+  User,
+  AdminSSOConfig,
+  UpdateSSOConfigPayload,
+} from "@/types";
 
 // ── User Management ──────────────────────────────────────────────────────
 
@@ -15,7 +20,7 @@ export type CreateUserPayload = {
 };
 
 export const reqAdminCreateUser = async (
-  data: CreateUserPayload
+  data: CreateUserPayload,
 ): Promise<ApiResponse<User>> => {
   return fetchApi<User>({ url: "/admin/users", method: "POST", data });
 };
@@ -28,13 +33,13 @@ export type UpdateUserPayload = {
 
 export const reqAdminUpdateUser = async (
   id: number,
-  data: UpdateUserPayload
+  data: UpdateUserPayload,
 ): Promise<ApiResponse<User>> => {
   return fetchApi<User>({ url: `/admin/users/${id}`, method: "PUT", data });
 };
 
 export const reqAdminDeleteUser = async (
-  id: number
+  id: number,
 ): Promise<ApiResponse<null>> => {
   return fetchApi<null>({ url: `/admin/users/${id}`, method: "DELETE" });
 };
@@ -63,7 +68,7 @@ export type CreateInstancePayload = {
 };
 
 export const reqAdminCreateInstance = async (
-  data: CreateInstancePayload
+  data: CreateInstancePayload,
 ): Promise<ApiResponse<Instance>> => {
   return fetchApi<Instance>({
     url: "/admin/instances",
@@ -81,7 +86,7 @@ export type UpdateInstancePayload = {
 
 export const reqAdminUpdateInstance = async (
   id: number,
-  data: UpdateInstancePayload
+  data: UpdateInstancePayload,
 ): Promise<ApiResponse<Instance>> => {
   return fetchApi<Instance>({
     url: `/admin/instances/${id}`,
@@ -91,7 +96,7 @@ export const reqAdminUpdateInstance = async (
 };
 
 export const reqAdminDeleteInstance = async (
-  id: number
+  id: number,
 ): Promise<ApiResponse<null>> => {
   return fetchApi<null>({ url: `/admin/instances/${id}`, method: "DELETE" });
 };
@@ -132,7 +137,7 @@ const proxyFetch = async <T>(
   instanceId: number,
   path: string,
   method: string = "GET",
-  data?: unknown
+  data?: unknown,
 ): Promise<ApiResponse<T>> => {
   return fetchApi<T>({
     url: `/admin/instances/${instanceId}/proxy/${path}`,
@@ -144,10 +149,8 @@ const proxyFetch = async <T>(
 export const reqProxyListCredentials = (instanceId: number) =>
   proxyFetch<InstanceCredential[]>(instanceId, "credentials");
 
-export const reqProxyCreateCredential = (
-  instanceId: number,
-  name: string
-) => proxyFetch<InstanceCredential>(instanceId, "credentials", "POST", { name });
+export const reqProxyCreateCredential = (instanceId: number, name: string) =>
+  proxyFetch<InstanceCredential>(instanceId, "credentials", "POST", { name });
 
 export const reqProxyDeleteCredential = (instanceId: number, id: number) =>
   proxyFetch<null>(instanceId, `credentials/${id}`, "DELETE");
@@ -161,7 +164,7 @@ export const reqProxyGetBucket = (instanceId: number, bucket: string) =>
 export const reqProxyCreateBucket = (
   instanceId: number,
   name: string,
-  ownerKeyId: string
+  ownerKeyId: string,
 ) =>
   proxyFetch<InstanceBucket>(instanceId, "buckets", "POST", {
     name,
@@ -177,7 +180,7 @@ export const reqProxyGetBucketStats = (instanceId: number, bucket: string) =>
 export const reqProxyUpdateBucketACL = (
   instanceId: number,
   bucket: string,
-  acl: string
+  acl: string,
 ) => proxyFetch<null>(instanceId, `buckets/${bucket}/acl`, "PUT", { acl });
 
 export const reqProxyListGrants = (instanceId: number, bucket: string) =>
@@ -187,7 +190,7 @@ export const reqProxyCreateGrant = (
   instanceId: number,
   bucket: string,
   keyId: string,
-  permission: string
+  permission: string,
 ) =>
   proxyFetch<null>(instanceId, `buckets/${bucket}/grants`, "POST", {
     key_id: keyId,
@@ -197,17 +200,67 @@ export const reqProxyCreateGrant = (
 export const reqProxyDeleteGrant = (
   instanceId: number,
   bucket: string,
-  grantId: number
-) => proxyFetch<null>(instanceId, `buckets/${bucket}/grants/${grantId}`, "DELETE");
+  grantId: number,
+) =>
+  proxyFetch<null>(instanceId, `buckets/${bucket}/grants/${grantId}`, "DELETE");
+
+// ── API Tokens ──────────────────────────────────────────────────────────
+// Long-lived `obk_` tokens for automation (openbucket-mcp, CLIs, CI). The API
+// lists active tokens only, and returns the plaintext exactly once, on create.
+
+export type ApiToken = {
+  id: number;
+  user_id: number;
+  name: string;
+  expires_at: string | null;
+  last_used_at: string | null;
+  active: boolean;
+  updated_at: string;
+  inserted_at: string;
+};
+
+export type ApiTokenExpiry = "30d" | "90d" | "365d" | "never";
+
+export type CreatedApiToken = ApiToken & { token: string };
+
+export const reqAdminListApiTokens = async (): Promise<
+  ApiResponse<ApiToken[]>
+> => {
+  return fetchApi<ApiToken[]>({
+    url: "/admin/api-tokens",
+    method: "GET",
+    params: { limit: 500 },
+  });
+};
+
+/** Minted for the signed-in admin — the API takes no user_id. */
+export const reqAdminCreateApiToken = async (
+  name: string,
+  expiresIn: ApiTokenExpiry,
+): Promise<ApiResponse<CreatedApiToken>> => {
+  return fetchApi<CreatedApiToken>({
+    url: "/admin/api-tokens",
+    method: "POST",
+    data: { name, expires_in: expiresIn },
+  });
+};
+
+export const reqAdminRevokeApiToken = async (
+  id: number,
+): Promise<ApiResponse<null>> => {
+  return fetchApi<null>({ url: `/admin/api-tokens/${id}`, method: "DELETE" });
+};
 
 // ── SSO Configuration ───────────────────────────────────────────────────
 
-export const reqAdminGetSSOConfig = async (): Promise<ApiResponse<AdminSSOConfig>> => {
+export const reqAdminGetSSOConfig = async (): Promise<
+  ApiResponse<AdminSSOConfig>
+> => {
   return fetchApi<AdminSSOConfig>({ url: "/admin/sso-config", method: "GET" });
 };
 
 export const reqAdminUpdateSSOConfig = async (
-  data: UpdateSSOConfigPayload
+  data: UpdateSSOConfigPayload,
 ): Promise<ApiResponse<null>> => {
   return fetchApi<null>({ url: "/admin/sso-config", method: "PUT", data });
 };

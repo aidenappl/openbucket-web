@@ -36,12 +36,21 @@ interface Grantee {
   EmailAddress?: string;
 }
 
-
-
 interface PresignResponse {
   url: string;
-  expires_in: string;
+  /** Seconds, as a string — the API echoes back what it signed for. */
+  expiration: string;
 }
+
+/**
+ * One entry from GET /folder — a recursive listing of everything under a folder.
+ * ⚠️ snake_case (aws.Object), unlike the PascalCase S3 shapes above.
+ */
+type FolderObject = {
+  key: string;
+  size: number;
+  last_modified: string;
+};
 
 // Generic success response
 type ApiSuccess<T> = {
@@ -105,17 +114,21 @@ type ObjectHead = {
   StorageClass?: string;
   VersionId?: string;
   WebsiteRedirectLocation?: string;
-}
+};
 
 type Metadata = {
   [key: string]: string;
 };
 
-type UploadStatus = "uploading" | "success" | "error";
+type UploadStatus = "uploading" | "success" | "error" | "canceled";
 
 type UploadItem = {
   id: string;
   fileName: string;
+  /** Bytes. */
+  size?: number;
+  /** Prefix the file is going into ("" = bucket root). */
+  prefix?: string;
   progress: number;
   status: UploadStatus;
   startedAt: number;
@@ -144,6 +157,7 @@ type ApiResponse<T> = ApiSuccess<T> | ApiError;
 export type {
   ApiResponse,
   PresignResponse,
+  FolderObject,
   S3ObjectList,
   S3ObjectMetadata,
   ObjectACLResponse,

@@ -1,88 +1,83 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useSelector } from "react-redux";
+import toast from "react-hot-toast";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPlus } from "@fortawesome/pro-solid-svg-icons";
 import {
-  reqAdminListInstances,
-  reqAdminCreateInstance,
-  reqAdminUpdateInstance,
-  reqAdminDeleteInstance,
-  reqProxyListCredentials,
-  reqProxyCreateCredential,
-  reqProxyDeleteCredential,
-  reqProxyListBuckets,
-  reqProxyGetBucketStats,
-  reqProxyCreateBucket,
-  reqProxyDeleteBucket,
-  reqProxyUpdateBucketACL,
-  reqProxyCreateGrant,
-  reqProxyDeleteGrant,
   Instance,
-  InstanceCredential,
   InstanceBucket,
   InstanceBucketStats,
+  InstanceCredential,
+  reqAdminCreateInstance,
+  reqAdminDeleteInstance,
+  reqAdminListInstances,
+  reqAdminUpdateInstance,
+  reqProxyGetBucketStats,
+  reqProxyListBuckets,
+  reqProxyListCredentials,
 } from "@/services/admin.service";
-import { reqPostSession } from "@/services/session.service";
-import { addSession, setActiveSession } from "@/store/slices/sessionSlice";
-import { setCurrentSessionBucket } from "@/tools/sessionStore.tools";
-import { useDispatch } from "react-redux";
-import Button from "@/components/Button";
-import Input from "@/components/Input";
+import { selectAllSessions } from "@/store/slices/sessionSlice";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
+import { Menu } from "@/components/ui/menu";
+import { StatusBadge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
 import Spinner from "@/components/Spinner";
-import toast from "react-hot-toast";
-import { formatBytes } from "@/tools/formatBytes.tools";
+import { CredentialsPanel } from "@/components/admin/CredentialsPanel";
+import { BucketsPanel } from "@/components/admin/BucketsPanel";
+import { AddSessionsModal } from "@/components/admin/AddSessionsModal";
+import { endpointHost, isValidUrl } from "@/tools/url.tools";
+import { cn } from "@/lib/utils";
 
-type ExpandedView = "credentials" | "buckets" | null;
+type View = "credentials" | "buckets";
+
+const normalize = (url: string) => url.replace(/\/+$/, "");
 
 export default function InstancesPage() {
+  const sessions = useSelector(selectAllSessions);
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
-  const [createFields, setCreateFields] = useState({
-    name: "",
-    endpoint: "",
-    admin_token: "",
-  });
-  const [creating, setCreating] = useState(false);
 
-  // Expanded instance state
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [expandedView, setExpandedView] = useState<ExpandedView>(null);
+  // Expanded instance
+  const [expanded, setExpanded] = useState<{ id: number; view: View } | null>(
+    null,
+  );
   const [credentials, setCredentials] = useState<InstanceCredential[]>([]);
   const [buckets, setBuckets] = useState<InstanceBucket[]>([]);
-  const [bucketStats, setBucketStats] = useState<
-    Record<string, InstanceBucketStats>
-  >({});
-  const [subLoading, setSubLoading] = useState(false);
+  const [stats, setStats] = useState<Record<string, InstanceBucketStats>>({});
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
-  // Create credential
-  const [newCredName, setNewCredName] = useState("");
+  // Instance form (create or edit)
+  const [form, setForm] = useState<{
+    editing: Instance | null;
+    name: string;
+    endpoint: string;
+    admin_token: string;
+  } | null>(null);
+  const [formTouched, setFormTouched] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<Instance | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  // Create bucket
-  const [newBucketName, setNewBucketName] = useState("");
-  const [newBucketOwner, setNewBucketOwner] = useState("");
-
-  // Grant
-  const [grantBucket, setGrantBucket] = useState<string | null>(null);
-  const [grantKeyId, setGrantKeyId] = useState("");
-  const [grantPermission, setGrantPermission] = useState("READ");
-
-  // Add as session modal
-  const [sessionModal, setSessionModal] = useState<{
+  // Add-as-session
+  const [sessionTarget, setSessionTarget] = useState<{
     instance: Instance;
     buckets: string[];
-    credentials: InstanceCredential[];
   } | null>(null);
-  const [sessionNicknames, setSessionNicknames] = useState<Record<string, string>>({});
-  const [sessionCredentialId, setSessionCredentialId] = useState("");
-  const [sessionSecretKey, setSessionSecretKey] = useState("");
-  const [sessionRegion, setSessionRegion] = useState("us-east-1");
-  const [sessionCreating, setSessionCreating] = useState(false);
-
-  const dispatch = useDispatch();
+  const [preset, setPreset] = useState<{
+    key_id: string;
+    secret_key: string;
+  } | null>(null);
 
   const loadInstances = async () => {
     const res = await reqAdminListInstances();
-    if (res.success) setInstances(res.data);
+    if (res.success) setInstances(res.data ?? []);
+    else toast.error(res.error_message || "Failed to load instances");
     setLoading(false);
   };
 
@@ -90,265 +85,131 @@ export default function InstancesPage() {
     loadInstances();
   }, []);
 
-  const handleCreate = async () => {
-    setCreating(true);
-    const res = await reqAdminCreateInstance(createFields);
-    setCreating(false);
-    if (res.success) {
-      toast.success("Instance created");
-      setShowCreate(false);
-      setCreateFields({ name: "", endpoint: "", admin_token: "" });
-      loadInstances();
-    } else {
-      toast.error(res.error_message);
-    }
-  };
+  const current = instances.find((i) => i.id === expanded?.id) ?? null;
 
-  const handleDelete = async (inst: Instance) => {
-    if (!confirm(`Delete instance "${inst.name}"?`)) return;
-    const res = await reqAdminDeleteInstance(inst.id);
-    if (res.success) {
-      toast.success("Instance deleted");
-      if (expandedId === inst.id) {
-        setExpandedId(null);
-        setExpandedView(null);
-      }
-      loadInstances();
-    } else {
-      toast.error(res.error_message);
-    }
-  };
-
-  const handleToggleActive = async (inst: Instance) => {
-    const res = await reqAdminUpdateInstance(inst.id, {
-      active: !inst.active,
-    });
-    if (res.success) {
-      toast.success(inst.active ? "Instance deactivated" : "Instance activated");
-      loadInstances();
-    } else {
-      toast.error(res.error_message);
-    }
-  };
-
-  // ── Expand into instance detail ────────────────────────────────────────
-
-  const expandCredentials = async (inst: Instance) => {
-    if (expandedId === inst.id && expandedView === "credentials") {
-      setExpandedId(null);
-      setExpandedView(null);
-      return;
-    }
-    setExpandedId(inst.id);
-    setExpandedView("credentials");
-    setSubLoading(true);
-    const res = await reqProxyListCredentials(inst.id);
-    if (res.success) setCredentials(res.data ?? []);
-    else toast.error("Failed to load credentials");
-    setSubLoading(false);
-  };
-
-  const expandBuckets = async (inst: Instance) => {
-    if (expandedId === inst.id && expandedView === "buckets") {
-      setExpandedId(null);
-      setExpandedView(null);
-      return;
-    }
-    setExpandedId(inst.id);
-    setExpandedView("buckets");
-    setSubLoading(true);
-    const res = await reqProxyListBuckets(inst.id);
-    if (res.success) {
-      const bucketData = res.data ?? [];
-      setBuckets(bucketData);
-      // Load stats for each bucket
-      const statsMap: Record<string, InstanceBucketStats> = {};
-      await Promise.all(
-        bucketData.map(async (b) => {
-          const statsRes = await reqProxyGetBucketStats(inst.id, b.name);
-          if (statsRes.success) statsMap[b.name] = statsRes.data;
-        })
+  const loadDetail = useCallback(async (inst: Instance) => {
+    setDetailLoading(true);
+    setDetailError(null);
+    const [c, b] = await Promise.all([
+      reqProxyListCredentials(inst.id),
+      reqProxyListBuckets(inst.id),
+    ]);
+    if (!c.success || !b.success) {
+      const failed = !c.success ? c : !b.success ? b : null;
+      setDetailError(
+        failed && !failed.success
+          ? failed.error_message
+          : "Couldn't reach this instance",
       );
-      setBucketStats(statsMap);
-    } else {
-      toast.error("Failed to load buckets");
+      setCredentials([]);
+      setBuckets([]);
+      setDetailLoading(false);
+      return;
     }
-    setSubLoading(false);
+    setCredentials(c.data ?? []);
+    setBuckets(b.data ?? []);
+    setDetailLoading(false);
+    const entries = await Promise.all(
+      (b.data ?? []).map(
+        async (bk) =>
+          [bk.name, await reqProxyGetBucketStats(inst.id, bk.name)] as const,
+      ),
+    );
+    setStats(
+      Object.fromEntries(
+        entries
+          .filter(([, r]) => r.success)
+          .map(([n, r]) => [n, r.success ? r.data : null]),
+      ) as Record<string, InstanceBucketStats>,
+    );
+  }, []);
+
+  const toggle = (inst: Instance, view: View) => {
+    if (expanded?.id === inst.id && expanded.view === view) {
+      setExpanded(null);
+      return;
+    }
+    const sameInstance = expanded?.id === inst.id;
+    setExpanded({ id: inst.id, view });
+    if (!sameInstance) {
+      setStats({});
+      loadDetail(inst);
+    }
   };
 
-  const handleCreateCredential = async () => {
-    if (!expandedId || !newCredName) return;
-    const res = await reqProxyCreateCredential(expandedId, newCredName);
-    if (res.success) {
-      toast.success("Credential created");
-      setNewCredName("");
-      // Show the secret key
-      if (res.data.secret_key) {
-        toast.success(`Secret Key: ${res.data.secret_key}`, {
-          duration: 15000,
+  const existingSessions = useMemo(() => {
+    if (!current) return new Set<string>();
+    return new Set(
+      sessions
+        .filter((s) => normalize(s.endpoint) === normalize(current.endpoint))
+        .map((s) => s.bucket),
+    );
+  }, [sessions, current]);
+
+  const formErrors = form
+    ? {
+        name: form.name.trim() ? undefined : "Required",
+        endpoint:
+          /^https?:\/\//.test(form.endpoint.trim()) &&
+          isValidUrl(form.endpoint.trim())
+            ? undefined
+            : "A full http(s) URL",
+        admin_token: form.editing || form.admin_token ? undefined : "Required",
+      }
+    : {};
+
+  const saveForm = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!form) return;
+    setFormTouched(true);
+    if (Object.values(formErrors).some(Boolean)) return;
+    setSaving(true);
+    const payload = {
+      name: form.name.trim(),
+      endpoint: normalize(form.endpoint.trim()),
+      ...(form.admin_token ? { admin_token: form.admin_token } : {}),
+    };
+    const res = form.editing
+      ? await reqAdminUpdateInstance(form.editing.id, payload)
+      : await reqAdminCreateInstance({
+          ...payload,
+          admin_token: form.admin_token,
         });
-      }
-      const refreshRes = await reqProxyListCredentials(expandedId);
-      if (refreshRes.success) setCredentials(refreshRes.data ?? []);
-    } else {
-      toast.error(res.error_message);
-    }
-  };
-
-  const handleDeleteCredential = async (credId: number) => {
-    if (!expandedId || !confirm("Delete this credential?")) return;
-    const res = await reqProxyDeleteCredential(expandedId, credId);
-    if (res.success) {
-      toast.success("Credential deleted");
-      const refreshRes = await reqProxyListCredentials(expandedId);
-      if (refreshRes.success) setCredentials(refreshRes.data ?? []);
-    } else {
-      toast.error(res.error_message);
-    }
-  };
-
-  const handleCreateBucket = async () => {
-    if (!expandedId || !newBucketName || !newBucketOwner) return;
-    const res = await reqProxyCreateBucket(
-      expandedId,
-      newBucketName,
-      newBucketOwner
-    );
-    if (res.success) {
-      toast.success("Bucket created");
-      setNewBucketName("");
-      setNewBucketOwner("");
-      expandBuckets(instances.find((i) => i.id === expandedId)!);
-    } else {
-      toast.error(res.error_message);
-    }
-  };
-
-  const handleDeleteBucket = async (bucketName: string) => {
-    if (
-      !expandedId ||
-      !confirm(`Delete bucket "${bucketName}" and ALL its data?`)
-    )
-      return;
-    const res = await reqProxyDeleteBucket(expandedId, bucketName);
-    if (res.success) {
-      toast.success("Bucket deleted");
-      expandBuckets(instances.find((i) => i.id === expandedId)!);
-    } else {
-      toast.error(res.error_message);
-    }
-  };
-
-  const handleUpdateACL = async (bucketName: string, acl: string) => {
-    if (!expandedId) return;
-    const res = await reqProxyUpdateBucketACL(expandedId, bucketName, acl);
-    if (res.success) {
-      toast.success("ACL updated");
-      expandBuckets(instances.find((i) => i.id === expandedId)!);
-    } else {
-      toast.error(res.error_message);
-    }
-  };
-
-  const handleCreateGrant = async () => {
-    if (!expandedId || !grantBucket || !grantKeyId) return;
-    const res = await reqProxyCreateGrant(
-      expandedId,
-      grantBucket,
-      grantKeyId,
-      grantPermission
-    );
-    if (res.success) {
-      toast.success("Grant created");
-      setGrantBucket(null);
-      setGrantKeyId("");
-      setGrantPermission("READ");
-      expandBuckets(instances.find((i) => i.id === expandedId)!);
-    } else {
-      toast.error(res.error_message);
-    }
-  };
-
-  const handleDeleteGrant = async (bucketName: string, grantId: number) => {
-    if (!expandedId || !confirm("Remove this grant?")) return;
-    const res = await reqProxyDeleteGrant(expandedId, bucketName, grantId);
-    if (res.success) {
-      toast.success("Grant removed");
-      expandBuckets(instances.find((i) => i.id === expandedId)!);
-    } else {
-      toast.error(res.error_message);
-    }
-  };
-
-  // ── Add buckets as sessions ─────────────────────────────────────────
-
-  const openSessionModal = async (inst: Instance, bucketNames: string[]) => {
-    // Load credentials for credential picker
-    const credRes = await reqProxyListCredentials(inst.id);
-    const creds = credRes.success ? (credRes.data ?? []) : [];
-    if (creds.length === 0) {
-      toast.error("No credentials found. Create a credential first.");
+    setSaving(false);
+    if (!res.success) {
+      toast.error(res.error_message || "Failed to save instance");
       return;
     }
-    setSessionModal({ instance: inst, buckets: bucketNames, credentials: creds });
-    setSessionCredentialId(creds[0].key_id);
-    setSessionSecretKey("");
-    setSessionRegion("us-east-1");
-    setSessionNicknames(
-      Object.fromEntries(bucketNames.map((name) => [name, name]))
-    );
+    toast.success(form.editing ? "Instance updated" : "Instance added");
+    setForm(null);
+    loadInstances();
   };
 
-  const closeSessionModal = () => {
-    setSessionModal(null);
-    setSessionNicknames({});
-    setSessionCredentialId("");
-    setSessionSecretKey("");
-    setSessionRegion("us-east-1");
-  };
-
-  const handleCreateSessions = async () => {
-    if (!sessionModal || !sessionCredentialId || !sessionSecretKey) {
-      toast.error("Please select a credential and enter the secret key.");
+  const setActive = async (inst: Instance, active: boolean) => {
+    const res = await reqAdminUpdateInstance(inst.id, { active });
+    if (!res.success) {
+      toast.error(res.error_message || "Update failed");
       return;
     }
+    toast.success(
+      active ? `${inst.name} activated` : `${inst.name} deactivated`,
+    );
+    loadInstances();
+  };
 
-    setSessionCreating(true);
-    let successCount = 0;
-    let lastSession = null;
-
-    for (const bucketName of sessionModal.buckets) {
-      const res = await reqPostSession({
-        bucket: bucketName,
-        nickname: sessionNicknames[bucketName] || bucketName,
-        region: sessionRegion,
-        endpoint: sessionModal.instance.endpoint,
-        access_key_id: sessionCredentialId,
-        secret_access_key: sessionSecretKey,
-      });
-      if (res.success) {
-        successCount++;
-        lastSession = res.data;
-        dispatch(addSession(res.data));
-      } else {
-        toast.error(`Failed to add "${bucketName}": ${res.error_message}`);
-      }
+  const remove = async () => {
+    if (!deleting) return;
+    setBusy(true);
+    const res = await reqAdminDeleteInstance(deleting.id);
+    setBusy(false);
+    if (!res.success) {
+      toast.error(res.error_message || "Failed to delete instance");
+      return;
     }
-
-    if (successCount > 0) {
-      toast.success(
-        successCount === 1
-          ? "Session created"
-          : `${successCount} sessions created`
-      );
-      if (lastSession) {
-        dispatch(setActiveSession(lastSession));
-        setCurrentSessionBucket(lastSession.endpoint, lastSession.bucket);
-      }
-    }
-
-    setSessionCreating(false);
-    closeSessionModal();
+    toast.success(`Removed ${deleting.name}`);
+    if (expanded?.id === deleting.id) setExpanded(null);
+    setDeleting(null);
+    loadInstances();
   };
 
   if (loading) {
@@ -361,521 +222,254 @@ export default function InstancesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-zinc-100">
-          Instances
-        </h1>
-        <Button
-          variant="dark"
-                    onClick={() => setShowCreate(!showCreate)}
-        >
-          {showCreate ? "Cancel" : "Add Instance"}
-        </Button>
-      </div>
+      <PageHeader
+        title="Instances"
+        description="openbucket-go storage servers. Manage their access keys, buckets and grants here."
+        actions={
+          <Button
+            onClick={() => {
+              setFormTouched(false);
+              setForm({
+                editing: null,
+                name: "",
+                endpoint: "",
+                admin_token: "",
+              });
+            }}
+          >
+            <FontAwesomeIcon icon={faPlus} className="mr-2 h-3 w-3" />
+            Add instance
+          </Button>
+        }
+      />
 
-      {showCreate && (
-        <div className="mb-6 p-4 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 space-y-3">
-          <div className="grid grid-cols-3 gap-3">
+      {instances.length === 0 ? (
+        <p className="rounded-lg border border-border bg-surface px-4 py-12 text-center text-sm text-muted">
+          No instances yet. Add an openbucket-go server to manage its buckets.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {instances.map((inst) => {
+            const open = expanded?.id === inst.id;
+            return (
+              <li
+                key={inst.id}
+                className="overflow-hidden rounded-lg border border-border bg-surface"
+              >
+                <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-primary">
+                      {inst.name}
+                    </p>
+                    <p className="truncate font-mono text-xs text-muted">
+                      {endpointHost(inst.endpoint)}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge status={inst.active ? "active" : "inactive"} />
+                    {(["credentials", "buckets"] as View[]).map((v) => (
+                      <Button
+                        key={v}
+                        size="sm"
+                        variant="secondary"
+                        aria-expanded={open && expanded?.view === v}
+                        aria-controls={`instance-${inst.id}-detail`}
+                        className={cn(
+                          open &&
+                            expanded?.view === v &&
+                            "border-accent text-accent",
+                        )}
+                        onClick={() => toggle(inst, v)}
+                      >
+                        {v === "credentials" ? "Credentials" : "Buckets"}
+                      </Button>
+                    ))}
+                    <Menu
+                      label={`Actions for ${inst.name}`}
+                      items={[
+                        {
+                          label: "Edit",
+                          onSelect: () => {
+                            setFormTouched(false);
+                            setForm({
+                              editing: inst,
+                              name: inst.name,
+                              endpoint: inst.endpoint,
+                              admin_token: "",
+                            });
+                          },
+                        },
+                        inst.active
+                          ? {
+                              label: "Deactivate",
+                              onSelect: () => setActive(inst, false),
+                            }
+                          : {
+                              label: "Activate",
+                              onSelect: () => setActive(inst, true),
+                            },
+                        "separator",
+                        {
+                          label: "Remove",
+                          destructive: true,
+                          onSelect: () => setDeleting(inst),
+                        },
+                      ]}
+                    />
+                  </div>
+                </div>
+
+                {open && (
+                  <div
+                    id={`instance-${inst.id}-detail`}
+                    className="border-t border-border p-4"
+                  >
+                    {detailLoading ? (
+                      <div className="flex justify-center py-6">
+                        <Spinner />
+                      </div>
+                    ) : detailError ? (
+                      <Alert variant="error">
+                        {detailError}.{" "}
+                        <button
+                          type="button"
+                          onClick={() => loadDetail(inst)}
+                          className="font-medium underline cursor-pointer"
+                        >
+                          Retry
+                        </button>
+                      </Alert>
+                    ) : expanded?.view === "credentials" ? (
+                      <CredentialsPanel
+                        instance={inst}
+                        credentials={credentials}
+                        onChanged={() => loadDetail(inst)}
+                        onUseForSessions={(cred) => {
+                          setPreset(cred);
+                          setExpanded({ id: inst.id, view: "buckets" });
+                          if (buckets.length === 0)
+                            toast("Create a bucket, then add it as a session.");
+                          else
+                            setSessionTarget({
+                              instance: inst,
+                              buckets: buckets
+                                .map((b) => b.name)
+                                .filter((n) => !existingSessions.has(n)),
+                            });
+                        }}
+                      />
+                    ) : (
+                      <BucketsPanel
+                        instance={inst}
+                        buckets={buckets}
+                        stats={stats}
+                        credentials={credentials}
+                        existingSessions={existingSessions}
+                        onChanged={() => loadDetail(inst)}
+                        onAddSessions={(names) =>
+                          setSessionTarget({ instance: inst, buckets: names })
+                        }
+                      />
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <Modal
+        open={!!form}
+        onClose={() => setForm(null)}
+        title={form?.editing ? `Edit ${form.editing.name}` : "Add instance"}
+        description={
+          form?.editing
+            ? "Leave the admin token blank to keep the current one."
+            : "The admin token is the openbucket-go server's OB_ADMIN_TOKEN."
+        }
+        widthClass="max-w-md"
+      >
+        {form && (
+          <form
+            onSubmit={saveForm}
+            className="flex flex-col gap-4"
+            autoComplete="off"
+          >
             <Input
               label="Name"
-              placeholder="Instance name"
-              value={createFields.name}
-              onChange={(e) =>
-                setCreateFields({ ...createFields, name: e.target.value })
-              }
-              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              error={formTouched ? formErrors.name : undefined}
             />
             <Input
               label="Endpoint"
-              placeholder="https://..."
-              value={createFields.endpoint}
-              onChange={(e) =>
-                setCreateFields({ ...createFields, endpoint: e.target.value })
-              }
-              required
+              placeholder="https://cdn.example.com"
+              value={form.endpoint}
+              onChange={(e) => setForm({ ...form, endpoint: e.target.value })}
+              error={formTouched ? formErrors.endpoint : undefined}
             />
             <Input
-              label="Admin Token"
-              placeholder="Admin token"
+              label={form.editing ? "New admin token" : "Admin token"}
               type="password"
-              value={createFields.admin_token}
+              autoComplete="new-password"
+              value={form.admin_token}
               onChange={(e) =>
-                setCreateFields({
-                  ...createFields,
-                  admin_token: e.target.value,
-                })
+                setForm({ ...form, admin_token: e.target.value })
               }
-              required
+              error={formTouched ? formErrors.admin_token : undefined}
+              data-1p-ignore
             />
-          </div>
-          <Button
-            variant="dark"
-            onClick={handleCreate}
-            active={!creating}
-          >
-            {creating ? "Creating..." : "Create"}
-          </Button>
-        </div>
-      )}
-
-      <div className="space-y-3">
-        {instances.map((inst) => (
-          <div
-            key={inst.id}
-            className="border border-gray-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 overflow-hidden"
-          >
-            {/* Instance header */}
-            <div className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    inst.active ? "bg-green-500" : "bg-gray-400"
-                  }`}
-                />
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-zinc-100">
-                    {inst.name}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-zinc-400">
-                    {inst.endpoint}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => expandCredentials(inst)}
-                  className={`text-xs px-3 py-1 rounded-md border cursor-pointer transition-colors ${
-                    expandedId === inst.id && expandedView === "credentials"
-                      ? "border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
-                      : "border-gray-300 dark:border-zinc-600 text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700"
-                  }`}
-                >
-                  Credentials
-                </button>
-                <button
-                  onClick={() => expandBuckets(inst)}
-                  className={`text-xs px-3 py-1 rounded-md border cursor-pointer transition-colors ${
-                    expandedId === inst.id && expandedView === "buckets"
-                      ? "border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
-                      : "border-gray-300 dark:border-zinc-600 text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-700"
-                  }`}
-                >
-                  Buckets
-                </button>
-                <button
-                  onClick={() => handleToggleActive(inst)}
-                  className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${
-                    inst.active
-                      ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                      : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
-                  }`}
-                >
-                  {inst.active ? "Active" : "Inactive"}
-                </button>
-                <button
-                  onClick={() => handleDelete(inst)}
-                  className="text-xs text-red-600 dark:text-red-400 hover:underline cursor-pointer"
-                >
-                  Delete
-                </button>
-              </div>
+            <div className="mt-1 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setForm(null)}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" loading={saving}>
+                {form.editing ? "Save changes" : "Add instance"}
+              </Button>
             </div>
-
-            {/* Expanded credentials view */}
-            {expandedId === inst.id && expandedView === "credentials" && (
-              <div className="border-t border-gray-200 dark:border-zinc-700 px-4 py-3">
-                {subLoading ? (
-                  <div className="flex justify-center py-4">
-                    <Spinner />
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex gap-2 mb-3">
-                      <input
-                        placeholder="Credential name"
-                        value={newCredName}
-                        onChange={(e) => setNewCredName(e.target.value)}
-                        className="flex-1 px-3 py-1.5 rounded-md border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-zinc-100"
-                      />
-                      <Button
-                        variant="dark"
-                                                onClick={handleCreateCredential}
-                      >
-                        Generate
-                      </Button>
-                    </div>
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="text-left text-gray-500 dark:text-zinc-400">
-                          <th className="pb-1 font-medium">Name</th>
-                          <th className="pb-1 font-medium">Key ID</th>
-                          <th className="pb-1 font-medium">Created</th>
-                          <th className="pb-1 font-medium"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {credentials.map((c) => (
-                          <tr
-                            key={c.id}
-                            className="border-t border-gray-100 dark:border-zinc-700"
-                          >
-                            <td className="py-1.5 text-gray-900 dark:text-zinc-100">
-                              {c.name}
-                            </td>
-                            <td className="py-1.5 font-mono text-xs text-gray-600 dark:text-zinc-400">
-                              {c.key_id}
-                            </td>
-                            <td className="py-1.5 text-gray-500 dark:text-zinc-400">
-                              {new Date(c.date_created).toLocaleDateString()}
-                            </td>
-                            <td className="py-1.5 text-right">
-                              <button
-                                onClick={() => handleDeleteCredential(c.id)}
-                                className="text-xs text-red-600 dark:text-red-400 hover:underline cursor-pointer"
-                              >
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                        {credentials.length === 0 && (
-                          <tr>
-                            <td
-                              colSpan={4}
-                              className="py-4 text-center text-gray-400"
-                            >
-                              No credentials
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Expanded buckets view */}
-            {expandedId === inst.id && expandedView === "buckets" && (
-              <div className="border-t border-gray-200 dark:border-zinc-700 px-4 py-3">
-                {subLoading ? (
-                  <div className="flex justify-center py-4">
-                    <Spinner />
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex gap-2 mb-3">
-                      <input
-                        placeholder="Bucket name"
-                        value={newBucketName}
-                        onChange={(e) => setNewBucketName(e.target.value)}
-                        className="flex-1 px-3 py-1.5 rounded-md border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-zinc-100"
-                      />
-                      <input
-                        placeholder="Owner Key ID"
-                        value={newBucketOwner}
-                        onChange={(e) => setNewBucketOwner(e.target.value)}
-                        className="flex-1 px-3 py-1.5 rounded-md border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-zinc-100"
-                      />
-                      <Button
-                        variant="dark"
-                                                onClick={handleCreateBucket}
-                      >
-                        Create
-                      </Button>
-                    </div>
-
-                    {buckets.length > 0 && (
-                      <div className="flex justify-end mb-3">
-                        <button
-                          onClick={() =>
-                            openSessionModal(
-                              inst,
-                              buckets.map((b) => b.name)
-                            )
-                          }
-                          className="text-xs px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer"
-                        >
-                          Add All as Sessions
-                        </button>
-                      </div>
-                    )}
-
-                    {buckets.map((b) => (
-                      <div
-                        key={b.id}
-                        className="mb-3 p-3 rounded-md border border-gray-100 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <span className="text-sm font-medium text-gray-900 dark:text-zinc-100">
-                              {b.name}
-                            </span>
-                            {bucketStats[b.name] && (
-                              <span className="ml-2 text-xs text-gray-500">
-                                {bucketStats[b.name].object_count} objects,{" "}
-                                {formatBytes(bucketStats[b.name].total_size)}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => openSessionModal(inst, [b.name])}
-                              className="text-xs px-2 py-1 rounded-md border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer"
-                            >
-                              Add as Session
-                            </button>
-                            <select
-                              value={b.acl}
-                              onChange={(e) =>
-                                handleUpdateACL(b.name, e.target.value)
-                              }
-                              className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100"
-                            >
-                              <option value="PRIVATE">PRIVATE</option>
-                              <option value="PUBLIC_READ">PUBLIC_READ</option>
-                              <option value="PUBLIC_READ_WRITE">
-                                PUBLIC_READ_WRITE
-                              </option>
-                              <option value="PUBLIC_WRITE">PUBLIC_WRITE</option>
-                            </select>
-                            <button
-                              onClick={() => handleDeleteBucket(b.name)}
-                              className="text-xs text-red-600 dark:text-red-400 hover:underline cursor-pointer"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Grants */}
-                        <div className="text-xs">
-                          <p className="font-medium text-gray-500 dark:text-zinc-400 mb-1">
-                            Grants
-                          </p>
-                          {b.grants && b.grants.length > 0 ? (
-                            <div className="space-y-1">
-                              {b.grants.map((g) => (
-                                <div
-                                  key={g.id}
-                                  className="flex items-center justify-between"
-                                >
-                                  <span className="text-gray-700 dark:text-zinc-300">
-                                    {g.display_name}{" "}
-                                    <span className="text-gray-400">
-                                      ({g.key_id})
-                                    </span>{" "}
-                                    — {g.permission}
-                                  </span>
-                                  <button
-                                    onClick={() =>
-                                      handleDeleteGrant(b.name, g.id)
-                                    }
-                                    className="text-red-500 hover:underline cursor-pointer"
-                                  >
-                                    Revoke
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-gray-400">No grants</p>
-                          )}
-
-                          {/* Add grant */}
-                          {grantBucket === b.name ? (
-                            <div className="flex gap-2 mt-2">
-                              <input
-                                placeholder="Key ID"
-                                value={grantKeyId}
-                                onChange={(e) => setGrantKeyId(e.target.value)}
-                                className="flex-1 px-2 py-1 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100"
-                              />
-                              <select
-                                value={grantPermission}
-                                onChange={(e) =>
-                                  setGrantPermission(e.target.value)
-                                }
-                                className="px-2 py-1 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100"
-                              >
-                                <option value="READ">READ</option>
-                                <option value="WRITE">WRITE</option>
-                                <option value="FULL_CONTROL">
-                                  FULL_CONTROL
-                                </option>
-                                <option value="READ_ACP">READ_ACP</option>
-                                <option value="WRITE_ACP">WRITE_ACP</option>
-                              </select>
-                              <button
-                                onClick={handleCreateGrant}
-                                className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer"
-                              >
-                                Add
-                              </button>
-                              <button
-                                onClick={() => setGrantBucket(null)}
-                                className="px-2 py-1 text-gray-500 hover:text-gray-700 dark:hover:text-zinc-300 cursor-pointer"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setGrantBucket(b.name)}
-                              className="mt-1 text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                            >
-                              + Add Grant
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {buckets.length === 0 && (
-                      <p className="text-center text-gray-400 py-4">
-                        No buckets
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-
-        {instances.length === 0 && (
-          <p className="text-center text-gray-400 py-8">
-            No instances registered. Click &quot;Add Instance&quot; to connect
-            an openbucket-go server.
-          </p>
+          </form>
         )}
-      </div>
+      </Modal>
 
-      {/* Add as Session Modal */}
-      {sessionModal && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/40 z-40"
-            onClick={closeSessionModal}
-          />
-          <div
-            className="fixed inset-0 flex items-center justify-center z-50 p-4"
-            onClick={closeSessionModal}
-          >
-            <div
-              className="bg-white dark:bg-zinc-900 rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl border border-gray-200 dark:border-zinc-700"
-              onClick={(e) => e.stopPropagation()}
+      <Modal
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        title={`Remove ${deleting?.name}?`}
+        description="OpenBucket forgets this server and its admin token. The server, its buckets and their data are untouched, and existing bucket sessions keep working."
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setDeleting(null)}
+              disabled={busy}
             >
-              <div className="flex justify-between items-center p-5 pb-0">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-100">
-                  {sessionModal.buckets.length === 1
-                    ? "Add Bucket as Session"
-                    : `Add ${sessionModal.buckets.length} Buckets as Sessions`}
-                </h2>
-                <button
-                  onClick={closeSessionModal}
-                  className="text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300 text-xl cursor-pointer"
-                >
-                  &times;
-                </button>
-              </div>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={remove} loading={busy}>
+              Remove instance
+            </Button>
+          </>
+        }
+      />
 
-              <div className="p-5 space-y-4">
-                {/* Instance info */}
-                <div className="text-xs text-gray-500 dark:text-zinc-400 bg-gray-50 dark:bg-zinc-800 rounded-md px-3 py-2">
-                  <span className="font-medium text-gray-700 dark:text-zinc-300">
-                    {sessionModal.instance.name}
-                  </span>
-                  <span className="mx-1.5">&middot;</span>
-                  <span className="font-mono">{sessionModal.instance.endpoint}</span>
-                </div>
-
-                {/* Credential selector */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-900 dark:text-zinc-100">
-                    Credential<span className="text-red-500 ml-0.5">*</span>
-                  </label>
-                  <select
-                    value={sessionCredentialId}
-                    onChange={(e) => setSessionCredentialId(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-sm text-sm border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100"
-                  >
-                    {sessionModal.credentials.map((c) => (
-                      <option key={c.id} value={c.key_id}>
-                        {c.name} ({c.key_id})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Secret key */}
-                <Input
-                  label="Secret Access Key"
-                  placeholder="Enter the secret key for the selected credential"
-                  type="password"
-                  value={sessionSecretKey}
-                  onChange={(e) => setSessionSecretKey(e.target.value)}
-                  required
-                />
-
-                {/* Region */}
-                <Input
-                  label="Region"
-                  placeholder="us-east-1"
-                  value={sessionRegion}
-                  onChange={(e) => setSessionRegion(e.target.value)}
-                  required
-                />
-
-                {/* Bucket nicknames */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-900 dark:text-zinc-100">
-                    {sessionModal.buckets.length === 1 ? "Nickname" : "Nicknames"}
-                  </label>
-                  <div className="space-y-2">
-                    {sessionModal.buckets.map((name) => (
-                      <div key={name} className="flex items-center gap-3">
-                        {sessionModal.buckets.length > 1 && (
-                          <span className="text-xs font-mono text-gray-500 dark:text-zinc-400 w-32 shrink-0 truncate">
-                            {name}
-                          </span>
-                        )}
-                        <input
-                          value={sessionNicknames[name] ?? name}
-                          onChange={(e) =>
-                            setSessionNicknames((prev) => ({
-                              ...prev,
-                              [name]: e.target.value,
-                            }))
-                          }
-                          placeholder={name}
-                          className="flex-1 min-w-0 px-3 py-1.5 rounded-sm text-sm bg-white dark:bg-zinc-900 dark:text-zinc-100 outline-1 -outline-offset-1 outline-gray-300 dark:outline-zinc-600"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    variant="dark"
-                    onClick={handleCreateSessions}
-                    active={!sessionCreating}
-                  >
-                    {sessionCreating
-                      ? "Creating..."
-                      : sessionModal.buckets.length === 1
-                        ? "Add Session"
-                        : `Add ${sessionModal.buckets.length} Sessions`}
-                  </Button>
-                  <Button variant="light" onClick={closeSessionModal}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      <AddSessionsModal
+        open={!!sessionTarget}
+        onClose={() => {
+          setSessionTarget(null);
+          setPreset(null);
+        }}
+        instance={sessionTarget?.instance ?? null}
+        buckets={sessionTarget?.buckets ?? []}
+        credentials={credentials}
+        preset={preset}
+        onDone={() => setPreset(null)}
+      />
     </div>
   );
 }

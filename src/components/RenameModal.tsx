@@ -1,161 +1,157 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faExclamationTriangle } from "@fortawesome/pro-solid-svg-icons";
-import Button from "./Button";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Alert } from "@/components/ui/alert";
 
 interface RenameModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Receives the new FULL key (folder keys keep their trailing `/`). */
   onConfirm: (newFullPath: string) => void;
+  /** Full key. A folder key ends in `/`. */
   currentPath: string;
   isLoading?: boolean;
 }
 
 const getExtension = (filename: string): string => {
-  const dotIndex = filename.lastIndexOf(".");
-  if (dotIndex <= 0) return "";
-  return filename.slice(dotIndex);
+  const dot = filename.lastIndexOf(".");
+  return dot <= 0 ? "" : filename.slice(dot);
 };
 
-const RenameModal: React.FC<RenameModalProps> = ({
+export const validateName = (name: string): string | null => {
+  if (!name.trim()) return "Name can't be empty.";
+  if (name.includes("/"))
+    return "Name can't contain “/”. Use Move to change folders.";
+  if (name.includes("\\") || name.includes(".."))
+    return "Name can't contain “\\” or “..”.";
+  if (name.length > 255) return "Name is too long (max 255 characters).";
+  return null;
+};
+
+/** Rename an object or a folder in place (same parent). */
+const RenameModal = ({
   isOpen,
   onClose,
   onConfirm,
   currentPath,
   isLoading = false,
-}) => {
+}: RenameModalProps) => {
+  const isFolder = currentPath.endsWith("/");
+  const trimmed = isFolder ? currentPath.slice(0, -1) : currentPath;
+  const parts = trimmed.split("/");
+  const original = parts.pop() || "";
+  const parent = parts.length > 0 ? parts.join("/") + "/" : "";
+
+  const [name, setName] = useState(original);
+  const [touched, setTouched] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const parts = currentPath.split("/");
-  const originalFilename = parts.pop() || "";
-  const prefix = parts.length > 0 ? parts.join("/") + "/" : "";
-  const originalExtension = getExtension(originalFilename);
-
-  const [filename, setFilename] = useState(originalFilename);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (isOpen) {
-      const parts = currentPath.split("/");
-      setFilename(parts.pop() || "");
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setName(original);
+      setTouched(false);
     }
-  }, [isOpen, currentPath]);
+  }, [isOpen, original]);
 
-  if (!isOpen) return null;
-
-  const newExtension = getExtension(filename);
-  const extensionChanged =
-    originalExtension !== "" &&
-    newExtension !== originalExtension &&
-    filename.trim() !== "";
-
-  const newFullPath = prefix + filename.trim();
-  const isValid =
-    filename.trim() !== "" && filename.trim() !== originalFilename;
-
-  const handleSubmit = () => {
-    if (!isValid || isLoading) return;
-    if (filename.includes("..") || filename.includes("\\")) {
-      setError("Filename contains invalid characters");
+  // Select the stem, not the extension — the usual rename gesture.
+  //
+  // ⚠️ Only once the field actually holds `original`. Opening sets `name` in an
+  // effect, and React writing the input's value afterwards moves the caret to
+  // the end — selecting before that render landed silently did nothing, so
+  // typing appended to the old name instead of replacing it.
+  const selected = useRef(false);
+  useEffect(() => {
+    if (!isOpen) {
+      selected.current = false;
       return;
     }
-    setError("");
-    onConfirm(newFullPath);
-  };
+    if (selected.current || name !== original) return;
+    const id = requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      const ext = isFolder ? "" : getExtension(original);
+      el.setSelectionRange(0, original.length - ext.length);
+      selected.current = true;
+    });
+    return () => cancelAnimationFrame(id);
+  }, [isOpen, name, original, isFolder]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-    if (e.key === "Enter") handleSubmit();
+  const error = validateName(name);
+  const unchanged = name.trim() === original;
+  const extChanged =
+    !isFolder &&
+    getExtension(original) !== "" &&
+    getExtension(name.trim()) !== getExtension(original);
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    setTouched(true);
+    if (error || unchanged || isLoading) return;
+    onConfirm(parent + name.trim() + (isFolder ? "/" : ""));
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      onKeyDown={handleKeyDown}
-      tabIndex={-1}
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title={`Rename ${isFolder ? "folder" : "object"}`}
+      description={
+        parent ? (
+          <>
+            In <span className="font-mono">{parent}</span>
+          </>
+        ) : (
+          "At the bucket root"
+        )
+      }
+      initialFocusRef={inputRef}
+      widthClass="max-w-md"
     >
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-        <div className="px-6 pt-6 pb-4">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-100">
-            Rename Object
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Rename the file while keeping it in the same location
+      <form onSubmit={submit} className="flex flex-col gap-3">
+        <Input
+          ref={inputRef}
+          label="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          error={touched ? (error ?? undefined) : undefined}
+          autoComplete="off"
+          data-1p-ignore
+        />
+        {isFolder && (
+          <p className="text-xs text-secondary">
+            Every object inside is copied to the new name and the originals are
+            deleted.
           </p>
-        </div>
-
-        <div className="px-6 pb-4 flex flex-col gap-3">
-          {prefix && (
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-slate-400">
-                Location
-              </span>
-              <span className="text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-100 dark:border-slate-700 break-all">
-                {prefix}
-              </span>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="rename-input"
-              className="text-sm font-medium text-gray-900 dark:text-zinc-100 leading-none"
-            >
-              Filename
-            </label>
-            <input
-              ref={inputRef}
-              id="rename-input"
-              className="mt-1 text-sm block w-full bg-white dark:bg-zinc-800 dark:text-zinc-100 pl-3 py-2 pr-3 rounded-lg outline-1 -outline-offset-1 outline-gray-300 dark:outline-zinc-600 focus:outline-blue-500 focus:outline-2"
-              type="text"
-              value={filename}
-              onChange={(e) => setFilename(e.target.value)}
-              placeholder={originalFilename}
-            />
-          </div>
-
-          {error && (
-            <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
-          )}
-
-          {extensionChanged && (
-            <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200">
-              <FontAwesomeIcon
-                icon={faExclamationTriangle}
-                className="text-amber-500 text-xs mt-0.5 shrink-0"
-              />
-              <p className="text-xs text-amber-800">
-                File extension will change from{" "}
-                <span className="font-mono font-semibold">
-                  {originalExtension}
-                </span>{" "}
-                to{" "}
-                <span className="font-mono font-semibold">
-                  {newExtension || "(none)"}
-                </span>
-                . This may affect how the file is handled.
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-end gap-2 px-6 py-4 bg-gray-50 dark:bg-zinc-800 border-t border-gray-100 dark:border-zinc-700">
-          <Button onClick={onClose} variant="light">
+        )}
+        {extChanged && !error && (
+          <Alert variant="warning">
+            The extension changes from{" "}
+            <span className="font-mono">{getExtension(original)}</span> to{" "}
+            <span className="font-mono">
+              {getExtension(name.trim()) || "(none)"}
+            </span>
+            .
+          </Alert>
+        )}
+        <div className="mt-2 flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            disabled={isLoading}
+          >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} active={isValid && !isLoading}>
-            {isLoading ? "Renaming..." : "Rename"}
+          <Button type="submit" loading={isLoading} disabled={unchanged}>
+            {isLoading ? "Renaming…" : "Rename"}
           </Button>
         </div>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 };
 

@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import Button from "./Button";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface MoveObjectModalProps {
   isOpen: boolean;
@@ -11,126 +13,86 @@ interface MoveObjectModalProps {
   isLoading?: boolean;
 }
 
-const formatPath = (raw: string): string => {
-  // Normalize backslashes to forward slashes
-  let path = raw.replace(/\\/g, "/");
-  // Collapse multiple slashes
-  path = path.replace(/\/+/g, "/");
-  // Remove leading slash
-  if (path.startsWith("/")) path = path.slice(1);
-  return path;
-};
+/** Normalise slashes the way S3 keys expect: forward only, no doubles, no leading. */
+const formatPath = (raw: string): string =>
+  raw.trim().replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\//, "");
 
-const MoveObjectModal: React.FC<MoveObjectModalProps> = ({
+const MoveObjectModal = ({
   isOpen,
   onClose,
   onConfirm,
   currentPath,
   isLoading = false,
-}) => {
+}: MoveObjectModalProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [newPath, setNewPath] = useState(currentPath);
-  const [error, setError] = useState("");
+  const [value, setValue] = useState(currentPath);
+  const [touched, setTouched] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setNewPath(currentPath);
-      setTimeout(() => {
-        inputRef.current?.focus();
-        inputRef.current?.select();
-      }, 50);
+      setValue(currentPath);
+      setTouched(false);
     }
   }, [isOpen, currentPath]);
 
-  if (!isOpen) return null;
+  const formatted = formatPath(value);
+  const error = !formatted
+    ? "Path can't be empty."
+    : formatted.endsWith("/")
+      ? "Path must end in a file name, not “/”."
+      : formatted.includes("..")
+        ? "Path can't contain “..”."
+        : null;
+  const unchanged = formatted === currentPath;
 
-  const formattedPath = formatPath(newPath);
-  const isValid = formattedPath.trim() !== "" && formattedPath !== currentPath;
-
-  const handleSubmit = () => {
-    if (!isValid || isLoading) return;
-    if (formattedPath.includes("..")) {
-      setError("Path contains invalid characters");
-      return;
-    }
-    setError("");
-    onConfirm(formattedPath);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-    if (e.key === "Enter") handleSubmit();
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNewPath(e.target.value);
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    setTouched(true);
+    if (error || unchanged || isLoading) return;
+    onConfirm(formatted);
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      onKeyDown={handleKeyDown}
-      tabIndex={-1}
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title="Move object"
+      description="Enter the new full path from the bucket root. Missing folders are created implicitly."
+      initialFocusRef={inputRef}
+      widthClass="max-w-lg"
     >
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
-        <div className="px-6 pt-6 pb-4">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-100">
-            Move Object
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Enter the new full path for this object
-          </p>
-        </div>
-
-        <div className="px-6 pb-4 flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="move-input"
-              className="text-sm font-medium text-gray-900 dark:text-zinc-100 leading-none"
-            >
-              New Path
-            </label>
-            <input
-              ref={inputRef}
-              id="move-input"
-              className="mt-1 text-sm font-mono block w-full bg-white dark:bg-zinc-800 dark:text-zinc-100 pl-3 py-2 pr-3 rounded-lg outline-1 -outline-offset-1 outline-gray-300 dark:outline-zinc-600 focus:outline-blue-500 focus:outline-2"
-              type="text"
-              value={newPath}
-              onChange={handleChange}
-              placeholder="folder/subfolder/filename.ext"
-            />
-          </div>
-
-          {error && (
-            <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
-          )}
-
-          {formattedPath !== newPath && newPath.trim() !== "" && (
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-slate-400">
-                Formatted path
-              </span>
-              <span className="text-xs font-mono text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-100 dark:border-slate-700 break-all">
-                {formattedPath}
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-end gap-2 px-6 py-4 bg-gray-50 dark:bg-zinc-800 border-t border-gray-100 dark:border-zinc-700">
-          <Button onClick={onClose} variant="light">
+      <form onSubmit={submit} className="flex flex-col gap-3">
+        <Input
+          ref={inputRef}
+          label="New path"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="folder/subfolder/file.ext"
+          className="font-mono"
+          error={touched ? (error ?? undefined) : undefined}
+          hint={
+            formatted && formatted !== value.trim()
+              ? `Will be saved as ${formatted}`
+              : undefined
+          }
+          autoComplete="off"
+          data-1p-ignore
+        />
+        <div className="mt-2 flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            disabled={isLoading}
+          >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} active={isValid && !isLoading}>
-            {isLoading ? "Moving..." : "Move"}
+          <Button type="submit" loading={isLoading} disabled={unchanged}>
+            {isLoading ? "Moving…" : "Move"}
           </Button>
         </div>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 };
 

@@ -2,17 +2,24 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuthContext } from "@/context/AuthContext";
 import { useEffect } from "react";
+import { useAuthContext } from "@/context/AuthContext";
 import Spinner from "@/components/Spinner";
+import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/instances", label: "Instances" },
+  { href: "/admin/tokens", label: "API tokens" },
   { href: "/admin/sso", label: "SSO" },
 ];
 
+/**
+ * Admin shell: a sidebar at `md` and up, a scrolling tab strip below it. The
+ * fixed 192px sidebar used to stay put on phones and squeeze every admin page
+ * into what was left.
+ */
 export default function AdminLayout({
   children,
 }: {
@@ -23,44 +30,40 @@ export default function AdminLayout({
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading) {
-      if (!isLoggedIn) {
-        router.replace("/login");
-      } else if (user?.role !== "admin") {
-        router.replace("/");
-      }
-    }
+    if (!isLoading && isLoggedIn && user?.role !== "admin") router.replace("/");
   }, [isLoading, isLoggedIn, user, router]);
 
   if (isLoading || !user || user.role !== "admin") {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <Spinner />
       </div>
     );
   }
 
   return (
-    <div className="flex gap-8 mt-4">
-      <nav className="w-48 shrink-0">
-        <h2 className="text-xs font-semibold uppercase text-gray-400 dark:text-zinc-500 mb-3 tracking-wider">
+    <div className="flex flex-col gap-6 pb-16 md:flex-row md:gap-8">
+      <nav aria-label="Admin" className="md:w-44 md:shrink-0">
+        <h2 className="mb-3 hidden text-xs font-semibold uppercase tracking-wider text-muted md:block">
           Admin
         </h2>
-        <ul className="space-y-1">
+        <ul className="-mx-1 flex gap-1 overflow-x-auto px-1 md:mx-0 md:flex-col md:overflow-visible md:px-0">
           {navItems.map((item) => {
-            const isActive =
+            const active =
               item.href === "/admin"
                 ? pathname === "/admin"
                 : pathname.startsWith(item.href);
             return (
-              <li key={item.href}>
+              <li key={item.href} className="shrink-0">
                 <Link
                   href={item.href}
-                  className={`block px-3 py-1.5 rounded-md text-sm transition-colors ${
-                    isActive
-                      ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 font-medium"
-                      : "text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
-                  }`}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "block whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors",
+                    active
+                      ? "bg-surface-elevated font-medium text-primary"
+                      : "text-secondary hover:bg-surface-alt hover:text-primary",
+                  )}
                 >
                   {item.label}
                 </Link>
@@ -69,7 +72,7 @@ export default function AdminLayout({
           })}
         </ul>
       </nav>
-      <div className="flex-1 min-w-0">{children}</div>
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }

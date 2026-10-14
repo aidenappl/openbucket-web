@@ -63,31 +63,37 @@ Flat `src/` tree under the App Router. Path alias `@/` → `src/`.
 src/
   app/
     api/health/route.ts       # GET /api/health → {status:"ok"} — the Docker HEALTHCHECK hits this
-    layout.tsx                # "use client" root: providers, Navigation, Footer, Toaster, theme boot script
+    layout.tsx                # "use client" root: providers, skip link, Navigation, <main>, token-styled
+                              # Toaster, theme boot script (no footer — matches keyring/lattice)
     globals.css               # Inter @import + Tailwind v4 + the shared design-token layer
     page.tsx                  # "/" bucket browser
     <feature>/page.tsx        # one page per feature (see Page map)
-  components/                 # 21 from-scratch primitives + feature components — PascalCase
-    ui/                       # Shared primitives ported from lattice-web — button, input, alert,
-                              # badge, modal, switch (kebab-case, matching lattice)
+  components/                 # feature components — PascalCase (Navigation, SessionSwitcher,
+                              # UploadTracker, ObjectThumb, ObjectInspectPanel, *Modal, …)
+    ui/                       # Shared primitives (kebab-case): from lattice-web — button, input,
+                              # alert, badge, modal, switch; from keyring-web — table, checkbox,
+                              # search-input, page-header (+ Card), copy-button; plus menu
+                              # (portal row-actions menu) and select
+    admin/                    # Instances page panels: CredentialsPanel, BucketsPanel, AddSessionsModal
   lib/utils.ts                # cn() — dependency-free class joiner
   context/                    # AuthContext (session + role gating), ThemeContext (light/dark/system)
-  hooks/                      # useBucketData, useBucketActions, useSelection, useBreadcrumbs,
+  hooks/                      # useBucketData, useSelection, useSort, useUploader, useDismiss,
                               # usePermissions, useViewFormat
   services/                   # one {entity}.service.ts per domain (see Service map)
   store/                      # Redux Toolkit — index.ts, hooks.ts, StoreProvider.tsx
     slices/                   # authSlice, sessionSlice, uploadSlice
   tools/                      # axios.tools.ts (THE client), formatBytes, formatDate,
-                              # sessionStore (localStorage), url, sso.tools.ts (silent SSO,
-                              # return_to, sign-out)
+                              # sessionStore (localStorage), url (endpointHost), objectUrl (prefix
+                              # normalising, public/signed links, download, open), sso.tools.ts
+                              # (silent SSO, return_to, sign-out)
   types/                      # index.ts (domain + ApiResponse/ApiSuccess/ApiError), user.types.ts
   __tests__/                  # adminService, authService, authSlice, axios + setup.ts
 ```
 
 ### The shared design-token layer and `components/ui/`
 
-`globals.css` carries a token layer **ported from lattice-web** so the SSO surfaces across
-monitor-web, lattice-web and openbucket-web are one design language rather than three. Surface,
+`globals.css` carries a token layer **ported from lattice-web** so monitor-web, lattice-web,
+keyring-web and openbucket-web are one design language rather than four. Surface,
 border, text, semantic-accent and radius families are defined as CSS custom properties and bridged
 into Tailwind utilities through `@theme inline` — `bg-surface`, `text-secondary`,
 `border-border-strong`, `text-healthy` and so on.
@@ -99,8 +105,7 @@ in `:root` and dark values in `.dark`. Components written against the tokens are
 the apps unchanged — which is the point — while pages written against zinc utilities are untouched.
 **Do not "fix" this to match lattice.** Flipping it inverts the entire dashboard.
 
-`src/components/ui/` holds the ported primitives: `button`, `input`, `alert`, `badge`, `modal`,
-`switch`. `src/lib/utils.ts` has a dependency-free `cn()` — deliberately not clsx + tailwind-merge,
+`src/components/ui/` holds the shared primitives (see the tree above). `src/lib/utils.ts` has a dependency-free `cn()` — deliberately not clsx + tailwind-merge,
 because the primitives put `className` last in every `cn(...)` call, so a caller's utility already
 wins without a merge step.
 
@@ -111,10 +116,15 @@ Two things differ from lattice's originals on purpose:
 - `Input` generates an `id` when none is passed (lattice's renders `htmlFor={undefined}`, a label
   bound to nothing) and wires `aria-invalid` + `aria-describedby` for its error.
 
-**Scope is bounded on purpose.** The token layer and primitives exist app-wide; only the **SSO
-admin and login surfaces** are converted to them. Other pages keep working on their current classes
-and get converted opportunistically. A full restyle of the dashboard is separate work, not
-something to smuggle into an auth change.
+**Every page is on the tokens and `ui/` primitives** (the October 2026 tophat converted the
+explorer, object, sessions, account and all admin pages; `/pending` and `/unauthorized` are the
+only pages still on raw zinc utilities). New UI uses `ui/` — every dialog goes through `ui/modal`
+(focus trap, Escape, focus restore), every table through `ui/table`, every row-actions menu through
+`ui/menu` (it portals, so it isn't clipped by the table's `overflow-x-auto`).
+
+The pre-token components (`Button`, `Input`, `Checkbox`, `MajorButton`, `GridItem`, `Dropdown`,
+`ToggleSelector`, `DragDropUpload`, `Footer`, and the `useBucketActions` / `useBreadcrumbs` hooks)
+were deleted in the same change. Don't reintroduce PascalCase duplicates of `ui/` primitives.
 
 **Deviations from the global standard, both deliberate:**
 - The axios wrapper lives in **`tools/axios.tools.ts`**, not `services/api.service.ts`. That's the
@@ -126,15 +136,17 @@ something to smuggle into an auth change.
 
 | Route | File | What it does |
 |---|---|---|
-| `/` | `page.tsx` | Bucket browser — object grid/list, upload, selection, breadcrumbs |
-| `/object/[...object]` | `object/[...object]/page.tsx` | Single-object view — metadata, ACL, presign, rename |
-| `/sessions` | `sessions/page.tsx` | Bucket sessions — create/list/delete a connection to a bucket |
+| `/` | `page.tsx` | Explorer — `?folder=<prefix>` (pushed, so Back goes up a folder). List (sortable, filter with `/`) or grid (lazy image thumbnails); multi-select with Shift ranges and ⌘/Ctrl+A; bulk access/download/delete; per-row menu (details, open, download, copy link, access, rename, delete); upload button + whole-window drop with overwrite prompt; new folder in the current prefix |
+| `/object/[...object]` | `object/[...object]/page.tsx` | Single object — download, open, copy link (public URL or 24h signed), access, rename, move, delete; details incl. public URL, grants, metadata; preview |
+| `/sessions` | `sessions/page.tsx` | Bucket sessions — create/edit/remove, filter, active marker; new/edited sessions are probed (folder list) so bad keys are reported at once |
+| `/account` | `account/page.tsx` | Own profile — display name; password for local accounts (`PUT /auth/self`) |
 | `/login` | `login/page.tsx` | Local email/password **+** SSO button. See Login layout below |
 | `/pending` | `pending/page.tsx` | Landing for `role: "pending"` — account awaiting approval |
 | `/unauthorized` | `unauthorized/page.tsx` | Landing on `error_code 4003` |
-| `/admin` | `admin/page.tsx` | Admin index |
-| `/admin/users` | `admin/users/page.tsx` | User CRUD |
-| `/admin/instances` | `admin/instances/page.tsx` | Storage instance CRUD |
+| `/admin` | `admin/page.tsx` | Overview — user/pending/instance/token counts, instance health, sign-in summary |
+| `/admin/users` | `admin/users/page.tsx` | Users — filter/search/sort, create local user, role change and deactivate/reactivate (confirmed; you can't change or deactivate yourself). "Delete" in the API is a soft deactivate, so the UI says Deactivate |
+| `/admin/instances` | `admin/instances/page.tsx` | openbucket-go servers — add/edit/(de)activate/remove; per instance: credentials (secret shown once, in a modal), buckets (create with owner key, confirmed ACL change, typed-name delete, grants via key picker), add buckets as sessions |
+| `/admin/tokens` | `admin/tokens/page.tsx` | `obk_` API tokens — list (owner, last used, expiry), create (plaintext shown once), revoke |
 | `/admin/sso` | `admin/sso/page.tsx` | SSO provider config |
 | `/api/health` | `api/health/route.ts` | Liveness for Docker |
 
@@ -145,12 +157,39 @@ Every function is prefixed **`req`** and returns `ApiResponse<T>`. Services decl
 
 | Service | Functions |
 |---|---|
-| `auth.service.ts` | `reqLogin`, `reqRefresh`, `reqLogout`, `reqGetSelf`, `reqGetSSOConfig` |
-| `session.service.ts` | `reqGetSessions`, `reqPostSession`, `reqDeleteSession` |
+| `auth.service.ts` | `reqLogin`, `reqRefresh`, `reqLogout`, `reqGetSelf`, `reqUpdateSelf`, `reqGetSSOConfig` |
+| `session.service.ts` | `reqGetSessions`, `reqPostSession`, `reqDeleteSession`, `reqProbeSession` |
 | `bucket.service.ts` | `reqFetchBucketHead` |
-| `folder.service.ts` | `reqFetchFolders`, `reqPostFolder`, `reqDeleteFolder` |
-| `object.service.ts` | `reqFetchObjects`, `reqFetchObjectHead`, `reqFetchMultiObjectHead`, `reqFetchBulkObjectHead`, `reqFetchObjectACL`, `reqPutObjectACL`, `reqPutBulkObjectACL`, `reqFetchObjectPresign`, `reqPutRenameObject`, `reqPutObjectWithProgress`, `reqDeleteObject` |
-| `admin.service.ts` | Users: `reqAdminListUsers`, `reqAdminCreateUser`, `reqAdminUpdateUser`, `reqAdminDeleteUser` · Instances: `reqAdminListInstances`, `reqAdminCreateInstance`, `reqAdminUpdateInstance`, `reqAdminDeleteInstance` · Proxy: `reqProxyListCredentials`, `reqProxyCreateCredential`, `reqProxyDeleteCredential`, `reqProxyListBuckets`, `reqProxyGetBucket`, `reqProxyCreateBucket`, `reqProxyDeleteBucket`, `reqProxyGetBucketStats`, `reqProxyUpdateBucketACL`, `reqProxyListGrants`, `reqProxyCreateGrant`, `reqProxyDeleteGrant` · SSO: `reqAdminGetSSOConfig`, `reqAdminUpdateSSOConfig` |
+| `folder.service.ts` | `reqFetchFolders`, `reqFetchFolderContents`, `reqPostFolder`, `reqRenameFolder`, `reqDeleteFolder` |
+| `object.service.ts` | `reqFetchObjects`, `reqFetchObjectHead`, `reqFetchBulkObjectHead`, `reqFetchObjectACL`, `reqPutObjectACL`, `reqPutBulkObjectACL`, `reqFetchObjectPresign`, `reqDownloadObject`, `reqPutRenameObject`, `reqPutObjectWithProgress`, `reqDeleteObject` |
+| `admin.service.ts` | Users: `reqAdminListUsers`, `reqAdminCreateUser`, `reqAdminUpdateUser`, `reqAdminDeleteUser` · Instances: `reqAdminListInstances`, `reqAdminCreateInstance`, `reqAdminUpdateInstance`, `reqAdminDeleteInstance` · Proxy: `reqProxyListCredentials`, `reqProxyCreateCredential`, `reqProxyDeleteCredential`, `reqProxyListBuckets`, `reqProxyGetBucket`, `reqProxyCreateBucket`, `reqProxyDeleteBucket`, `reqProxyGetBucketStats`, `reqProxyUpdateBucketACL`, `reqProxyListGrants`, `reqProxyCreateGrant`, `reqProxyDeleteGrant` · API tokens: `reqAdminListApiTokens`, `reqAdminCreateApiToken`, `reqAdminRevokeApiToken` · SSO: `reqAdminGetSSOConfig`, `reqAdminUpdateSSOConfig` |
+
+### Storage contracts that have bitten this app
+
+Each of these was a shipped bug found in the October 2026 tophat. The code carries a comment at
+the fix; this is the index.
+
+- **Folder keys are full keys.** `POST /folder {folder}` creates exactly that key — it does not
+  prepend the current prefix. The explorer used to send the bare name, so "New folder" inside
+  `a/b/` created it at the root. Prefixes are normalised (no leading `/`, one trailing `/`) by
+  `normalizePrefix` — `GET /folders` does **not** normalise, and `?folder=a/b` listed `b` inside itself.
+- **Bulk HEAD and bulk ACL take at most 100 keys** ("batch size exceeds maximum of 100").
+  `reqFetchBulkObjectHead`/`reqPutBulkObjectACL` chunk. Bulk HEAD returns results **in request
+  order** with `null` gaps — match by index, never by ETag (identical files share one).
+- **Downloads stream through the API** (`GET /core/v1/{id}/object`, `reqDownloadObject`). The
+  storage CDNs send **no CORS headers**, so `fetch()` of a presigned URL is blocked — the old
+  Download button did nothing for every file. Files over 200 MB open a presigned URL instead (the
+  API's 60 s write timeout).
+- **Uploads have no client timeout** (`timeout: 0`); the client-wide 10 s timeout used to fail any
+  upload slower than that. The API's own `ReadTimeout` (15 s) still caps slow uploads server-side.
+- **`endpoint` already has its scheme.** Public URLs are `publicObjectUrl()` — path-style
+  `<endpoint>/<bucket>/<key>`. Building `https://${endpoint}` produced `https://https://…`.
+- **`GET /folder` is snake_case** (`key`, `size`, `last_modified` — `aws.Object`), unlike every
+  other listing (PascalCase S3 shapes).
+- **Known openbucket-go bugs the UI works around:** folder **rename** fails (CopyObject can't copy a
+  folder-marker key — "is a directory"), so the folder menu has no Rename; folder **delete**
+  (multi-object delete) can answer 200 while objects stay listed (files removed, metadata rows
+  kept), so the explorer re-lists after a folder delete and says so if anything remains.
 
 ## 6. Domain & architecture
 
@@ -186,6 +225,9 @@ empty bucket view.
 - `withCredentials` is on, so **local dev must be HTTPS on a `.local.appleby.cloud` subdomain** or
   cookies are silently dropped. That's what `dev dev` / `npm run dev:ssl` is for — `server.js`
   binds `openbucket.local.appleby.cloud:3010`. Plain `npm run dev` (port 3000, HTTP) cannot log in.
+  `server.js` loads `NEXT_PUBLIC_OPENBUCKET_API` from Keyring; with no `KEYRING_*` credentials, set
+  it yourself or every call 404s against the dev server. The production API allows this origin, so
+  `NEXT_PUBLIC_OPENBUCKET_API=https://api.openbucket.appleby.cloud dev dev` works against real data.
 
 **Login layout — shared across the ecosystem.** `/login` uses the **shared Appleby Cloud login
 layout**, identical in structure to `forta-login`, `monitor-web` and `lattice-web`: full-screen
@@ -236,7 +278,8 @@ Docker build as a `--mount=type=secret`.
 |---|---|
 | `openbucket-api` | The only backend this app talks to (`NEXT_PUBLIC_OPENBUCKET_API`) |
 | `openbucket-mcp` | Same admin surface, for Claude Code. **A new API route should add or consciously skip a tool there in the same change** |
-| `openbucket-go`, `openbucket-cli` | SDK / CLI over the same API |
+| `openbucket-go` | The S3-compatible storage server — what Admin → Instances manages (via the API's `/admin/instances/{id}/proxy/*`) and what sessions point at |
+| `openbucket-cli` | CLI over the same API |
 | `keyring-js` | Supplies build/runtime secrets |
 | `forta-*` | The SSO provider currently configured (the login button reads "Sign in with Forta") — but this app is **provider-agnostic**; it renders whatever `/auth/sso/config` returns |
 

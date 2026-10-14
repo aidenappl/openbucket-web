@@ -111,7 +111,8 @@ export function Modal({
       }
       if (e.key !== "Tab" || !dialogRef.current) return;
 
-      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE);
+      const focusable =
+        dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE);
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -136,7 +137,10 @@ export function Modal({
   if (!open) return null;
 
   return (
+    // The backdrop is a mouse convenience only (Escape is the keyboard path), so
+    // it is presentational — otherwise it reads as an unnamed clickable control.
     <div
+      role="presentation"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-4"
       onClick={onClose}
     >

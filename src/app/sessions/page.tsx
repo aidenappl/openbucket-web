@@ -1,241 +1,160 @@
 "use client";
 
-import Button from "@/components/Button";
-import Input from "@/components/Input";
-import Spinner from "@/components/Spinner";
-import { setCurrentSessionBucket } from "@/tools/sessionStore.tools";
-import { isValidUrl } from "@/tools/url.tools";
-import { Session } from "@/types";
-import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
-import {
-  addSession,
-  removeSession as removeSessionAction,
-  setActiveSession,
-} from "@/store/slices/sessionSlice";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  reqPostSession,
-  reqGetSessions,
+  faDatabase,
+  faPen,
+  faPlus,
+  faTrash,
+} from "@fortawesome/pro-solid-svg-icons";
+import { Session } from "@/types";
+import {
+  addSession,
+  removeSession,
+  selectCurrentSession,
+  setActiveSession,
+  setSessions as setSessionsAction,
+} from "@/store/slices/sessionSlice";
+import {
   reqDeleteSession,
+  reqGetSessions,
+  reqPostSession,
+  reqProbeSession,
+  SessionPayload,
 } from "@/services/session.service";
-import { useAuthContext } from "@/context/AuthContext";
 import { reqAdminListInstances, Instance } from "@/services/admin.service";
-import Link from "next/link";
+import { useAuthContext } from "@/context/AuthContext";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/ui/search-input";
+import { Modal } from "@/components/ui/modal";
+import { Alert } from "@/components/ui/alert";
+import { SessionFormModal } from "@/components/SessionFormModal";
+import Spinner from "@/components/Spinner";
+import { endpointHost } from "@/tools/url.tools";
+import { cn } from "@/lib/utils";
+
+const normalize = (url: string) => url.replace(/\/+$/, "");
 
 export default function SessionsPage() {
+  const dispatch = useDispatch();
+  const router = useRouter();
+  const current = useSelector(selectCurrentSession);
+  const { user, isLoggedIn, isLoading: authLoading } = useAuthContext();
+  const isAdmin = user?.role === "admin";
+
   const [sessions, setSessions] = useState<Session[]>([]);
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [editingSession, setEditingSession] = useState<Session | null>(null);
-
-  const [fields, setFields] = useState({
-    bucket: "",
-    nickname: "",
-    region: "",
-    endpoint: "",
-    access_key_id: "",
-    secret_access_key: "",
-  });
-  const [editFields, setEditFields] = useState({
-    bucket: "",
-    nickname: "",
-    region: "",
-    endpoint: "",
-    access_key_id: "",
-    secret_access_key: "",
-  });
-
-  const dispatch = useDispatch();
-  const router = useRouter();
-  const { user, isLoggedIn, isLoading: authLoading } = useAuthContext();
-  const isAdmin = user?.role === "admin";
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Session | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState<Session | null>(null);
+  const [removeBusy, setRemoveBusy] = useState(false);
 
   const fetchSessions = async () => {
     const res = await reqGetSessions();
     if (res.success) {
       setSessions(res.data ?? []);
+      dispatch(setSessionsAction(res.data ?? []));
+      setLoadError(null);
     } else {
-      toast.error("Failed to load sessions");
+      setLoadError(res.error_message || "Failed to load sessions");
     }
     setLoading(false);
   };
 
   useEffect(() => {
     fetchSessions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load instances for admin users to show association
   useEffect(() => {
-    if (isAdmin) {
-      reqAdminListInstances().then((res) => {
-        if (res.success) setInstances(res.data ?? []);
-      });
-    }
+    if (!isAdmin) return;
+    reqAdminListInstances().then(
+      (res) => res.success && setInstances(res.data ?? []),
+    );
   }, [isAdmin]);
 
-  const getInstanceForSession = (session: Session): Instance | undefined => {
-    if (!isAdmin || instances.length === 0) return undefined;
-    // Match by normalizing endpoints (strip trailing slash)
-    const normalize = (url: string) => url.replace(/\/+$/, "");
-    return instances.find(
-      (inst) => normalize(inst.endpoint) === normalize(session.endpoint)
+  const instanceFor = (s: Session) =>
+    instances.find((i) => normalize(i.endpoint) === normalize(s.endpoint));
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return sessions;
+    return sessions.filter((s) =>
+      [s.nickname, s.bucket, s.endpoint, s.region].some((v) =>
+        v?.toLowerCase().includes(q),
+      ),
     );
-  };
+  }, [sessions, query]);
 
-  const clearFields = () =>
-    setFields({
-      bucket: "",
-      nickname: "",
-      region: "",
-      endpoint: "",
-      access_key_id: "",
-      secret_access_key: "",
-    });
-
-  const handleCreate = async () => {
-    if (
-      !fields.bucket ||
-      !fields.region ||
-      !fields.endpoint ||
-      !fields.access_key_id ||
-      !fields.secret_access_key
-    ) {
-      toast.error("Please fill in all required fields.");
-      return;
-    }
-    if (!isValidUrl(fields.endpoint)) {
-      toast.error("Please enter a valid endpoint URL.");
-      return;
-    }
-
-    const res = await reqPostSession(fields);
-    if (res.success) {
-      toast.success("Session created");
-      dispatch(addSession(res.data));
-      dispatch(setActiveSession(res.data));
-      setCurrentSessionBucket(res.data.endpoint, res.data.bucket);
-      clearFields();
-      setShowCreate(false);
-      fetchSessions();
-    } else {
+  const probe = async (s: Session) => {
+    const res = await reqProbeSession(s.id);
+    if (!res.success) {
       toast.error(
-        res.success === false
-          ? res.error_message
-          : "Failed to create session"
+        `Saved, but ${s.bucket} couldn't be listed: ${res.error_message || res.error}. Check the keys and endpoint.`,
+        {
+          duration: 8000,
+        },
       );
     }
   };
 
-  const handleDelete = async (session: Session) => {
-    if (deletingId) return;
-    const confirmed = window.confirm(
-      `Remove "${session.nickname || session.bucket}"? This will permanently delete this session.`
-    );
-    if (!confirmed) return;
-
-    setDeletingId(session.id);
-    const res = await reqDeleteSession(session.id);
-    setDeletingId(null);
-
-    if (res.success) {
-      toast.success("Session removed");
-      setSessions((prev) => prev.filter((s) => s.id !== session.id));
-      dispatch(removeSessionAction(session));
-    } else {
-      toast.error(
-        res.success === false ? res.error_message : "Failed to remove session"
-      );
+  const handleSubmit = async (payload: SessionPayload) => {
+    setSaving(true);
+    // Create first, delete the old one only once the new one exists. The old
+    // edit deleted first, so a rejected save destroyed the session it was editing.
+    const res = await reqPostSession(payload);
+    if (!res.success) {
+      setSaving(false);
+      toast.error(res.error_message || "Failed to save session");
+      return;
     }
+    if (editing) {
+      const del = await reqDeleteSession(editing.id);
+      if (del.success) dispatch(removeSession(editing));
+      else
+        toast.error(
+          "Saved the new settings, but couldn't remove the old session — remove it by hand.",
+        );
+    }
+    dispatch(addSession(res.data));
+    dispatch(setActiveSession(res.data));
+    setSaving(false);
+    setFormOpen(false);
+    toast.success(editing ? "Session updated" : "Session created");
+    setEditing(null);
+    fetchSessions();
+    probe(res.data);
   };
 
-  const handleSelect = (session: Session) => {
-    dispatch(setActiveSession(session));
-    setCurrentSessionBucket(session.endpoint, session.bucket);
+  const confirmRemove = async () => {
+    if (!removing) return;
+    setRemoveBusy(true);
+    const res = await reqDeleteSession(removing.id);
+    setRemoveBusy(false);
+    if (!res.success) {
+      toast.error(res.error_message || "Failed to remove session");
+      return;
+    }
+    toast.success(`Removed ${removing.nickname || removing.bucket}`);
+    dispatch(removeSession(removing));
+    setSessions((prev) => prev.filter((s) => s.id !== removing.id));
+    setRemoving(null);
+  };
+
+  const open = (s: Session) => {
+    dispatch(setActiveSession(s));
     router.push("/");
   };
-
-  const openEdit = (session: Session) => {
-    setEditingSession(session);
-    setEditFields({
-      bucket: session.bucket,
-      nickname: session.nickname,
-      region: session.region,
-      endpoint: session.endpoint,
-      access_key_id: "",
-      secret_access_key: "",
-    });
-  };
-
-  const closeEdit = () => {
-    setEditingSession(null);
-    setEditFields({
-      bucket: "",
-      nickname: "",
-      region: "",
-      endpoint: "",
-      access_key_id: "",
-      secret_access_key: "",
-    });
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingSession) return;
-    if (
-      !editFields.bucket ||
-      !editFields.region ||
-      !editFields.endpoint ||
-      !editFields.nickname ||
-      !editFields.access_key_id ||
-      !editFields.secret_access_key
-    ) {
-      toast.error("Please fill in all required fields.");
-      return;
-    }
-    if (!isValidUrl(editFields.endpoint)) {
-      toast.error("Please enter a valid endpoint URL.");
-      return;
-    }
-
-    // Delete old, create new
-    const delRes = await reqDeleteSession(editingSession.id);
-    if (!delRes.success) {
-      toast.error("Failed to remove old session");
-      return;
-    }
-    dispatch(removeSessionAction(editingSession));
-
-    const res = await reqPostSession(editFields);
-    if (res.success) {
-      toast.success("Session updated");
-      dispatch(addSession(res.data));
-      dispatch(setActiveSession(res.data));
-      fetchSessions();
-      closeEdit();
-    } else {
-      toast.error(
-        res.success === false
-          ? res.error_message
-          : "Failed to update session"
-      );
-      fetchSessions();
-    }
-  };
-
-  // Escape key to close modals
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (editingSession) closeEdit();
-        if (showCreate) setShowCreate(false);
-      }
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [editingSession, showCreate]);
 
   if (authLoading || loading) {
     return (
@@ -247,335 +166,213 @@ export default function SessionsPage() {
   if (!isLoggedIn) return null;
 
   return (
-    <div className="mt-4 pb-10">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-zinc-100">
-            Bucket Sessions
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
-            Manage your S3-compatible bucket connections
-          </p>
-        </div>
-        <Button variant="dark" onClick={() => setShowCreate(!showCreate)}>
-          {showCreate ? "Cancel" : "New Session"}
-        </Button>
-      </div>
+    <div className="pb-16">
+      <PageHeader
+        title="Bucket sessions"
+        description="Saved connections to S3-compatible buckets. Pick one to browse it."
+        actions={
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setFormOpen(true);
+            }}
+          >
+            <FontAwesomeIcon icon={faPlus} className="mr-2 h-3 w-3" />
+            New session
+          </Button>
+        }
+      />
 
-      {/* Create Form */}
-      {showCreate && (
-        <div className="mb-6 p-5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
-          <h2 className="text-sm font-semibold uppercase text-gray-400 dark:text-zinc-500 mb-4 tracking-wider">
-            New Connection
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Bucket Name"
-              placeholder="my-bucket"
-              value={fields.bucket}
-              onChange={(e) =>
-                setFields({ ...fields, bucket: e.target.value })
-              }
-              required
-            />
-            <Input
-              label="Nickname"
-              placeholder="Production Media"
-              value={fields.nickname}
-              onChange={(e) =>
-                setFields({ ...fields, nickname: e.target.value })
-              }
-            />
-            <Input
-              label="Endpoint"
-              placeholder="https://s3.example.com"
-              value={fields.endpoint}
-              onChange={(e) =>
-                setFields({ ...fields, endpoint: e.target.value })
-              }
-              required
-            />
-            <Input
-              label="Region"
-              placeholder="us-east-1"
-              value={fields.region}
-              onChange={(e) =>
-                setFields({ ...fields, region: e.target.value })
-              }
-              required
-            />
-            <Input
-              label="Access Key ID"
-              placeholder="AKIAIOSFODNN7EXAMPLE"
-              value={fields.access_key_id}
-              onChange={(e) =>
-                setFields({ ...fields, access_key_id: e.target.value })
-              }
-              required
-            />
-            <Input
-              label="Secret Access Key"
-              placeholder="Secret key"
-              type="password"
-              value={fields.secret_access_key}
-              onChange={(e) =>
-                setFields({ ...fields, secret_access_key: e.target.value })
-              }
-              required
-            />
-          </div>
-          <div className="mt-4 flex gap-2">
-            <Button variant="dark" onClick={handleCreate}>
-              Create Session
-            </Button>
-            <Button
-              variant="light"
-              onClick={() => {
-                setShowCreate(false);
-                clearFields();
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
+      {loadError && (
+        <Alert variant="error" className="mb-4">
+          {loadError}.{" "}
+          <button
+            type="button"
+            onClick={fetchSessions}
+            className="font-medium underline cursor-pointer"
+          >
+            Retry
+          </button>
+        </Alert>
       )}
 
-      {/* Empty State */}
-      {sessions.length === 0 && !showCreate && (
-        <div className="text-center py-16 px-4">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center">
-            <svg
-              className="w-8 h-8 text-gray-400 dark:text-zinc-500"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125"
-              />
-            </svg>
-          </div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-100 mb-1">
-            No bucket sessions
+      {sessions.length > 6 && (
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder="Filter by name, bucket or endpoint…"
+          className="mb-4 w-full sm:w-80"
+        />
+      )}
+
+      {sessions.length === 0 && !loadError ? (
+        <div className="rounded-lg border border-border bg-surface px-6 py-16 text-center">
+          <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-surface-elevated">
+            <FontAwesomeIcon icon={faDatabase} className="h-5 w-5 text-muted" />
+          </span>
+          <h2 className="text-base font-semibold text-primary">
+            No bucket sessions yet
           </h2>
-          <p className="text-sm text-gray-500 dark:text-zinc-400 max-w-sm mx-auto mb-4">
-            Connect to an S3-compatible bucket to start managing your files.
-            Each session stores credentials for a specific bucket.
+          <p className="mx-auto mt-1 max-w-sm text-sm text-secondary">
+            Connect to an S3-compatible bucket to start browsing. Each session
+            stores the credentials for one bucket.
           </p>
-          <Button variant="dark" onClick={() => setShowCreate(true)}>
-            Create Your First Session
+          <Button
+            className="mt-5"
+            onClick={() => {
+              setEditing(null);
+              setFormOpen(true);
+            }}
+          >
+            Create your first session
           </Button>
         </div>
-      )}
-
-      {/* Sessions Grid */}
-      {sessions.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {sessions.map((session) => {
-            const instance = getInstanceForSession(session);
+      ) : filtered.length === 0 ? (
+        <p className="rounded-lg border border-border bg-surface px-4 py-12 text-center text-sm text-muted">
+          No sessions match “{query}”.
+        </p>
+      ) : (
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((s) => {
+            const inst = isAdmin ? instanceFor(s) : undefined;
+            const active = current?.id === s.id;
             return (
-              <div
-                key={session.id}
-                className="group rounded-lg border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden hover:border-gray-300 dark:hover:border-zinc-700 transition-colors"
+              <li
+                key={s.id}
+                className={cn(
+                  "flex flex-col overflow-hidden rounded-lg border bg-surface transition-colors",
+                  active
+                    ? "border-accent"
+                    : "border-border hover:border-border-emphasis",
+                )}
               >
-                {/* Card Body */}
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-gray-900 dark:text-zinc-100 truncate">
-                        {session.nickname || session.bucket}
+                <button
+                  type="button"
+                  onClick={() => open(s)}
+                  className="flex-1 p-4 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                  aria-label={`Open ${s.nickname || s.bucket} on ${endpointHost(s.endpoint)}`}
+                >
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className="truncate font-semibold text-primary">
+                        {s.nickname || s.bucket}
                       </h3>
-                      {session.nickname && (
-                        <p className="text-xs text-gray-500 dark:text-zinc-400 truncate mt-0.5 font-mono">
-                          {session.bucket}
+                      {s.nickname && s.nickname !== s.bucket && (
+                        <p className="truncate font-mono text-xs text-muted">
+                          {s.bucket}
                         </p>
                       )}
                     </div>
-                    <button
-                      onClick={() => handleSelect(session)}
-                      className="shrink-0 text-xs px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
-                    >
-                      Open
-                    </button>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-400 dark:text-zinc-500 w-16 shrink-0">
-                        Endpoint
+                    {active && (
+                      <span className="shrink-0 rounded-full bg-info-bg px-2 py-0.5 text-xs font-medium text-info">
+                        Active
                       </span>
-                      <span className="text-gray-700 dark:text-zinc-300 truncate font-mono">
-                        {session.endpoint}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-400 dark:text-zinc-500 w-16 shrink-0">
-                        Region
-                      </span>
-                      <span className="text-gray-700 dark:text-zinc-300">
-                        {session.region}
-                      </span>
-                    </div>
-                    {isAdmin && instance && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-400 dark:text-zinc-500 w-16 shrink-0">
-                          Instance
-                        </span>
-                        <Link
-                          href="/admin/instances"
-                          className="text-blue-600 dark:text-blue-400 hover:underline truncate"
-                        >
-                          {instance.name}
-                        </Link>
-                      </div>
                     )}
                   </div>
-                </div>
-
-                {/* Card Footer */}
-                <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/50">
-                  <span className="text-xs text-gray-400 dark:text-zinc-500">
-                    Created{" "}
-                    {new Date(session.inserted_at).toLocaleDateString()}
+                  <dl className="space-y-1.5 text-xs">
+                    <div className="flex gap-2">
+                      <dt className="w-16 shrink-0 text-muted">Endpoint</dt>
+                      <dd className="truncate font-mono text-secondary">
+                        {endpointHost(s.endpoint)}
+                      </dd>
+                    </div>
+                    <div className="flex gap-2">
+                      <dt className="w-16 shrink-0 text-muted">Region</dt>
+                      <dd className="text-secondary">{s.region}</dd>
+                    </div>
+                    {inst && (
+                      <div className="flex gap-2">
+                        <dt className="w-16 shrink-0 text-muted">Instance</dt>
+                        <dd className="truncate text-secondary">{inst.name}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </button>
+                <div className="flex items-center justify-between border-t border-border px-4 py-2">
+                  <span className="text-xs text-muted">
+                    Created {new Date(s.inserted_at).toLocaleDateString()}
                   </span>
                   <div className="flex gap-1">
-                    <button
-                      onClick={() => openEdit(session)}
-                      className="text-xs px-2 py-1 rounded text-gray-500 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditing(s);
+                        setFormOpen(true);
+                      }}
+                      aria-label={`Edit ${s.nickname || s.bucket}`}
                     >
+                      <FontAwesomeIcon
+                        icon={faPen}
+                        className="mr-1.5 h-3 w-3"
+                      />
                       Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(session)}
-                      disabled={deletingId === session.id}
-                      className="text-xs px-2 py-1 rounded text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors cursor-pointer disabled:opacity-50"
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setRemoving(s)}
+                      aria-label={`Remove ${s.nickname || s.bucket}`}
                     >
-                      {deletingId === session.id ? "..." : "Remove"}
-                    </button>
+                      <FontAwesomeIcon
+                        icon={faTrash}
+                        className="mr-1.5 h-3 w-3"
+                      />
+                      Remove
+                    </Button>
                   </div>
                 </div>
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
 
-      {/* Edit Modal */}
-      {editingSession && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/40 z-40"
-            onClick={closeEdit}
-          />
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-            <div
-              className="bg-white dark:bg-zinc-900 rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl border border-gray-200 dark:border-zinc-700"
-              onClick={(e) => e.stopPropagation()}
+      {isAdmin && (
+        <p className="mt-6 text-xs text-muted">
+          Managing storage instances, credentials or buckets? That&apos;s in{" "}
+          <Link href="/admin/instances" className="text-accent hover:underline">
+            Admin → Instances
+          </Link>
+          .
+        </p>
+      )}
+
+      <SessionFormModal
+        open={formOpen}
+        onClose={() => {
+          setFormOpen(false);
+          setEditing(null);
+        }}
+        onSubmit={handleSubmit}
+        editing={editing}
+        saving={saving}
+      />
+      <Modal
+        open={!!removing}
+        onClose={() => setRemoving(null)}
+        title={`Remove ${removing?.nickname || removing?.bucket}?`}
+        description="This deletes the saved connection and its stored keys. The bucket and its objects are not touched."
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setRemoving(null)}
+              disabled={removeBusy}
             >
-              <div className="flex justify-between items-center p-5 pb-0">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-100">
-                  Edit Session
-                </h2>
-                <button
-                  onClick={closeEdit}
-                  className="text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300 text-xl cursor-pointer"
-                >
-                  &times;
-                </button>
-              </div>
-
-              <div className="p-5 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Bucket Name"
-                    placeholder="my-bucket"
-                    value={editFields.bucket}
-                    onChange={(e) =>
-                      setEditFields({ ...editFields, bucket: e.target.value })
-                    }
-                    required
-                  />
-                  <Input
-                    label="Nickname"
-                    placeholder="Production Media"
-                    value={editFields.nickname}
-                    onChange={(e) =>
-                      setEditFields({
-                        ...editFields,
-                        nickname: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Endpoint"
-                    placeholder="https://s3.example.com"
-                    value={editFields.endpoint}
-                    onChange={(e) =>
-                      setEditFields({
-                        ...editFields,
-                        endpoint: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                  <Input
-                    label="Region"
-                    placeholder="us-east-1"
-                    value={editFields.region}
-                    onChange={(e) =>
-                      setEditFields({ ...editFields, region: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Access Key ID"
-                    placeholder="AKIAIOSFODNN7EXAMPLE"
-                    value={editFields.access_key_id}
-                    onChange={(e) =>
-                      setEditFields({
-                        ...editFields,
-                        access_key_id: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                  <Input
-                    label="Secret Access Key"
-                    placeholder="Secret key"
-                    type="password"
-                    value={editFields.secret_access_key}
-                    onChange={(e) =>
-                      setEditFields({
-                        ...editFields,
-                        secret_access_key: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <Button variant="dark" onClick={handleSaveEdit}>
-                    Save Changes
-                  </Button>
-                  <Button variant="light" onClick={closeEdit}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmRemove}
+              loading={removeBusy}
+            >
+              Remove session
+            </Button>
+          </>
+        }
+      />
     </div>
   );
 }

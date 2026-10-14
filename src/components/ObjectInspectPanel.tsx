@@ -1,40 +1,48 @@
 "use client";
 
-import React, { useState } from "react";
+import Link from "next/link";
+import { ReactNode } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faArrowUpRightFromSquare,
   faChevronLeft,
-  faCheck,
-  faEdit,
-  faFile,
-  faFileAudio,
-  faFilePdf,
-  faFileVideo,
-  faFileCode,
+  faDownload,
   faFileLines,
-  faEye,
   faLink,
+  faLock,
+  faPen,
+  faRightLeft,
+  faTrash,
 } from "@fortawesome/pro-solid-svg-icons";
-import Skeleton from "react-loading-skeleton";
 import { ObjectACLResponse, ObjectHead } from "@/types";
 import { formatBytes } from "@/tools/formatBytes.tools";
 import { formatDate } from "@/tools/formatDate.tools";
-import Button from "./Button";
-import Spinner from "./Spinner";
+import {
+  baseName,
+  explorerHref,
+  isPublicAcl,
+  parentPrefix,
+} from "@/tools/objectUrl.tools";
+import { Button } from "@/components/ui/button";
+import { Menu } from "@/components/ui/menu";
+import { CopyButton } from "@/components/ui/copy-button";
+import { iconForKey } from "@/components/ObjectThumb";
+import { cn } from "@/lib/utils";
 
 interface ObjectInspectPanelProps {
   object: ObjectHead | null;
   objectACL: ObjectACLResponse | null;
   fullPath: string;
   previewUrl: string | null;
-  endpoint: string;
-  bucket: string;
+  publicUrl: string;
   isLoading: boolean;
-  onBack: () => void;
+  notFound: boolean;
   onRename: () => void;
   onMove: () => void;
   onChangeAccess: () => void;
-  onPreview: () => void;
+  onOpen: () => void;
+  onDownload: () => void;
+  onCopyLink: () => void;
   onDelete: () => void;
 }
 
@@ -49,318 +57,341 @@ const getPreviewType = (contentType: string | undefined): PreviewType => {
   if (ct.startsWith("audio/")) return "audio";
   if (
     ct.startsWith("text/") ||
-    ct === "application/json" ||
-    ct === "application/xml" ||
-    ct === "application/javascript"
+    ["application/json", "application/xml", "application/javascript"].includes(
+      ct,
+    )
   )
     return "text";
   return "unsupported";
 };
 
-const getPreviewIcon = (type: PreviewType) => {
-  switch (type) {
-    case "pdf":
-      return faFilePdf;
-    case "video":
-      return faFileVideo;
-    case "audio":
-      return faFileAudio;
-    case "text":
-      return faFileCode;
-    default:
-      return faFileLines;
-  }
-};
-
-const AclBadge = ({ acl }: { acl: string | undefined }) => {
-  const isPublic =
-    acl === "public-read" ||
-    acl === "PUBLIC-READ" ||
-    acl?.toLowerCase() === "public-read";
-  return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-        isPublic
-          ? "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 ring-1 ring-green-200 dark:ring-green-800"
-          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 ring-1 ring-slate-200 dark:ring-slate-700"
-      }`}
-    >
-      {isPublic ? "Public Read" : "Private"}
-    </span>
-  );
-};
-
-const MetaRow = ({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) => (
-  <>
-    <span className="text-slate-400 font-medium text-sm leading-6">
+const Row = ({ label, children }: { label: string; children: ReactNode }) => (
+  <div className="grid grid-cols-1 gap-1 py-3 sm:grid-cols-[120px_1fr] sm:gap-6">
+    <dt className="text-xs font-medium uppercase tracking-wider text-muted">
       {label}
-    </span>
-    <div className="text-sm leading-6">{children}</div>
-  </>
+    </dt>
+    <dd className="min-w-0 text-sm text-primary">{children}</dd>
+  </div>
 );
 
-const ObjectInspectPanel: React.FC<ObjectInspectPanelProps> = ({
+const ObjectInspectPanel = ({
   object,
   objectACL,
   fullPath,
   previewUrl,
-  endpoint,
-  bucket,
+  publicUrl,
   isLoading,
-  onBack,
+  notFound,
   onRename,
   onMove,
   onChangeAccess,
-  onPreview,
+  onOpen,
+  onDownload,
+  onCopyLink,
   onDelete,
-}) => {
-  const filename = fullPath.split("/").pop();
+}: ObjectInspectPanelProps) => {
+  const filename = baseName(fullPath);
+  const parent = parentPrefix(fullPath);
   const previewType = getPreviewType(object?.ContentType);
-  const [copied, setCopied] = useState(false);
-
-  const copyLink = () => {
-    const url = `https://${endpoint}/${bucket}/${fullPath}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
+  const acl = object?.Metadata?.Acl;
+  const isPublic = isPublicAcl(acl);
 
   return (
-    <div className="flex flex-col bg-white dark:bg-zinc-900 w-full border border-gray-200 dark:border-zinc-800 shadow-sm rounded-xl overflow-hidden">
+    <div className="flex flex-col gap-5">
       {/* Header */}
-      <div className="flex justify-between gap-10 items-center px-6 pt-5 pb-5 border-b border-gray-100 dark:border-zinc-800">
-        <div className="flex-1 min-w-0">
-          <button
-            className="flex items-center gap-1 text-xs font-medium text-slate-400 cursor-pointer hover:text-slate-700 transition-colors mb-3"
-            onClick={onBack}
-          >
-            <FontAwesomeIcon icon={faChevronLeft} className="text-[10px]" />
-            Back
-          </button>
-          <div className="flex gap-3 items-center">
-            <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+      <div>
+        <Link
+          href={explorerHref(parent)}
+          className="mb-3 inline-flex items-center gap-1.5 text-sm text-secondary hover:text-primary"
+        >
+          <FontAwesomeIcon icon={faChevronLeft} className="h-2.5 w-2.5" />
+          {parent ? baseName(parent) : "Bucket root"}
+        </Link>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-elevated">
               <FontAwesomeIcon
-                icon={faFile}
-                className="text-slate-500 text-sm"
+                icon={iconForKey(fullPath, object?.ContentType)}
+                className="h-4 w-4 text-secondary"
               />
-            </div>
+            </span>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-semibold text-gray-900 dark:text-zinc-100 truncate leading-tight">
-                  {filename}
-                </h1>
-                <button
-                  onClick={copyLink}
-                  className="text-slate-300 hover:text-slate-600 transition-colors cursor-pointer shrink-0"
-                  title="Copy link"
-                >
-                  <FontAwesomeIcon
-                    icon={copied ? faCheck : faLink}
-                    className={`text-xs ${copied ? "text-green-500" : ""}`}
-                  />
-                </button>
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <h1
+                className="truncate text-xl font-semibold text-primary"
+                title={filename}
+              >
+                {filename}
+              </h1>
+              <p className="text-sm text-secondary">
                 {object ? (
-                  <>Modified {formatDate(object.LastModified)}</>
+                  <>
+                    {formatBytes(object.ContentLength || 0)} · Modified{" "}
+                    {formatDate(object.LastModified)}
+                  </>
+                ) : isLoading ? (
+                  <span className="inline-block h-3 w-48 animate-pulse rounded bg-surface-elevated align-middle" />
                 ) : (
-                  <Skeleton width={220} />
+                  "Not found"
                 )}
               </p>
             </div>
           </div>
-        </div>
-        <div className="flex gap-2 shrink-0">
-          <Button onClick={onChangeAccess} variant="light">
-            Change Access
-          </Button>
-          <Button onClick={onMove} variant="light">
-            Move
-          </Button>
-          <Button onClick={onPreview} variant="light">
-            Preview
-          </Button>
-          <Button onClick={onDelete} hoverVariant="danger">
-            Delete
-          </Button>
+          {object && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={onDownload}>
+                <FontAwesomeIcon
+                  icon={faDownload}
+                  className="mr-2 h-3.5 w-3.5"
+                />
+                Download
+              </Button>
+              <Button variant="secondary" onClick={onOpen}>
+                <FontAwesomeIcon
+                  icon={faArrowUpRightFromSquare}
+                  className="mr-2 h-3.5 w-3.5"
+                />
+                Open
+              </Button>
+              <Button variant="secondary" onClick={onCopyLink}>
+                <FontAwesomeIcon icon={faLink} className="mr-2 h-3.5 w-3.5" />
+                Copy link
+              </Button>
+              <Button variant="secondary" onClick={onChangeAccess}>
+                <FontAwesomeIcon icon={faLock} className="mr-2 h-3.5 w-3.5" />
+                Access
+              </Button>
+              <Menu
+                label="More actions"
+                className="border border-border-strong"
+                items={[
+                  { label: "Rename", icon: faPen, onSelect: onRename },
+                  { label: "Move", icon: faRightLeft, onSelect: onMove },
+                  "separator",
+                  {
+                    label: "Delete",
+                    icon: faTrash,
+                    destructive: true,
+                    onSelect: onDelete,
+                  },
+                ]}
+              />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Body */}
-      <div className="flex flex-1 min-h-0">
-        {/* Left: Metadata */}
-        <div className="flex-1 px-6 py-5 overflow-y-auto">
-          {isLoading && (
-            <div className="flex items-center justify-center h-32 gap-2 text-slate-500">
-              <Spinner />
-              <span className="text-sm">Loading object...</span>
-            </div>
-          )}
-          {!isLoading && !object && (
-            <div className="flex items-center justify-center h-32 text-sm text-slate-500">
-              Object not found
-            </div>
-          )}
-          {!isLoading && object && (
-            <div className="flex flex-col gap-6">
-              {/* Metadata grid */}
-              <div className="grid grid-cols-[140px_1fr] gap-x-8 gap-y-4 items-baseline">
-                <MetaRow label="Path">
-                  <span className="font-mono text-xs leading-6 text-gray-700 dark:text-zinc-300 break-all inline-flex items-baseline gap-2">
-                    {fullPath || "N/A"}
-                    <FontAwesomeIcon
-                      icon={faEdit}
-                      className="text-slate-300 cursor-pointer hover:text-slate-700 transition-colors shrink-0 text-[11px]"
+      {notFound ? (
+        <div className="rounded-lg border border-border bg-surface px-6 py-16 text-center">
+          <p className="text-sm font-medium text-primary">
+            This object doesn&apos;t exist
+          </p>
+          <p className="mt-1 text-sm text-secondary">
+            It may have been deleted, renamed or moved.
+          </p>
+          <Link
+            href={explorerHref(parent)}
+            className="mt-4 inline-block text-sm font-medium text-accent hover:underline"
+          >
+            Back to {parent ? baseName(parent) : "the bucket root"}
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          {/* Details */}
+          <section
+            aria-label="Details"
+            className="rounded-lg border border-border bg-surface px-5 py-2"
+          >
+            {isLoading || !object ? (
+              <div className="space-y-4 py-4">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-4 animate-pulse rounded bg-surface-elevated"
+                    style={{ width: `${50 + i * 8}%` }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <dl className="divide-y divide-border">
+                <Row label="Key">
+                  <span className="flex items-start gap-2">
+                    <span className="break-all font-mono text-xs leading-5">
+                      {fullPath}
+                    </span>
+                    <button
+                      type="button"
                       onClick={onRename}
-                    />
+                      aria-label="Rename"
+                      className="shrink-0 rounded p-1 text-muted hover:bg-surface-elevated hover:text-primary cursor-pointer"
+                    >
+                      <FontAwesomeIcon icon={faPen} className="h-3 w-3" />
+                    </button>
                   </span>
-                </MetaRow>
-
-                <MetaRow label="Type">
-                  <span className="font-mono text-xs leading-6 text-gray-700 dark:text-zinc-300">
-                    {object.ContentType || "N/A"}
+                </Row>
+                <Row label="Access">
+                  <span className="flex flex-wrap items-center gap-3">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1.5 text-xs font-medium",
+                        isPublic ? "text-healthy" : "text-secondary",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "h-1.5 w-1.5 rounded-full",
+                          isPublic ? "bg-healthy" : "bg-border-emphasis",
+                        )}
+                      />
+                      {isPublic ? "Public read" : acl ? "Private" : "Unknown"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={onChangeAccess}
+                      className="text-xs font-medium text-accent hover:underline cursor-pointer"
+                    >
+                      Change
+                    </button>
                   </span>
-                </MetaRow>
-
-                <MetaRow label="Size">
-                  <span className="text-gray-800 dark:text-zinc-200 leading-6">
-                    {formatBytes(object.ContentLength || 0)}
+                </Row>
+                {isPublic && (
+                  <Row label="Public URL">
+                    <span className="flex items-start gap-2">
+                      <a
+                        href={publicUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="break-all font-mono text-xs leading-5 text-accent hover:underline"
+                      >
+                        {publicUrl}
+                      </a>
+                      <CopyButton
+                        text={publicUrl}
+                        aria-label="Copy public URL"
+                        className="shrink-0"
+                      />
+                    </span>
+                  </Row>
+                )}
+                <Row label="Type">
+                  <span className="font-mono text-xs">
+                    {object.ContentType || "—"}
                   </span>
-                </MetaRow>
-
-                <MetaRow label="ETag">
-                  <span className="font-mono text-xs leading-6 text-slate-500 break-all">
-                    {object.ETag?.replaceAll('"', "") || "N/A"}
+                </Row>
+                <Row label="Size">
+                  {formatBytes(object.ContentLength || 0)}{" "}
+                  <span className="text-muted">
+                    ({(object.ContentLength || 0).toLocaleString()} bytes)
                   </span>
-                </MetaRow>
-
-                <MetaRow label="Access">
-                  <AclBadge acl={object.Metadata?.Acl} />
-                </MetaRow>
-
-                <MetaRow label="Owner">
+                </Row>
+                <Row label="Last modified">
+                  {formatDate(object.LastModified)}
+                </Row>
+                <Row label="ETag">
+                  <span className="break-all font-mono text-xs text-secondary">
+                    {object.ETag?.replaceAll('"', "") || "—"}
+                  </span>
+                </Row>
+                {object.StorageClass && (
+                  <Row label="Storage class">{object.StorageClass}</Row>
+                )}
+                <Row label="Owner">
                   {objectACL ? (
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-gray-800 dark:text-zinc-200">
-                        {objectACL.Owner.DisplayName}
-                      </span>
-                      <span className="font-mono text-xs text-slate-400">
+                    <span className="flex flex-col">
+                      <span>{objectACL.Owner.DisplayName || "—"}</span>
+                      <span className="break-all font-mono text-xs text-muted">
                         {objectACL.Owner.ID}
                       </span>
-                    </div>
+                    </span>
                   ) : (
-                    <Skeleton width={140} />
+                    <span className="inline-block h-3 w-32 animate-pulse rounded bg-surface-elevated" />
                   )}
-                </MetaRow>
-              </div>
+                </Row>
+                {objectACL?.Grants && objectACL.Grants.length > 0 && (
+                  <Row label="Grants">
+                    <ul className="flex flex-col gap-1.5">
+                      {objectACL.Grants.map((grant, i) => (
+                        <li
+                          key={i}
+                          className="flex items-center justify-between gap-3"
+                        >
+                          <span className="truncate">
+                            {grant.Grantee.DisplayName ||
+                              grant.Grantee.URI ||
+                              grant.Grantee.ID}
+                          </span>
+                          <span className="shrink-0 rounded bg-surface-elevated px-1.5 py-0.5 font-mono text-xs text-secondary">
+                            {grant.Permission}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Row>
+                )}
+                {object.Metadata &&
+                  Object.keys(object.Metadata).filter((k) => k !== "Acl")
+                    .length > 0 && (
+                    <Row label="Metadata">
+                      <ul className="flex flex-col gap-1 font-mono text-xs">
+                        {Object.entries(object.Metadata)
+                          .filter(([k]) => k !== "Acl")
+                          .map(([k, v]) => (
+                            <li key={k} className="break-all">
+                              <span className="text-muted">{k}:</span> {v}
+                            </li>
+                          ))}
+                      </ul>
+                    </Row>
+                  )}
+              </dl>
+            )}
+          </section>
 
-              {/* Grants */}
-              {objectACL?.Grants && objectACL.Grants.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                    Grants
-                  </p>
-                  <div className="flex flex-col divide-y divide-gray-100 dark:divide-zinc-800 border border-gray-100 dark:border-zinc-800 rounded-lg overflow-hidden">
-                    {objectACL.Grants.map((grant, index) => (
-                      <div
-                        key={"grant_" + index}
-                        className="flex items-center justify-between px-4 py-3 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
-                      >
-                        <span className="text-sm text-gray-700 dark:text-zinc-300">
-                          {grant.Grantee.DisplayName || grant.Grantee.URI}
-                        </span>
-                        <span className="text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                          {grant.Permission}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right: Preview */}
-        <div className="flex-1 border-l border-gray-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 flex items-center justify-center p-5 min-h-[300px]">
-          {isLoading ? (
-            <div className="flex flex-col items-center gap-2 text-slate-400">
-              <Spinner />
-              <span className="text-sm">Loading preview...</span>
-            </div>
-          ) : !object ? (
-            <div className="text-sm text-slate-400">No preview available</div>
-          ) : !previewUrl ? (
-            <div className="flex flex-col items-center gap-3 text-slate-400">
-              <Spinner />
-              <span className="text-sm">Generating preview...</span>
-            </div>
-          ) : previewType === "image" ? (
-            <img
-              src={previewUrl}
-              alt={filename}
-              className="w-1/2 max-h-[500px] rounded-lg object-contain shadow-sm"
-            />
-          ) : previewType === "pdf" ? (
-            <iframe
-              src={previewUrl}
-              title={filename}
-              className="w-full h-[500px] rounded-lg border border-gray-200 dark:border-zinc-700"
-            />
-          ) : previewType === "video" ? (
-            <video
-              src={previewUrl}
-              controls
-              className="max-w-full max-h-[500px] rounded-lg shadow-sm"
-            />
-          ) : previewType === "audio" ? (
-            <div className="flex flex-col items-center gap-4 w-full max-w-sm">
-              <div className="w-20 h-20 rounded-2xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+          {/* Preview */}
+          <section
+            aria-label="Preview"
+            className="flex min-h-[320px] items-center justify-center overflow-hidden rounded-lg border border-border bg-surface-alt p-4"
+          >
+            {isLoading || !object || !previewUrl ? (
+              <div className="h-40 w-40 animate-pulse rounded-lg bg-surface-elevated" />
+            ) : previewType === "image" ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewUrl}
+                alt={filename}
+                className="max-h-[560px] max-w-full rounded-md object-contain"
+              />
+            ) : previewType === "pdf" || previewType === "text" ? (
+              <iframe
+                src={previewUrl}
+                title={`Preview of ${filename}`}
+                className="h-[560px] w-full rounded-md border border-border bg-surface"
+              />
+            ) : previewType === "video" ? (
+              <video
+                src={previewUrl}
+                controls
+                className="max-h-[560px] max-w-full rounded-md"
+              />
+            ) : previewType === "audio" ? (
+              <audio src={previewUrl} controls className="w-full max-w-sm" />
+            ) : (
+              <div className="flex flex-col items-center gap-3 text-center">
                 <FontAwesomeIcon
-                  icon={getPreviewIcon("audio")}
-                  className="text-slate-400 text-2xl"
+                  icon={faFileLines}
+                  className="h-10 w-10 text-dimmed"
                 />
+                <p className="text-sm text-secondary">
+                  No preview for {object.ContentType || "this file type"}.
+                </p>
+                <Button variant="secondary" size="sm" onClick={onOpen}>
+                  Open in new tab
+                </Button>
               </div>
-              <span className="text-sm font-medium text-slate-600 dark:text-slate-400 truncate max-w-full">
-                {filename}
-              </span>
-              <audio src={previewUrl} controls className="w-full" />
-            </div>
-          ) : previewType === "text" ? (
-            <iframe
-              src={previewUrl}
-              title={filename}
-              className="w-full h-[500px] rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-            />
-          ) : (
-            <div className="flex flex-col items-center gap-3 text-slate-400">
-              <div className="w-16 h-16 rounded-2xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-                <FontAwesomeIcon
-                  icon={faFile}
-                  className="text-slate-400 text-xl"
-                />
-              </div>
-              <p className="text-sm text-center">
-                Preview not available for this file type
-              </p>
-              <button
-                onClick={onPreview}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer transition-colors"
-              >
-                <FontAwesomeIcon icon={faEye} className="text-xs" />
-                Open in new tab
-              </button>
-            </div>
-          )}
+            )}
+          </section>
         </div>
-      </div>
+      )}
     </div>
   );
 };
