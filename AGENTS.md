@@ -235,6 +235,12 @@ and move drop the object's entry. Two rules keep it honest:
   `/auth/login` and `/auth/refresh` are exempt to avoid recursion. When the refresh fails the
   browser goes to `/login?return_to=<path>` (`redirectToLogin` in `tools/sso.tools.ts`).
   **403 + `error_code 4003`** → `/unauthorized`; **403 + `4004`** → `/pending`.
+- **Roles.** `viewer` is read-only, `editor` can change bucket contents, `admin` also gets
+  `/admin`. openbucket-api enforces it (`RequireEditor` on every mutating bucket route → 403
+  `editor access required`, `error_code 1000`, which surfaces as a normal error toast, not a
+  redirect). The UI mirrors it with `useCanWrite()` (`hooks/usePermissions.ts`): for viewers the
+  explorer and object page hide upload, new folder, access, rename, move and delete, disable the
+  drop zone, and show a "Read-only" marker. Hiding is cosmetic — the API is the boundary.
 - **SSO users have no OpenBucket JWTs.** `openbucket-api` holds their session server-side
   (`openbucket_session` cookie) and refreshes it against the identity provider, so it lives as
   long as the provider session. `/auth/refresh` answers 401 for them; that is the expected path to
