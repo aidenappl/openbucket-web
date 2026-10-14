@@ -11,7 +11,7 @@ COPY package*.json ./
 COPY .npmrc ./
 
 # Install dependencies (mount NPM_TOKEN as a secret to avoid leaking into image layers)
-RUN --mount=type=secret,id=NPM_TOKEN \
+RUN --mount=type=cache,target=/root/.npm --mount=type=secret,id=NPM_TOKEN \
     NPM_TOKEN=$(cat /run/secrets/NPM_TOKEN) npm ci
 
 # Copy source code
@@ -25,7 +25,7 @@ ARG NEXT_PUBLIC_OPENBUCKET_API
 ENV NEXT_PUBLIC_OPENBUCKET_API=$NEXT_PUBLIC_OPENBUCKET_API
 
 # Build the application with standalone output
-RUN npm run build
+RUN --mount=type=cache,id=openbucket-web-next,target=/app/.next/cache npm run build
 
 # ---- Runtime Stage ----
 FROM node:20-alpine AS runner
