@@ -199,6 +199,19 @@ instance (`/core/v1/session[s]`). The **active** session lives in `localStorage`
 every object/folder call is scoped by it. Losing it, not an auth failure, is the usual cause of an
 empty bucket view.
 
+**Views are stale-while-revalidate.** Folder listings (`useBucketData`) and object views (the
+object page) are cached in memory per tab (`tools/viewCache.tools.ts`, 100 entries, keyed
+`${sessionId}:${prefix|key}`). A revisit renders the cached copy on the first frame and refreshes in
+the background — the explorer's Refresh icon spins while it does; only a first visit shows
+skeletons. Mutations call the same refresh, so the cache is rewritten after every change; delete
+and move drop the object's entry. Two rules keep it honest:
+- **Resolve what to show during render, keyed by (session, path)** — never from state alone.
+  The URL changes before any effect runs, so state-only views painted the previous folder's rows
+  (or object's details) under the new title for a frame, and the object cache-write effect filed
+  the old object under the new key.
+- A cached preview URL is reused for 45 of its 60 minutes (new presigns change the `<img>` src and
+  re-download the preview); cached heads are carried over for unchanged objects (same key + ETag).
+
 **Auth model — cookies issued by the API:**
 - `AuthContext` is the gate. On mount it **always** calls `reqGetSelf` (an SSO session is the
   HttpOnly `openbucket_session` cookie, invisible to JS, and SSO sets no `ob-logged-in` marker —
