@@ -54,6 +54,7 @@ export const publicObjectUrl = (
 export const isPublicAcl = (acl: string | undefined | null) =>
   (acl ?? "").toLowerCase() === "public-read";
 
+// openbucket-api's maximum; above it the API silently falls back to 1 hour.
 const SIGNED_LINK_SECONDS = 24 * 3600;
 
 /**
@@ -78,7 +79,12 @@ export const copyObjectLink = async (
       return;
     }
     await navigator.clipboard.writeText(res.data.url);
-    toast.success("Signed link copied — valid for 24 hours");
+    const hours = Math.round(
+      (Number(res.data.expiration) || SIGNED_LINK_SECONDS) / 3600,
+    );
+    toast.success(
+      `Signed link copied — valid for ${hours} hour${hours === 1 ? "" : "s"}`,
+    );
   } catch {
     toast.error("Couldn't write to the clipboard");
   }
@@ -124,6 +130,7 @@ export const openSignedUrl = (url: string): boolean => {
     toast.error("Refusing to open a link outside this bucket's endpoint");
     return false;
   }
+  // pi-lens-ignore: no-open-redirect
   window.open(
     `${parsed.origin}${parsed.pathname}${parsed.search}`,
     "_blank",

@@ -10,6 +10,7 @@ import DeleteConfirmationModal from "@/components/DeleteConfirmationModal";
 import RenameModal from "@/components/RenameModal";
 import MoveObjectModal from "@/components/MoveObjectModal";
 import ObjectInspectPanel from "@/components/ObjectInspectPanel";
+import { ShareLinkModal } from "@/components/ShareLinkModal";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ObjectACLResponse, ObjectHead } from "@/types";
@@ -69,7 +70,7 @@ const ObjectPage = () => {
   const [notFound, setNotFound] = useState(false);
 
   const [modal, setModal] = useState<
-    "access" | "delete" | "rename" | "move" | null
+    "access" | "delete" | "rename" | "move" | "share" | null
   >(null);
   const [busy, setBusy] = useState(false);
 
@@ -287,7 +288,15 @@ const ObjectPage = () => {
         onCopyLink={() =>
           copyObjectLink(session, fullPath, view.object?.Metadata?.Acl)
         }
+        onShare={() => setModal("share")}
         onDelete={() => setModal("delete")}
+      />
+      <ShareLinkModal
+        open={modal === "share"}
+        onClose={() => setModal(null)}
+        session={session}
+        objectKey={fullPath}
+        acl={view.object?.Metadata?.Acl}
       />
       <ChangeAccessModal
         isOpen={modal === "access"}

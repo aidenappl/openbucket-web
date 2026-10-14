@@ -13,6 +13,12 @@ import { selectCurrentSession } from "@/store/slices/sessionSlice";
 interface PutObjectOptions {
   file: File;
   prefix?: string;
+  /**
+   * Key relative to `prefix`; defaults to the file name. May contain `/` (a
+   * folder upload sends `photos/2024/a.jpg`) — the API only rejects `..`, a
+   * leading `/` and NUL.
+   */
+  key?: string;
   onUploadProgress?: (progress: number) => void;
   signal?: AbortSignal;
 }
@@ -84,6 +90,7 @@ const reqFetchObjectACL = async (
 const reqPutObjectWithProgress = async ({
   file,
   prefix,
+  key,
   onUploadProgress,
   signal,
 }: PutObjectOptions): Promise<ApiResponse<unknown>> => {
@@ -95,6 +102,9 @@ const reqPutObjectWithProgress = async ({
 
   if (prefix) {
     formData.append("prefix", prefix);
+  }
+  if (key) {
+    formData.append("key", key);
   }
 
   return fetchApi({

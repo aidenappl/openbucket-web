@@ -20,7 +20,13 @@ import {
   faPen,
   faTrash,
   faUpRightAndDownLeftFromCenter,
+  faFolderArrowUp,
+  faRightLeft,
+  faShareNodes,
 } from "@fortawesome/pro-solid-svg-icons";
+import { ShareLinkModal } from "@/components/ShareLinkModal";
+import { MoveToFolderModal } from "@/components/MoveToFolderModal";
+import { entriesFromFiles, UploadEntry } from "@/hooks/useUploader";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
 import { useAuthContext } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -31,6 +37,7 @@ import { useViewFormat } from "@/hooks/useViewFormat";
 import { useUploader } from "@/hooks/useUploader";
 import {
   reqDeleteObject,
+  reqFetchObjects,
   reqPutBulkObjectACL,
 } from "@/services/object.service";
 import {
@@ -76,6 +83,7 @@ import {
   normalizePrefix,
   objectHref,
   openObject,
+  parentPrefix,
 } from "@/tools/objectUrl.tools";
 import { cn } from "@/lib/utils";
 
@@ -134,8 +142,12 @@ const Explorer = () => {
   const [aclSaving, setAclSaving] = useState(false);
   const [renameKey, setRenameKey] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
+  const [shareKey, setShareKey] = useState<string | null>(null);
+  const [moveKeys, setMoveKeys] = useState<string[] | null>(null);
+  const [moving, setMoving] = useState(false);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const [overwrite, setOverwrite] = useState<{
-    files: File[];
+    files: UploadEntry[];
     clashes: string[];
   } | null>(null);
 
@@ -226,13 +238,16 @@ const Explorer = () => {
   }, [prefix]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
+  // Entries carry a path relative to the current folder; a dropped or picked
+  // folder uploads as `name/sub/file.ext`. Only files landing directly in this
+  // folder can be checked for clashes — the listing doesn't cover subfolders.
   const startUpload = useCallback(
-    (files: File[]) => {
+    (files: UploadEntry[]) => {
       if (!session || files.length === 0) return;
       const existing = new Set((objects ?? []).map((o) => baseName(o.Key)));
       const clashes = files
-        .filter((f) => existing.has(f.name))
-        .map((f) => f.name);
+        .filter((f) => !f.path.includes("/") && existing.has(f.path))
+        .map((f) => f.path);
       if (clashes.length > 0) {
         setOverwrite({ files, clashes });
         return;
@@ -388,6 +403,62 @@ const Explorer = () => {
       toast.error(`Couldn't download ${baseName(o.Key)}`);
   };
 
+  // Move objects into `dest`, keeping names. The destination is re-listed here
+  // (not trusted from the dialog) because a rename onto an existing key
+  // overwrites it; clashes are skipped unless `replace`. Folders aren't
+  // movable — that needs openbucket-go#22.
+  const confirmMove = async (dest: string, replace: boolean) => {
+    if (!moveKeys) return;
+    setMoving(true);
+    const destList = await reqFetchObjects(dest);
+    const taken = new Set(
+      destList.success ? (destList.data ?? []).map((o) => baseName(o.Key)) : [],
+    );
+    const plan = moveKeys.filter((k) => parentPrefix(k) !== dest);
+    const skipped = replace ? [] : plan.filter((k) => taken.has(baseName(k)));
+    const todo = plan.filter((k) => !skipped.includes(k));
+
+    let failed = 0;
+    let next = 0;
+    const worker = async () => {
+      while (next < todo.length) {
+        const k = todo[next++];
+        const target = dest + baseName(k);
+        // openbucket-go's CopyObject refuses an existing destination
+        // (ObjectAlreadyExists → 500 "Unknown error"), unlike S3. Replacing
+        // means removing the target first; the source stays untouched until
+        // the move itself succeeds.
+        if (taken.has(baseName(k))) {
+          const del = await reqDeleteObject(target);
+          if (!del.success) {
+            failed += 1;
+            continue;
+          }
+        }
+        const res = await reqPutRenameObject(k, target);
+        if (!res.success) failed += 1;
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(4, todo.length) }, worker));
+    setMoving(false);
+
+    const moved = todo.length - failed;
+    const where = dest ? baseName(dest) : "the bucket root";
+    if (failed > 0) {
+      toast.error(`Moved ${moved}, ${failed} failed`);
+    } else if (moved > 0) {
+      toast.success(
+        `Moved ${moved} object${moved === 1 ? "" : "s"} to ${where}` +
+          (skipped.length ? ` · skipped ${skipped.length} existing` : ""),
+      );
+    } else {
+      toast(`Nothing moved — ${skipped.length} already existed in ${where}`);
+    }
+    setMoveKeys(null);
+    selection.clear();
+    reload();
+  };
+
   // No folder Rename yet: openbucket-api's PUT /folder works, but openbucket-go
   // can't CopyObject a folder-marker key ("read …: is a directory") and leaves a
   // half-made destination behind, so every rename fails. RenameModal already
@@ -421,6 +492,11 @@ const Explorer = () => {
       onSelect: () =>
         session && copyObjectLink(session, o.Key, o.head?.Metadata?.Acl),
     },
+    {
+      label: "Share link…",
+      icon: faShareNodes,
+      onSelect: () => setShareKey(o.Key),
+    },
     "separator",
     {
       label: "Change access",
@@ -428,6 +504,11 @@ const Explorer = () => {
       onSelect: () => setAclKeys([o.Key]),
     },
     { label: "Rename", icon: faPen, onSelect: () => setRenameKey(o.Key) },
+    {
+      label: "Move to…",
+      icon: faRightLeft,
+      onSelect: () => setMoveKeys([o.Key]),
+    },
     {
       label: "Delete",
       icon: faTrash,
@@ -438,7 +519,13 @@ const Explorer = () => {
 
   // ── Keyboard: "/" focuses search, Esc clears selection, ⌘/Ctrl+A selects all ──
   const anyModal =
-    createOpen || !!deleteKeys || !!aclKeys || !!renameKey || !!overwrite;
+    createOpen ||
+    !!deleteKeys ||
+    !!aclKeys ||
+    !!renameKey ||
+    !!overwrite ||
+    !!shareKey ||
+    !!moveKeys;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (anyModal) return;
@@ -560,6 +647,16 @@ const Explorer = () => {
             <FontAwesomeIcon icon={faFolderPlus} className="mr-2 h-3.5 w-3.5" />
             New folder
           </Button>
+          <Button
+            variant="secondary"
+            onClick={() => folderInputRef.current?.click()}
+          >
+            <FontAwesomeIcon
+              icon={faFolderArrowUp}
+              className="mr-2 h-3.5 w-3.5"
+            />
+            Upload folder
+          </Button>
           <Button onClick={() => fileInputRef.current?.click()}>
             <FontAwesomeIcon
               icon={faCloudArrowUp}
@@ -598,6 +695,15 @@ const Explorer = () => {
             >
               <FontAwesomeIcon icon={faDownload} className="mr-1.5 h-3 w-3" />
               Download
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={selectedObjects.length === 0}
+              onClick={() => setMoveKeys(selectedObjects)}
+            >
+              <FontAwesomeIcon icon={faRightLeft} className="mr-1.5 h-3 w-3" />
+              Move
             </Button>
             <Button
               size="sm"
@@ -984,12 +1090,45 @@ const Explorer = () => {
         multiple
         className="hidden"
         onChange={(e) => {
-          startUpload(Array.from(e.target.files ?? []));
+          startUpload(entriesFromFiles(Array.from(e.target.files ?? [])));
+          e.target.value = "";
+        }}
+      />
+      {/* `webkitdirectory` isn't in React's input types, so it's set on the
+          element; picked files carry `webkitRelativePath` (folder/sub/a.jpg). */}
+      <input
+        type="file"
+        ref={(el) => {
+          folderInputRef.current = el;
+          el?.setAttribute("webkitdirectory", "");
+        }}
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          startUpload(entriesFromFiles(Array.from(e.target.files ?? [])));
           e.target.value = "";
         }}
       />
 
       <FullscreenDropZone onFiles={startUpload} destination={prefix} />
+
+      {shareKey && session && (
+        <ShareLinkModal
+          open
+          onClose={() => setShareKey(null)}
+          session={session}
+          objectKey={shareKey}
+          acl={objectByKey.get(shareKey)?.head?.Metadata?.Acl}
+        />
+      )}
+      <MoveToFolderModal
+        open={!!moveKeys}
+        onClose={() => setMoveKeys(null)}
+        keys={moveKeys ?? []}
+        startPrefix={prefix}
+        onConfirm={confirmMove}
+        isMoving={moving}
+      />
 
       <CreateFolderModal
         isOpen={createOpen}
@@ -1067,7 +1206,7 @@ const Explorer = () => {
                 onClick={() => {
                   const skip = new Set(overwrite.clashes);
                   upload(
-                    overwrite.files.filter((f) => !skip.has(f.name)),
+                    overwrite.files.filter((f) => !skip.has(f.path)),
                     prefix,
                     () => reload(),
                   );
