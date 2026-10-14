@@ -5,6 +5,15 @@ export function normalizeUrl(url: string): string {
     : `https://${url}`;
 }
 
+/** Host part of an endpoint URL, for telling same-named sessions apart. Falls back to the raw string. */
+export function endpointHost(endpoint: string): string {
+  try {
+    return new URL(normalizeUrl(endpoint)).host;
+  } catch {
+    return endpoint;
+  }
+}
+
 export function isValidUrl(input: string): boolean {
   try {
     const url = new URL(normalizeUrl(input));

@@ -15,6 +15,7 @@ const mockUser: User = {
   email: "test@example.com",
   name: "Test User",
   auth_type: "local",
+  profile_image_url: null,
   role: "admin",
   active: true,
   inserted_at: "2024-01-01T00:00:00Z",

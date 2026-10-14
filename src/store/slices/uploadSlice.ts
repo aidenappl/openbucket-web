@@ -14,7 +14,7 @@ const uploadSlice = createSlice({
     },
     updateProgress: (
       state,
-      action: PayloadAction<{ id: string; progress: number }>
+      action: PayloadAction<{ id: string; progress: number }>,
     ) => {
       const upload = state.uploads.find((u) => u.id === action.payload.id);
       if (upload) upload.progress = action.payload.progress;
@@ -28,7 +28,7 @@ const uploadSlice = createSlice({
     },
     markError: (
       state,
-      action: PayloadAction<{ id: string; error: string }>
+      action: PayloadAction<{ id: string; error: string }>,
     ) => {
       const upload = state.uploads.find((u) => u.id === action.payload.id);
       if (upload) {
@@ -37,12 +37,29 @@ const uploadSlice = createSlice({
         upload.finishedAt = Date.now();
       }
     },
+    markCanceled: (state, action: PayloadAction<{ id: string }>) => {
+      const upload = state.uploads.find((u) => u.id === action.payload.id);
+      if (upload) {
+        upload.status = "canceled";
+        upload.finishedAt = Date.now();
+      }
+    },
     removeUpload: (state, action: PayloadAction<{ id: string }>) => {
       state.uploads = state.uploads.filter((u) => u.id !== action.payload.id);
+    },
+    clearFinished: (state) => {
+      state.uploads = state.uploads.filter((u) => u.status === "uploading");
     },
   },
 });
 
-export const { addUpload, updateProgress, markCompleted, markError, removeUpload } =
-  uploadSlice.actions;
+export const {
+  addUpload,
+  updateProgress,
+  markCompleted,
+  markError,
+  markCanceled,
+  removeUpload,
+  clearFinished,
+} = uploadSlice.actions;
 export default uploadSlice.reducer;

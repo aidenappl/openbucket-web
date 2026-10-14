@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGlobe, faLock } from "@fortawesome/pro-solid-svg-icons";
-import Button from "./Button";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface ChangeAccessModalProps {
   isOpen: boolean;
@@ -19,107 +21,102 @@ const ACL_OPTIONS = [
   {
     value: "private",
     label: "Private",
-    description: "Only you can read and write this object",
+    description: "Only signed requests can read it",
     icon: faLock,
   },
   {
     value: "public-read",
-    label: "Public Read",
-    description: "Anyone with the link can view this object",
+    label: "Public read",
+    description: "Anyone with the URL can read it",
     icon: faGlobe,
   },
 ];
 
-const ChangeAccessModal: React.FC<ChangeAccessModalProps> = ({
+/** A radio group on the shared Modal. Arrow keys move between the options. */
+const ChangeAccessModal = ({
   isOpen,
   onClose,
   onConfirm,
   currentAcl,
   isLoading = false,
-  title = "Change Object Access",
-  subtitle = "Choose who can access this object",
-}) => {
+  title = "Change access",
+  subtitle = "Choose who can read this object.",
+}: ChangeAccessModalProps) => {
   const [selected, setSelected] = useState(currentAcl || "private");
 
   useEffect(() => {
     if (isOpen) setSelected(currentAcl || "private");
   }, [isOpen, currentAcl]);
 
-  if (!isOpen) return null;
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-    if (e.key === "Enter") onConfirm(selected);
-  };
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      onKeyDown={handleKeyDown}
-      tabIndex={-1}
-    >
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-        <div className="px-6 pt-6 pb-4">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-100">
-            {title}
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            {subtitle}
-          </p>
-        </div>
-
-        <div className="px-6 pb-4 flex flex-col gap-2.5">
-          {ACL_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => setSelected(option.value)}
-              className={`w-full text-left flex items-start gap-3.5 px-4 py-3.5 rounded-lg border transition-all ${
-                selected === option.value
-                  ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-500"
-                  : "border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800"
-              }`}
-            >
-              <div
-                className={`mt-0.5 w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${
-                  selected === option.value
-                    ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
-                }`}
-              >
-                <FontAwesomeIcon icon={option.icon} className="text-sm" />
-              </div>
-              <div>
-                <p
-                  className={`text-sm font-medium ${
-                    selected === option.value
-                      ? "text-blue-900 dark:text-blue-300"
-                      : "text-gray-800 dark:text-zinc-200"
-                  }`}
-                >
-                  {option.label}
-                </p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {option.description}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        <div className="flex justify-end gap-2 px-6 py-4 bg-gray-50 dark:bg-zinc-800 border-t border-gray-100 dark:border-zinc-700">
-          <Button onClick={onClose} variant="light">
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title={title}
+      description={subtitle}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button onClick={() => onConfirm(selected)} active={!isLoading}>
-            {isLoading ? "Saving..." : "Confirm"}
+          <Button onClick={() => onConfirm(selected)} loading={isLoading}>
+            {isLoading ? "Saving…" : "Save"}
           </Button>
-        </div>
+        </>
+      }
+    >
+      <div
+        role="radiogroup"
+        aria-label="Access"
+        className="flex flex-col gap-2"
+      >
+        {ACL_OPTIONS.map((option) => {
+          const active = selected === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => setSelected(option.value)}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setSelected(
+                    option.value === "private" ? "public-read" : "private",
+                  );
+                }
+              }}
+              className={cn(
+                "flex w-full items-start gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors cursor-pointer",
+                active
+                  ? "border-accent bg-info-bg ring-1 ring-accent"
+                  : "border-border-strong hover:bg-surface-alt",
+              )}
+            >
+              <span
+                className={cn(
+                  "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+                  active
+                    ? "bg-accent text-white"
+                    : "bg-surface-elevated text-muted",
+                )}
+              >
+                <FontAwesomeIcon icon={option.icon} className="h-3 w-3" />
+              </span>
+              <span>
+                <span className="block text-sm font-medium text-primary">
+                  {option.label}
+                </span>
+                <span className="mt-0.5 block text-xs text-secondary">
+                  {option.description}
+                </span>
+              </span>
+            </button>
+          );
+        })}
       </div>
-    </div>
+    </Modal>
   );
 };
 

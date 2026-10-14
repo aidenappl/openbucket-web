@@ -1,5 +1,9 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useSelector } from "react-redux";
+import toast from "react-hot-toast";
 import Spinner from "@/components/Spinner";
 import ChangeAccessModal from "@/components/ChangeAccessModal";
 import DeleteConfirmationModal from "@/components/DeleteConfirmationModal";
@@ -7,11 +11,8 @@ import RenameModal from "@/components/RenameModal";
 import MoveObjectModal from "@/components/MoveObjectModal";
 import ObjectInspectPanel from "@/components/ObjectInspectPanel";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
-import { Grant, ObjectACLResponse, ObjectHead } from "@/types";
-import { useBreadcrumbs } from "@/hooks/useBreadcrumbs";
-import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ObjectACLResponse, ObjectHead } from "@/types";
 import {
   reqDeleteObject,
   reqFetchObjectACL,
@@ -20,284 +21,204 @@ import {
   reqPutObjectACL,
   reqPutRenameObject,
 } from "@/services/object.service";
+import {
+  baseName,
+  copyObjectLink,
+  downloadObject,
+  explorerHref,
+  objectHref,
+  openObject,
+  parentPrefix,
+  publicObjectUrl,
+} from "@/tools/objectUrl.tools";
+
+// The API's anonymous-read grantee; shown as the Access row, not as a grant.
+const ALL_USERS_URI = "http://openbucket/groups/global/AllUsers";
 
 const ObjectPage = () => {
   const router = useRouter();
-  const [object, setObject] = useState<ObjectHead | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [sessionReady, setSessionReady] = useState(false);
-  const [initialSessionBucket, setInitialSessionBucket] = useState<
-    string | null
-  >(null);
-  const [objectACL, setObjectACL] = useState<ObjectACLResponse | null>(null);
-  const [isChangeAccessOpen, setIsChangeAccessOpen] = useState(false);
-  const [isChangingAccess, setIsChangingAccess] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isRenameOpen, setIsRenameOpen] = useState(false);
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [isMoveOpen, setIsMoveOpen] = useState(false);
-  const [isMoving, setIsMoving] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const params = useParams();
-  const currentSession = useSelector(selectCurrentSession);
-  const { getParentPath } = useBreadcrumbs();
+  const session = useSelector(selectCurrentSession);
+  const { hasAPI } = usePermissions();
   const fullPath = decodeURIComponent(
     Array.isArray(params.object)
       ? params.object.join("/")
-      : (params.object ?? ""),
+      : ((params.object as string | undefined) ?? ""),
   );
 
-  // Check if session is available and set initial session
+  const [object, setObject] = useState<ObjectHead | null>(null);
+  const [acl, setAcl] = useState<ObjectACLResponse | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  const [modal, setModal] = useState<
+    "access" | "delete" | "rename" | "move" | null
+  >(null);
+  const [busy, setBusy] = useState(false);
+
+  // The session this page was opened under. Switching buckets in the nav while
+  // looking at an object means this key is meaningless there: go to the root.
+  const openedUnder = useRef<number | null>(null);
   useEffect(() => {
-    if (currentSession) {
-      setSessionReady(true);
-      // Set initial session bucket if not already set
-      if (initialSessionBucket === null && currentSession?.bucket) {
-        setInitialSessionBucket(currentSession.bucket);
-      }
-    }
-  }, [currentSession, initialSessionBucket]);
+    if (!session) return;
+    if (openedUnder.current === null) openedUnder.current = session.id;
+    else if (openedUnder.current !== session.id) router.push("/");
+  }, [session, router]);
 
-  const viewObject = async () => {
-    if (!sessionReady) return;
-    const res = await generatePresignedUrl(fullPath);
-    const url = res?.url || null;
-    if (url) {
-      window.open(url, "_blank");
-    }
-  };
+  useEffect(() => {
+    if (hasAPI === false) router.replace("/sessions");
+  }, [hasAPI, router]);
 
-  const deleteObject = async () => {
-    if (!sessionReady || !currentSession?.bucket) return;
-    setIsDeleting(true);
-    const res = await reqDeleteObject(fullPath);
+  const loadAcl = useCallback(async () => {
+    const res = await reqFetchObjectACL(fullPath);
     if (res.success) {
-      router.back();
-    } else {
-      console.error("Error deleting object:", res);
+      setAcl({
+        ...res.data,
+        Grants: (res.data.Grants ?? []).filter(
+          (g) => g.Grantee.URI !== ALL_USERS_URI,
+        ),
+      });
     }
-    setIsDeleting(false);
-    setIsDeleteModalOpen(false);
-  };
+  }, [fullPath]);
 
-  const generatePresignedUrl = async (key: string) => {
-    if (!currentSession) return null;
-
-    const res = await reqFetchObjectPresign(key);
-    if (res.success) {
-      return res.data;
-    } else {
-      console.error("Error generating presigned URL:", res);
-      return null;
-    }
-  };
-
-  const getObjectACL = useCallback(
-    async (key: string) => {
-      if (!currentSession) return null;
-
-      const res = await reqFetchObjectACL(key);
-      if (res.success) {
-        return res.data;
-      } else {
-        console.error("Error fetching object ACL:", res);
-        return null;
-      }
-    },
-    [currentSession],
-  );
-
-  const filterGrants = useCallback((grants: Grant[] | null) => {
-    if (!grants) return [];
-    return grants.filter(
-      (grant) =>
-        grant.Grantee.URI !== "http://openbucket/groups/global/AllUsers",
-    );
-  }, []);
-
-  const renameObject = async (newPath: string) => {
-    if (!sessionReady || !currentSession) return;
-    setIsRenaming(true);
-    const res = await reqPutRenameObject(fullPath, newPath);
-    if (res.success) {
-      router.push(`/object/${encodeURIComponent(newPath)}`);
-    } else {
-      console.error("Error renaming object:", res);
-    }
-    setIsRenaming(false);
-    setIsRenameOpen(false);
-  };
-
-  const moveObject = async (newPath: string) => {
-    if (!sessionReady || !currentSession) return;
-    setIsMoving(true);
-    const res = await reqPutRenameObject(fullPath, newPath);
-    if (res.success) {
-      router.push(`/object/${encodeURIComponent(newPath)}`);
-    } else {
-      console.error("Error moving object:", res);
-    }
-    setIsMoving(false);
-    setIsMoveOpen(false);
-  };
-
-  const handleConfirmAccess = async (newAcl: string) => {
-    if (!sessionReady || !currentSession) return;
-    setIsChangingAccess(true);
-    const res = await reqPutObjectACL(fullPath, newAcl);
-    if (res.success) {
-      // Update local metadata so badge reflects change immediately
-      if (object) {
-        setObject({ ...object, Metadata: { ...object.Metadata, Acl: newAcl } });
-      }
-      // Refresh ACL grants
-      const acl = await getObjectACL(fullPath);
-      if (acl) {
-        acl.Grants = filterGrants(acl.Grants);
-        setObjectACL(acl);
-      }
-    }
-    setIsChangingAccess(false);
-    setIsChangeAccessOpen(false);
-  };
-
-  const initialize = useCallback(async () => {
-    if (!sessionReady || !currentSession) return;
-
+  const load = useCallback(async () => {
     setIsLoading(true);
+    setNotFound(false);
     setPreviewUrl(null);
-
     const res = await reqFetchObjectHead(fullPath);
-
-    if (res.success) {
-      console.log("Object data:", res.data);
-      setObject(res.data);
-    } else {
-      console.error("Error fetching object:", res);
-      if (res.status === 404) {
-        router.back(); // Redirect to the previous page if object not found
-      }
+    if (!res.success) {
       setObject(null);
+      setIsLoading(false);
+      if (res.status === 404) setNotFound(true);
+      else toast.error(res.error_message || "Couldn't load this object");
+      return;
     }
-
-    const acl = await getObjectACL(fullPath);
-    if (acl) {
-      const filteredGrants = filterGrants(acl.Grants);
-      acl.Grants = filteredGrants;
-      setObjectACL(acl);
-    }
-
+    setObject(res.data);
     setIsLoading(false);
-
-    // Generate preview URL after loading completes
-    const presign = await generatePresignedUrl(fullPath);
-    if (presign?.url) {
-      setPreviewUrl(presign.url);
-    }
-  }, [
-    sessionReady,
-    currentSession,
-    fullPath,
-    router,
-    filterGrants,
-    getObjectACL,
-  ]);
+    loadAcl();
+    const presign = await reqFetchObjectPresign(fullPath);
+    if (presign.success) setPreviewUrl(presign.data.url);
+  }, [fullPath, loadAcl]);
 
   useEffect(() => {
-    // Don't initialize if session has changed (we'll be redirecting)
-    const sessionChanged =
-      currentSession?.bucket &&
-      initialSessionBucket !== null &&
-      currentSession.bucket !== initialSessionBucket;
+    if (session && openedUnder.current === session.id) load();
+    // session.id, not session: see the explorer
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id, fullPath]);
 
-    if (sessionReady && !sessionChanged) {
-      initialize();
+  const handleAccess = async (newAcl: string) => {
+    setBusy(true);
+    const res = await reqPutObjectACL(fullPath, newAcl);
+    setBusy(false);
+    if (!res.success) {
+      toast.error(res.error_message || "Failed to update access");
+      return;
     }
-  }, [
-    fullPath,
-    sessionReady,
-    currentSession,
-    router,
-    initialize,
-    currentSession?.bucket,
-    initialSessionBucket,
-  ]);
+    toast.success(
+      newAcl === "public-read"
+        ? "Object is now public"
+        : "Object is now private",
+    );
+    setObject((o) =>
+      o ? { ...o, Metadata: { ...o.Metadata, Acl: newAcl } } : o,
+    );
+    setModal(null);
+    loadAcl();
+  };
 
-  // Redirect to root when session changes (but not on initial load)
-  useEffect(() => {
-    if (
-      currentSession?.bucket &&
-      initialSessionBucket !== null &&
-      currentSession.bucket !== initialSessionBucket
-    ) {
-      router.push("/");
+  const handleMove = async (newPath: string) => {
+    setBusy(true);
+    const res = await reqPutRenameObject(fullPath, newPath);
+    setBusy(false);
+    if (!res.success) {
+      toast.error(res.error_message || "Failed to move object");
+      return;
     }
-  }, [currentSession?.bucket, initialSessionBucket, router]);
+    toast.success(`Saved as ${baseName(newPath)}`);
+    setModal(null);
+    router.replace(objectHref(newPath));
+  };
 
-  // Show loading spinner while waiting for session
-  if (!sessionReady || !currentSession) {
+  const handleDelete = async () => {
+    setBusy(true);
+    const res = await reqDeleteObject(fullPath);
+    setBusy(false);
+    if (!res.success) {
+      toast.error(res.error_message || "Failed to delete object");
+      return;
+    }
+    toast.success(`Deleted ${baseName(fullPath)}`);
+    setModal(null);
+    // Not router.back(): this page is often opened from a shared link, and
+    // "back" would leave the app entirely.
+    router.push(explorerHref(parentPrefix(fullPath)));
+  };
+
+  if (!session) {
     return (
-      <main className="w-full h-[calc(100vh-80px)] flex items-center justify-center gap-2 text-slate-500 dark:text-slate-400">
+      <div className="flex items-center justify-center gap-2 py-24 text-sm text-secondary">
         <Spinner />
-        <span className="text-sm">Waiting for session...</span>
-      </main>
+        Loading session…
+      </div>
     );
   }
 
   return (
-    <main className="w-full min-h-[calc(100vh-80px)] h-fit mb-10">
-      <div className="flex flex-col gap-5">
-        <ObjectInspectPanel
-          object={object}
-          objectACL={objectACL}
-          fullPath={fullPath}
-          previewUrl={previewUrl}
-          endpoint={currentSession.endpoint}
-          bucket={currentSession.bucket}
-          isLoading={isLoading}
-          onBack={() => {
-            const parentPath = getParentPath(fullPath);
-            router.push(
-              parentPath ? `/?folder=${encodeURIComponent(parentPath)}` : "/",
-            );
-          }}
-          onRename={() => setIsRenameOpen(true)}
-          onMove={() => setIsMoveOpen(true)}
-          onChangeAccess={() => setIsChangeAccessOpen(true)}
-          onPreview={viewObject}
-          onDelete={() => setIsDeleteModalOpen(true)}
-        />
-      </div>
+    <div className="pb-16">
+      <ObjectInspectPanel
+        object={object}
+        objectACL={acl}
+        fullPath={fullPath}
+        previewUrl={previewUrl}
+        publicUrl={publicObjectUrl(session, fullPath)}
+        isLoading={isLoading}
+        notFound={notFound}
+        onRename={() => setModal("rename")}
+        onMove={() => setModal("move")}
+        onChangeAccess={() => setModal("access")}
+        onOpen={async () => {
+          if (!(await openObject(fullPath)))
+            toast.error("Couldn't open this object");
+        }}
+        onDownload={async () => {
+          if (!(await downloadObject(fullPath, object?.ContentLength)))
+            toast.error("Download failed");
+        }}
+        onCopyLink={() =>
+          copyObjectLink(session, fullPath, object?.Metadata?.Acl)
+        }
+        onDelete={() => setModal("delete")}
+      />
       <ChangeAccessModal
-        isOpen={isChangeAccessOpen}
-        onClose={() => setIsChangeAccessOpen(false)}
-        onConfirm={handleConfirmAccess}
+        isOpen={modal === "access"}
+        onClose={() => setModal(null)}
+        onConfirm={handleAccess}
         currentAcl={object?.Metadata?.Acl || "private"}
-        isLoading={isChangingAccess}
+        isLoading={busy}
       />
       <DeleteConfirmationModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={deleteObject}
+        isOpen={modal === "delete"}
+        onClose={() => setModal(null)}
+        onConfirm={handleDelete}
         items={[fullPath]}
-        isDeleting={isDeleting}
+        isDeleting={busy}
       />
       <RenameModal
-        isOpen={isRenameOpen}
-        onClose={() => setIsRenameOpen(false)}
-        onConfirm={renameObject}
+        isOpen={modal === "rename"}
+        onClose={() => setModal(null)}
+        onConfirm={handleMove}
         currentPath={fullPath}
-        isLoading={isRenaming}
+        isLoading={busy}
       />
       <MoveObjectModal
-        isOpen={isMoveOpen}
-        onClose={() => setIsMoveOpen(false)}
-        onConfirm={moveObject}
+        isOpen={modal === "move"}
+        onClose={() => setModal(null)}
+        onConfirm={handleMove}
         currentPath={fullPath}
-        isLoading={isMoving}
+        isLoading={busy}
       />
-    </main>
+    </div>
   );
 };
 

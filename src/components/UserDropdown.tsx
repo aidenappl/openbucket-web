@@ -1,28 +1,25 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import { useCallback, useRef, useState } from "react";
 import { User } from "@/types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronDown } from "@fortawesome/pro-solid-svg-icons";
+import { useDismiss } from "@/hooks/useDismiss";
 
 interface UserDropdownProps {
   user: User;
   onLogout: () => void;
 }
 
+const itemClass =
+  "block w-full px-3 py-2 text-left text-sm text-secondary transition-colors hover:bg-surface-alt hover:text-primary cursor-pointer";
+
 const UserDropdown = ({ user, onLogout }: UserDropdownProps) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(ref, open, close);
 
   const initials = (user.name ?? user.email)
     .split(" ")
@@ -34,55 +31,75 @@ const UserDropdown = ({ user, onLogout }: UserDropdownProps) => {
   return (
     <div className="relative" ref={ref}>
       <button
+        type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 cursor-pointer rounded-md px-2 py-1 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Account menu for ${user.name ?? user.email}`}
+        className="flex h-9 items-center gap-2 rounded-lg px-1.5 transition-colors hover:bg-surface-alt cursor-pointer"
       >
         {user.profile_image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={user.profile_image_url}
             alt=""
-            className="w-7 h-7 rounded-full object-cover"
+            className="h-7 w-7 rounded-full object-cover"
           />
         ) : (
-          <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-medium">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-xs font-medium text-white">
             {initials}
-          </div>
+          </span>
         )}
-        <span className="text-sm font-medium text-gray-700 dark:text-zinc-300 max-w-[120px] truncate">
+        <span className="hidden md:inline max-w-[140px] truncate text-sm font-medium text-secondary">
           {user.name ?? user.email}
         </span>
         <FontAwesomeIcon
           icon={faChevronDown}
-          className="text-[10px] text-gray-400"
+          className="hidden md:inline h-2.5 w-2.5 text-muted"
         />
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-1 w-48 rounded-md shadow-lg bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 z-50">
-          <div className="px-3 py-2 border-b border-gray-200 dark:border-zinc-700">
-            <p className="text-sm font-medium text-gray-900 dark:text-zinc-100 truncate">
+        <div
+          role="menu"
+          className="absolute right-0 z-50 mt-1.5 w-56 overflow-hidden rounded-lg border border-border-strong bg-surface shadow-lg"
+        >
+          <div className="border-b border-border px-3 py-2.5">
+            <p className="truncate text-sm font-medium text-primary">
               {user.name ?? "—"}
             </p>
-            <p className="text-xs text-gray-500 dark:text-zinc-400 truncate">
-              {user.email}
+            <p className="truncate text-xs text-muted">{user.email}</p>
+            <p className="mt-1 text-[11px] uppercase tracking-wider text-muted">
+              {user.role} · {user.auth_type === "sso" ? "SSO" : "Local"}
             </p>
           </div>
           <div className="py-1">
+            <Link
+              href="/account"
+              role="menuitem"
+              className={itemClass}
+              onClick={close}
+            >
+              Account
+            </Link>
             {user.role === "admin" && (
-              <a
+              <Link
                 href="/admin"
-                className="block px-3 py-1.5 text-sm text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700"
-                onClick={() => setOpen(false)}
+                role="menuitem"
+                className={itemClass}
+                onClick={close}
               >
                 Admin
-              </a>
+              </Link>
             )}
             <button
+              type="button"
+              role="menuitem"
               onClick={() => {
-                setOpen(false);
+                close();
                 onLogout();
               }}
-              className="w-full text-left px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-zinc-700 cursor-pointer"
+              className={`${itemClass} text-destructive! hover:text-destructive!`}
             >
               Sign out
             </button>

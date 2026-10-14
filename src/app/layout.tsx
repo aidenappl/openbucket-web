@@ -2,7 +2,6 @@
 
 import "./globals.css";
 import Navigation from "@/components/Navigation";
-import Footer from "@/components/Footer";
 import "@fortawesome/fontawesome-svg-core/styles.css";
 import "react-loading-skeleton/dist/skeleton.css";
 import { config } from "@fortawesome/fontawesome-svg-core";
@@ -15,7 +14,7 @@ import { usePathname } from "next/navigation";
 
 config.autoAddCss = false;
 
-// Routes that render their own full-screen shell (no nav/footer chrome).
+// Routes that render their own full-screen shell and <main> (no nav chrome).
 const BARE_ROUTES = ["/login"];
 
 export default function RootLayout({
@@ -53,24 +52,48 @@ export default function RootLayout({
         />
       </head>
       <body
-        className="bg-[var(--background)] text-[var(--foreground)] flex flex-col min-h-screen"
+        className="bg-background text-primary flex flex-col min-h-screen"
         suppressHydrationWarning={true}
       >
         <ThemeProvider>
           <StoreProvider>
             <AuthProvider>
-              <Toaster position="top-center" reverseOrder={false} />
+              {/* Styled through the token layer so toasts follow light/dark like
+                  everything else; the library default is a white card. */}
+              <Toaster
+                position="bottom-right"
+                toastOptions={{
+                  style: {
+                    background: "var(--surface-elevated)",
+                    color: "var(--text-primary)",
+                    border: "1px solid var(--border-strong)",
+                    fontSize: "0.875rem",
+                    maxWidth: "28rem",
+                  },
+                }}
+              />
+              {!isBare && (
+                <a
+                  href="#main"
+                  className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-accent focus:px-3 focus:py-1.5 focus:text-sm focus:font-medium focus:text-white"
+                >
+                  Skip to content
+                </a>
+              )}
               {!isBare && <Navigation />}
-              <div
-                className={
-                  isBare
-                    ? "flex-1"
-                    : "px-10 w-full max-w-[var(--max-page-width)] mx-auto flex-1"
-                }
-              >
-                <ClientOnly>{children}</ClientOnly>
-              </div>
-              {!isBare && <Footer />}
+              {isBare ? (
+                <div className="flex-1">
+                  <ClientOnly>{children}</ClientOnly>
+                </div>
+              ) : (
+                <main
+                  id="main"
+                  tabIndex={-1}
+                  className="mx-auto w-full max-w-[var(--max-page-width)] flex-1 px-4 pt-6 focus:outline-none sm:px-6 lg:px-10"
+                >
+                  <ClientOnly>{children}</ClientOnly>
+                </main>
+              )}
             </AuthProvider>
           </StoreProvider>
         </ThemeProvider>

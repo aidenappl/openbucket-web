@@ -54,7 +54,9 @@
   /* Text */
   --text-primary: #0a0a0b;
   --text-secondary: #52525b;
-  --text-muted: #7a7a82;
+  /* ≥4.5:1 on every light surface. Lattice's #7a7a82 measured 3.9:1 on the page
+     background, and muted text carries real information here (sizes, hints). */
+  --text-muted: #6b6b73;
   --text-dimmed: #a0a0a8;
   --text-subtle: #52525b;
 
@@ -106,7 +108,8 @@
 
   --text-primary: #ededf0;
   --text-secondary: #a0a0ab;
-  --text-muted: #6e6e78;
+  /* ≥4.5:1 on every dark surface up to surface-elevated (lattice's #6e6e78: 3.9:1). */
+  --text-muted: #8a8a94;
   --text-dimmed: #4a4a54;
   --text-subtle: #a0a0ab;
 
@@ -171,8 +174,13 @@
   --color-info: var(--info);
   --color-violet: var(--violet);
   --color-brand: var(--brand);
+  /* The translucent washes behind badges and selected states. Defined above but
+     never bridged, so `bg-info-bg` and friends silently rendered nothing. */
+  --color-healthy-bg: var(--healthy-bg);
+  --color-pending-bg: var(--pending-bg);
+  --color-failed-bg: var(--failed-bg);
+  --color-info-bg: var(--info-bg);
 }
-
 
 body {
   font-family: "Inter", sans-serif;

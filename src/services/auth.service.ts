@@ -3,7 +3,7 @@ import { ApiResponse, User, SSOConfig } from "@/types";
 
 const reqLogin = async (
   email: string,
-  password: string
+  password: string,
 ): Promise<ApiResponse<User>> => {
   return fetchApi<User>({
     url: "/auth/login",
@@ -40,4 +40,27 @@ const reqGetSSOConfig = async (): Promise<ApiResponse<SSOConfig>> => {
   });
 };
 
-export { reqLogin, reqRefresh, reqLogout, reqGetSelf, reqGetSSOConfig };
+export type UpdateSelfPayload = {
+  name?: string;
+  /** 8–128 characters (tools.ValidatePassword). Local accounts only. */
+  password?: string;
+};
+
+const reqUpdateSelf = async (
+  data: UpdateSelfPayload,
+): Promise<ApiResponse<User>> => {
+  return fetchApi<User>({
+    url: "/auth/self",
+    method: "PUT",
+    data,
+  });
+};
+
+export {
+  reqLogin,
+  reqRefresh,
+  reqLogout,
+  reqGetSelf,
+  reqUpdateSelf,
+  reqGetSSOConfig,
+};

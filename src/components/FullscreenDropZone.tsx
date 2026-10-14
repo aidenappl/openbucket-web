@@ -1,116 +1,87 @@
 "use client";
 
-import React, { useEffect, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCloudUpload, faFile } from "@fortawesome/pro-solid-svg-icons";
+import { faCloudArrowUp } from "@fortawesome/pro-solid-svg-icons";
 
 interface FullscreenDropZoneProps {
-  isActive: boolean;
-  onFileUpload: (file: File) => void;
-  onDragStateChange: (isActive: boolean) => void;
+  onFiles: (files: File[]) => void;
+  /** Where dropped files land, shown in the overlay. */
+  destination: string;
   disabled?: boolean;
 }
 
-const FullscreenDropZone: React.FC<FullscreenDropZoneProps> = ({
-  isActive,
-  onFileUpload,
-  onDragStateChange,
+/**
+ * Whole-window drop target for file uploads.
+ *
+ * The overlay is driven by an enter/leave depth counter: `dragleave` fires every
+ * time the pointer crosses a child element, so hiding on `!relatedTarget` (the
+ * old approach) flickered and could stick on in Safari.
+ */
+const FullscreenDropZone = ({
+  onFiles,
+  destination,
   disabled = false,
-}) => {
-  const handleDragEnter = useCallback(
-    (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      if (disabled) return;
-
-      if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
-        // Check if at least one item is a file
-        const hasFiles = Array.from(e.dataTransfer.items).some(
-          (item) => item.kind === "file",
-        );
-        if (hasFiles) {
-          onDragStateChange(true);
-        }
-      }
-    },
-    [disabled, onDragStateChange],
-  );
-
-  const handleDragOver = useCallback((e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }, []);
-
-  const handleDragLeave = useCallback(
-    (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Only hide if we're leaving the window entirely
-      if (!e.relatedTarget) {
-        onDragStateChange(false);
-      }
-    },
-    [onDragStateChange],
-  );
-
-  const handleDrop = useCallback(
-    (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      onDragStateChange(false);
-
-      if (disabled) return;
-
-      if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-        const files = Array.from(e.dataTransfer.files);
-        files.forEach((file) => onFileUpload(file));
-      }
-    },
-    [disabled, onFileUpload, onDragStateChange],
-  );
+}: FullscreenDropZoneProps) => {
+  const [active, setActive] = useState(false);
+  const depth = useRef(0);
 
   useEffect(() => {
     if (disabled) return;
+    const hasFiles = (e: DragEvent) =>
+      Array.from(e.dataTransfer?.types ?? []).includes("Files");
 
-    // Add event listeners to the entire document
-    document.addEventListener("dragenter", handleDragEnter);
-    document.addEventListener("dragover", handleDragOver);
-    document.addEventListener("dragleave", handleDragLeave);
-    document.addEventListener("drop", handleDrop);
-
-    return () => {
-      document.removeEventListener("dragenter", handleDragEnter);
-      document.removeEventListener("dragover", handleDragOver);
-      document.removeEventListener("dragleave", handleDragLeave);
-      document.removeEventListener("drop", handleDrop);
+    const onEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth.current += 1;
+      setActive(true);
     };
-  }, [handleDragEnter, handleDragOver, handleDragLeave, handleDrop, disabled]);
+    const onOver = (e: DragEvent) => {
+      if (hasFiles(e)) e.preventDefault();
+    };
+    const onLeave = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      depth.current = Math.max(0, depth.current - 1);
+      if (depth.current === 0) setActive(false);
+    };
+    const onDrop = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth.current = 0;
+      setActive(false);
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      if (files.length > 0) onFiles(files);
+    };
 
-  if (!isActive) return null;
+    document.addEventListener("dragenter", onEnter);
+    document.addEventListener("dragover", onOver);
+    document.addEventListener("dragleave", onLeave);
+    document.addEventListener("drop", onDrop);
+    return () => {
+      document.removeEventListener("dragenter", onEnter);
+      document.removeEventListener("dragover", onOver);
+      document.removeEventListener("dragleave", onLeave);
+      document.removeEventListener("drop", onDrop);
+    };
+  }, [disabled, onFiles]);
+
+  if (!active) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-xs">
-      <div className="w-full max-w-md p-12 mx-4 bg-white dark:bg-zinc-900 border-4 border-blue-500 border-dashed shadow-2xl rounded-2xl">
-        <div className="flex flex-col items-center justify-center space-y-6 text-center">
-          <div className="text-6xl text-blue-500 animate-bounce">
-            <FontAwesomeIcon icon={faFile} />
-          </div>
-
-          <div className="space-y-3">
-            <h2 className="text-2xl font-bold text-gray-800">
-              Drop files here
-            </h2>
-            <p className="text-gray-600">Release to upload to your bucket</p>
-          </div>
-
-          <div className="flex items-center space-x-2 text-sm text-gray-500">
-            <FontAwesomeIcon icon={faCloudUpload} />
-            <span>Multiple files supported</span>
-          </div>
-        </div>
+    <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl border-2 border-dashed border-accent bg-surface p-10 text-center shadow-lg">
+        <FontAwesomeIcon
+          icon={faCloudArrowUp}
+          className="h-10 w-10 text-accent"
+        />
+        <h2 className="mt-4 text-lg font-semibold text-primary">
+          Drop to upload
+        </h2>
+        <p className="mt-1 text-sm text-secondary">
+          Into{" "}
+          <span className="font-mono">{destination || "the bucket root"}</span>
+        </p>
       </div>
     </div>
   );
