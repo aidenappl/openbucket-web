@@ -12,6 +12,17 @@ import {
 import { reqPutObjectWithProgress } from "@/services/object.service";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5 GB
+const CONCURRENCY = 4;
+
+/** A file plus its key relative to the upload prefix (`a.jpg`, `photos/a.jpg`). */
+export type UploadEntry = { file: File; path: string };
+
+export const entriesFromFiles = (files: File[]): UploadEntry[] =>
+  files.map((file) => ({
+    file,
+    // Set by <input webkitdirectory>; empty for plain file picks.
+    path: file.webkitRelativePath || file.name,
+  }));
 
 // AbortControllers aren't serialisable, so they live beside the Redux slice
 // rather than in it. Keyed by upload id.
@@ -32,15 +43,19 @@ export const useUploader = () => {
   const dispatch = useDispatch();
 
   return useCallback(
-    (files: File[], prefix: string, onSettled?: () => void) => {
-      const pending: Promise<void>[] = [];
-      for (const file of files) {
+    (entries: UploadEntry[], prefix: string, onSettled?: () => void) => {
+      const queue: (() => Promise<void>)[] = [];
+      for (const { file, path } of entries) {
         if (file.size > MAX_FILE_SIZE) {
-          toast.error(`${file.name} is over the 5 GB limit`);
+          toast.error(`${path} is over the 5 GB limit`);
           continue;
         }
-        if (file.name.includes("..") || file.name.includes("\\")) {
-          toast.error(`${file.name}: invalid file name`);
+        if (
+          path.includes("..") ||
+          path.includes("\\") ||
+          path.startsWith("/")
+        ) {
+          toast.error(`${path}: invalid file name`);
           continue;
         }
 
@@ -50,7 +65,7 @@ export const useUploader = () => {
         dispatch(
           addUpload({
             id,
-            fileName: file.name,
+            fileName: path,
             size: file.size,
             prefix,
             progress: 0,
@@ -59,13 +74,21 @@ export const useUploader = () => {
           }),
         );
 
-        const p = reqPutObjectWithProgress({
-          file,
-          prefix,
-          signal: controller.signal,
-          onUploadProgress: (progress) =>
-            dispatch(updateProgress({ id, progress })),
-        }).then((res) => {
+        queue.push(async () => {
+          // Cancelled while still queued: never start it.
+          if (controller.signal.aborted) {
+            controllers.delete(id);
+            dispatch(markCanceled({ id }));
+            return;
+          }
+          const res = await reqPutObjectWithProgress({
+            file,
+            prefix,
+            key: path,
+            signal: controller.signal,
+            onUploadProgress: (progress) =>
+              dispatch(updateProgress({ id, progress })),
+          });
           controllers.delete(id);
           if (controller.signal.aborted) {
             dispatch(markCanceled({ id }));
@@ -75,9 +98,18 @@ export const useUploader = () => {
             dispatch(markError({ id, error: res.error_message || res.error }));
           }
         });
-        pending.push(p);
       }
-      if (pending.length > 0) Promise.all(pending).then(() => onSettled?.());
+      if (queue.length === 0) return;
+
+      // A dropped folder can hold hundreds of files; run a few at a time so
+      // the browser and the API aren't handed them all at once.
+      let next = 0;
+      const worker = async () => {
+        while (next < queue.length) await queue[next++]();
+      };
+      Promise.all(
+        Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker),
+      ).then(() => onSettled?.());
     },
     [dispatch],
   );

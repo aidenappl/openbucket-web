@@ -136,7 +136,7 @@ were deleted in the same change. Don't reintroduce PascalCase duplicates of `ui/
 
 | Route | File | What it does |
 |---|---|---|
-| `/` | `page.tsx` | Explorer — `?folder=<prefix>` (pushed, so Back goes up a folder). List (sortable, filter with `/`) or grid (lazy image thumbnails); multi-select with Shift ranges and ⌘/Ctrl+A; bulk access/download/delete; per-row menu (details, open, download, copy link, access, rename, delete); upload button + whole-window drop with overwrite prompt; new folder in the current prefix |
+| `/` | `page.tsx` | Explorer — `?folder=<prefix>` (pushed, so Back goes up a folder). List (sortable, filter with `/`) or grid (lazy image thumbnails); multi-select with Shift ranges and ⌘/Ctrl+A; bulk access/download/move/delete; per-row menu (details, open, download, copy link, share link…, access, rename, move to…, delete); upload files or a folder (button or whole-window drop; folders keep their structure) with overwrite prompt; new folder in the current prefix. Move uses a folder-browser dialog and skips name clashes unless Replace is ticked |
 | `/object/[...object]` | `object/[...object]/page.tsx` | Single object — download, open, copy link (public URL or 24h signed), access, rename, move, delete; details incl. public URL, grants, metadata; preview |
 | `/sessions` | `sessions/page.tsx` | Bucket sessions — create/edit/remove, filter, active marker; new/edited sessions are probed (folder list) so bad keys are reported at once |
 | `/account` | `account/page.tsx` | Own profile — display name; password for local accounts (`PUT /auth/self`) |
@@ -190,6 +190,17 @@ the fix; this is the index.
   folder-marker key — "is a directory"), so the folder menu has no Rename; folder **delete**
   (multi-object delete) can answer 200 while objects stay listed (files removed, metadata rows
   kept), so the explorer re-lists after a folder delete and says so if anything remains.
+- **Presigned URLs are capped at 24 h, and over-cap requests silently become 1 h**
+  (`HandlePresign` resets anything above 86400 to 3600 instead of clamping). The share dialog only
+  offers 15 min / 1 h / 1 day and shows the expiry the API reports (`data.expiration`), never the
+  one requested — a "7 days" option produced 1-hour links labelled 7-day.
+- **Rename/move can't overwrite.** openbucket-go's CopyObject refuses an existing destination
+  (`ObjectAlreadyExists`, surfaced as 500 "Unknown error"), unlike S3. Move-with-replace deletes
+  the target first, then renames; the source is untouched until the rename succeeds.
+- **Upload keys may contain `/`.** Folder uploads send `key=<relative path>` with the current
+  `prefix`; the API only rejects `..`, a leading `/` and NUL. Folder markers aren't created, so a
+  folder exists while it has objects and vanishes when emptied. Uploads run 4 at a time
+  (`useUploader`); a dropped folder is walked with `webkitGetAsEntry` (`tools/dropEntries.tools.ts`).
 
 ## 6. Domain & architecture
 

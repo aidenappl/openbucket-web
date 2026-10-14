@@ -3,16 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCloudArrowUp } from "@fortawesome/pro-solid-svg-icons";
+import type { UploadEntry } from "@/hooks/useUploader";
+import { readDropped } from "@/tools/dropEntries.tools";
 
 interface FullscreenDropZoneProps {
-  onFiles: (files: File[]) => void;
+  /** Files and folders; folder contents keep their relative paths. */
+  onFiles: (entries: UploadEntry[]) => void;
   /** Where dropped files land, shown in the overlay. */
   destination: string;
   disabled?: boolean;
 }
 
 /**
- * Whole-window drop target for file uploads.
+ * Whole-window drop target for file and folder uploads.
  *
  * The overlay is driven by an enter/leave depth counter: `dragleave` fires every
  * time the pointer crosses a child element, so hiding on `!relatedTarget` (the
@@ -50,8 +53,10 @@ const FullscreenDropZone = ({
       e.preventDefault();
       depth.current = 0;
       setActive(false);
-      const files = Array.from(e.dataTransfer?.files ?? []);
-      if (files.length > 0) onFiles(files);
+      if (!e.dataTransfer) return;
+      readDropped(e.dataTransfer).then((entries) => {
+        if (entries.length > 0) onFiles(entries);
+      });
     };
 
     document.addEventListener("dragenter", onEnter);
@@ -76,7 +81,7 @@ const FullscreenDropZone = ({
           className="h-10 w-10 text-accent"
         />
         <h2 className="mt-4 text-lg font-semibold text-primary">
-          Drop to upload
+          Drop files or folders to upload
         </h2>
         <p className="mt-1 text-sm text-secondary">
           Into{" "}

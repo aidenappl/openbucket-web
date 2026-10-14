@@ -12,6 +12,7 @@ import {
   faLock,
   faPen,
   faRightLeft,
+  faShareNodes,
   faTrash,
 } from "@fortawesome/pro-solid-svg-icons";
 import { ObjectACLResponse, ObjectHead } from "@/types";
@@ -43,6 +44,8 @@ interface ObjectInspectPanelProps {
   onOpen: () => void;
   onDownload: () => void;
   onCopyLink: () => void;
+  /** Opens the share dialog (signed link with a chosen lifetime). */
+  onShare: () => void;
   onDelete: () => void;
 }
 
@@ -88,6 +91,7 @@ const ObjectInspectPanel = ({
   onOpen,
   onDownload,
   onCopyLink,
+  onShare,
   onDelete,
 }: ObjectInspectPanelProps) => {
   const filename = baseName(fullPath);
@@ -164,6 +168,12 @@ const ObjectInspectPanel = ({
                 label="More actions"
                 className="border border-border-strong"
                 items={[
+                  {
+                    label: "Share link…",
+                    icon: faShareNodes,
+                    onSelect: onShare,
+                  },
+                  "separator",
                   { label: "Rename", icon: faPen, onSelect: onRename },
                   { label: "Move", icon: faRightLeft, onSelect: onMove },
                   "separator",
