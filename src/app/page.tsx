@@ -29,7 +29,7 @@ import { MoveToFolderModal } from "@/components/MoveToFolderModal";
 import { entriesFromFiles, UploadEntry } from "@/hooks/useUploader";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
 import { useAuthContext } from "@/context/AuthContext";
-import { usePermissions } from "@/hooks/usePermissions";
+import { useCanWrite, usePermissions } from "@/hooks/usePermissions";
 import { ListedObject, useBucketData } from "@/hooks/useBucketData";
 import { useSelection } from "@/hooks/useSelection";
 import { useSort } from "@/hooks/useSort";
@@ -120,6 +120,8 @@ const Explorer = () => {
   const searchParams = useSearchParams();
   const session = useSelector(selectCurrentSession);
   const { isLoggedIn, isLoading: authLoading } = useAuthContext();
+  // Viewers browse, download and share; every write control is hidden.
+  const canWrite = useCanWrite();
   const { hasAPI } = usePermissions();
   const { format, setFormat } = useViewFormat();
   const prefix = normalizePrefix(searchParams.get("folder"));
@@ -465,13 +467,17 @@ const Explorer = () => {
   // handles folder keys — add the item back once the storage server is fixed.
   const folderMenu = (f: string): MenuItem[] => [
     { label: "Open", icon: faFolderOpen, onSelect: () => goTo(f) },
-    "separator",
-    {
-      label: "Delete",
-      icon: faTrash,
-      destructive: true,
-      onSelect: () => openDelete([f]),
-    },
+    ...(canWrite
+      ? ([
+          "separator",
+          {
+            label: "Delete",
+            icon: faTrash,
+            destructive: true,
+            onSelect: () => openDelete([f]),
+          },
+        ] as MenuItem[])
+      : []),
   ];
 
   const objectMenu = (o: ListedObject): MenuItem[] => [
@@ -497,24 +503,32 @@ const Explorer = () => {
       icon: faShareNodes,
       onSelect: () => setShareKey(o.Key),
     },
-    "separator",
-    {
-      label: "Change access",
-      icon: faLock,
-      onSelect: () => setAclKeys([o.Key]),
-    },
-    { label: "Rename", icon: faPen, onSelect: () => setRenameKey(o.Key) },
-    {
-      label: "Move to…",
-      icon: faRightLeft,
-      onSelect: () => setMoveKeys([o.Key]),
-    },
-    {
-      label: "Delete",
-      icon: faTrash,
-      destructive: true,
-      onSelect: () => openDelete([o.Key]),
-    },
+    ...(canWrite
+      ? ([
+          "separator",
+          {
+            label: "Change access",
+            icon: faLock,
+            onSelect: () => setAclKeys([o.Key]),
+          },
+          {
+            label: "Rename",
+            icon: faPen,
+            onSelect: () => setRenameKey(o.Key),
+          },
+          {
+            label: "Move to…",
+            icon: faRightLeft,
+            onSelect: () => setMoveKeys([o.Key]),
+          },
+          {
+            label: "Delete",
+            icon: faTrash,
+            destructive: true,
+            onSelect: () => openDelete([o.Key]),
+          },
+        ] as MenuItem[])
+      : []),
   ];
 
   // ── Keyboard: "/" focuses search, Esc clears selection, ⌘/Ctrl+A selects all ──
@@ -642,29 +656,42 @@ const Explorer = () => {
             )}
           </p>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <Button variant="secondary" onClick={() => setCreateOpen(true)}>
-            <FontAwesomeIcon icon={faFolderPlus} className="mr-2 h-3.5 w-3.5" />
-            New folder
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => folderInputRef.current?.click()}
+        {canWrite ? (
+          <div className="flex shrink-0 gap-2">
+            <Button variant="secondary" onClick={() => setCreateOpen(true)}>
+              <FontAwesomeIcon
+                icon={faFolderPlus}
+                className="mr-2 h-3.5 w-3.5"
+              />
+              New folder
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => folderInputRef.current?.click()}
+            >
+              <FontAwesomeIcon
+                icon={faFolderArrowUp}
+                className="mr-2 h-3.5 w-3.5"
+              />
+              Upload folder
+            </Button>
+            <Button onClick={() => fileInputRef.current?.click()}>
+              <FontAwesomeIcon
+                icon={faCloudArrowUp}
+                className="mr-2 h-3.5 w-3.5"
+              />
+              Upload
+            </Button>
+          </div>
+        ) : (
+          <span
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border-strong px-2.5 py-1 text-xs font-medium text-secondary"
+            title="Your role is Viewer. Ask an admin for Editor access to upload or change files."
           >
-            <FontAwesomeIcon
-              icon={faFolderArrowUp}
-              className="mr-2 h-3.5 w-3.5"
-            />
-            Upload folder
-          </Button>
-          <Button onClick={() => fileInputRef.current?.click()}>
-            <FontAwesomeIcon
-              icon={faCloudArrowUp}
-              className="mr-2 h-3.5 w-3.5"
-            />
-            Upload
-          </Button>
-        </div>
+            <FontAwesomeIcon icon={faLock} className="h-3 w-3" />
+            Read-only
+          </span>
+        )}
       </div>
 
       {/* Toolbar */}
@@ -678,15 +705,17 @@ const Explorer = () => {
             <span className="mr-1 text-sm font-medium text-primary">
               {selCount} selected
             </span>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={selectedObjects.length === 0}
-              onClick={() => setAclKeys(selectedObjects)}
-            >
-              <FontAwesomeIcon icon={faLock} className="mr-1.5 h-3 w-3" />
-              Change access
-            </Button>
+            {canWrite && (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={selectedObjects.length === 0}
+                onClick={() => setAclKeys(selectedObjects)}
+              >
+                <FontAwesomeIcon icon={faLock} className="mr-1.5 h-3 w-3" />
+                Change access
+              </Button>
+            )}
             <Button
               size="sm"
               variant="secondary"
@@ -696,23 +725,30 @@ const Explorer = () => {
               <FontAwesomeIcon icon={faDownload} className="mr-1.5 h-3 w-3" />
               Download
             </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={selectedObjects.length === 0}
-              onClick={() => setMoveKeys(selectedObjects)}
-            >
-              <FontAwesomeIcon icon={faRightLeft} className="mr-1.5 h-3 w-3" />
-              Move
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => openDelete(selection.selectedKeys)}
-            >
-              <FontAwesomeIcon icon={faTrash} className="mr-1.5 h-3 w-3" />
-              Delete
-            </Button>
+            {canWrite && (
+              <>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={selectedObjects.length === 0}
+                  onClick={() => setMoveKeys(selectedObjects)}
+                >
+                  <FontAwesomeIcon
+                    icon={faRightLeft}
+                    className="mr-1.5 h-3 w-3"
+                  />
+                  Move
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => openDelete(selection.selectedKeys)}
+                >
+                  <FontAwesomeIcon icon={faTrash} className="mr-1.5 h-3 w-3" />
+                  Delete
+                </Button>
+              </>
+            )}
             <Button size="sm" variant="ghost" onClick={selection.clear}>
               Clear
             </Button>
@@ -840,17 +876,18 @@ const Explorer = () => {
             ) : nothingHere ? (
               <EmptyState
                 message={
-                  prefix
-                    ? "This folder is empty. Drop files anywhere to upload."
-                    : "This bucket is empty. Drop files anywhere to upload."
+                  (prefix ? "This folder is empty." : "This bucket is empty.") +
+                  (canWrite ? " Drop files anywhere to upload." : "")
                 }
                 action={
-                  <Button
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Upload files
-                  </Button>
+                  canWrite ? (
+                    <Button
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Upload files
+                    </Button>
+                  ) : undefined
                 }
               />
             ) : noMatches ? (
@@ -998,8 +1035,10 @@ const Explorer = () => {
             <div className="rounded-lg border border-border bg-surface px-4 py-12 text-center text-sm text-muted">
               {noMatches ? (
                 <>Nothing in this folder matches “{query}”.</>
-              ) : (
+              ) : canWrite ? (
                 "This folder is empty. Drop files anywhere to upload."
+              ) : (
+                "This folder is empty."
               )}
             </div>
           ) : (
@@ -1110,7 +1149,11 @@ const Explorer = () => {
         }}
       />
 
-      <FullscreenDropZone onFiles={startUpload} destination={prefix} />
+      <FullscreenDropZone
+        onFiles={startUpload}
+        destination={prefix}
+        disabled={!canWrite}
+      />
 
       {shareKey && session && (
         <ShareLinkModal

@@ -25,7 +25,8 @@ import {
   parentPrefix,
 } from "@/tools/objectUrl.tools";
 import { Button } from "@/components/ui/button";
-import { Menu } from "@/components/ui/menu";
+import { Menu, MenuItem } from "@/components/ui/menu";
+import { useCanWrite } from "@/hooks/usePermissions";
 import { CopyButton } from "@/components/ui/copy-button";
 import { iconForKey } from "@/components/ObjectThumb";
 import { cn } from "@/lib/utils";
@@ -94,6 +95,8 @@ const ObjectInspectPanel = ({
   onShare,
   onDelete,
 }: ObjectInspectPanelProps) => {
+  // Viewers get read actions only; the API rejects their writes anyway.
+  const canWrite = useCanWrite();
   const filename = baseName(fullPath);
   const parent = parentPrefix(fullPath);
   const previewType = getPreviewType(object?.ContentType);
@@ -160,10 +163,12 @@ const ObjectInspectPanel = ({
                 <FontAwesomeIcon icon={faLink} className="mr-2 h-3.5 w-3.5" />
                 Copy link
               </Button>
-              <Button variant="secondary" onClick={onChangeAccess}>
-                <FontAwesomeIcon icon={faLock} className="mr-2 h-3.5 w-3.5" />
-                Access
-              </Button>
+              {canWrite && (
+                <Button variant="secondary" onClick={onChangeAccess}>
+                  <FontAwesomeIcon icon={faLock} className="mr-2 h-3.5 w-3.5" />
+                  Access
+                </Button>
+              )}
               <Menu
                 label="More actions"
                 className="border border-border-strong"
@@ -173,16 +178,20 @@ const ObjectInspectPanel = ({
                     icon: faShareNodes,
                     onSelect: onShare,
                   },
-                  "separator",
-                  { label: "Rename", icon: faPen, onSelect: onRename },
-                  { label: "Move", icon: faRightLeft, onSelect: onMove },
-                  "separator",
-                  {
-                    label: "Delete",
-                    icon: faTrash,
-                    destructive: true,
-                    onSelect: onDelete,
-                  },
+                  ...(canWrite
+                    ? ([
+                        "separator",
+                        { label: "Rename", icon: faPen, onSelect: onRename },
+                        { label: "Move", icon: faRightLeft, onSelect: onMove },
+                        "separator",
+                        {
+                          label: "Delete",
+                          icon: faTrash,
+                          destructive: true,
+                          onSelect: onDelete,
+                        },
+                      ] as MenuItem[])
+                    : []),
                 ]}
               />
             </div>
@@ -229,14 +238,16 @@ const ObjectInspectPanel = ({
                     <span className="break-all font-mono text-xs leading-5">
                       {fullPath}
                     </span>
-                    <button
-                      type="button"
-                      onClick={onRename}
-                      aria-label="Rename"
-                      className="shrink-0 rounded p-1 text-muted hover:bg-surface-elevated hover:text-primary cursor-pointer"
-                    >
-                      <FontAwesomeIcon icon={faPen} className="h-3 w-3" />
-                    </button>
+                    {canWrite && (
+                      <button
+                        type="button"
+                        onClick={onRename}
+                        aria-label="Rename"
+                        className="shrink-0 rounded p-1 text-muted hover:bg-surface-elevated hover:text-primary cursor-pointer"
+                      >
+                        <FontAwesomeIcon icon={faPen} className="h-3 w-3" />
+                      </button>
+                    )}
                   </span>
                 </Row>
                 <Row label="Access">
@@ -255,13 +266,15 @@ const ObjectInspectPanel = ({
                       />
                       {isPublic ? "Public read" : acl ? "Private" : "Unknown"}
                     </span>
-                    <button
-                      type="button"
-                      onClick={onChangeAccess}
-                      className="text-xs font-medium text-accent hover:underline cursor-pointer"
-                    >
-                      Change
-                    </button>
+                    {canWrite && (
+                      <button
+                        type="button"
+                        onClick={onChangeAccess}
+                        className="text-xs font-medium text-accent hover:underline cursor-pointer"
+                      >
+                        Change
+                      </button>
+                    )}
                   </span>
                 </Row>
                 {isPublic && (
