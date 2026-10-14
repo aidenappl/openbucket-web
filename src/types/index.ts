@@ -58,6 +58,14 @@ type ApiSuccess<T> = {
   status: number;
   message: string;
   data: T;
+  /** Present on capped listings (GET /objects, /folders). */
+  pagination?: ListTruncation;
+};
+
+/** openbucket-api's `pagination` block for listings capped at `limit` entries. */
+type ListTruncation = {
+  truncated: boolean;
+  limit: number;
 };
 
 // Generic error response
@@ -171,4 +179,5 @@ export type {
   BulkACLResult,
   ApiSuccess,
   ApiError,
+  ListTruncation,
 };

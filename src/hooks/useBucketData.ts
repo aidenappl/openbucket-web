@@ -12,7 +12,15 @@ export type ListedObject = S3ObjectMetadata & {
   head?: ObjectHead | null;
 };
 
-type Listing = { folders: string[]; objects: ListedObject[] };
+type Listing = {
+  folders: string[];
+  objects: ListedObject[];
+  /**
+   * Set when the API capped either list (`pagination.truncated`): only the
+   * first `limit` folders / objects are here and the UI must say so.
+   */
+  truncatedAt?: number;
+};
 
 const listings = new ViewCache<Listing>();
 
@@ -107,7 +115,15 @@ export const useBucketData = (sessionId: number | null, prefix: string) => {
         ? { ...o, head: prev.head }
         : o;
     });
-    const fresh: Listing = { folders: foldersRes.data ?? [], objects: list };
+    const capped = [foldersRes, objectsRes].find(
+      (r) => r.success && r.pagination?.truncated,
+    );
+    const fresh: Listing = {
+      folders: foldersRes.data ?? [],
+      objects: list,
+      truncatedAt:
+        capped && capped.success ? capped.pagination?.limit : undefined,
+    };
     listings.set(k, fresh);
     patch({ data: fresh, refreshing: list.length > 0 });
     if (list.length === 0) return;
@@ -117,6 +133,7 @@ export const useBucketData = (sessionId: number | null, prefix: string) => {
     // Matched by index: the API returns heads in request order. On a failed
     // bulk call, keep any carried-over heads rather than blanking them.
     const withHeads: Listing = {
+      ...fresh,
       folders: fresh.folders,
       objects: list.map((o, i) => ({
         ...o,
@@ -132,6 +149,7 @@ export const useBucketData = (sessionId: number | null, prefix: string) => {
     objects: current.data?.objects ?? null,
     error: current.error,
     refreshing: current.refreshing,
+    truncatedAt: current.data?.truncatedAt,
     loadBucketData,
   };
 };

@@ -81,7 +81,7 @@ axios_api.interceptors.response.use(async (response) => {
 });
 
 const fetchApi = async <T>(
-  config: AxiosRequestConfig
+  config: AxiosRequestConfig,
 ): Promise<ApiResponse<T>> => {
   try {
     const response = await axios_api.request(config);
@@ -92,6 +92,10 @@ const fetchApi = async <T>(
         status: response.status,
         message: response.data.message,
         data: response.data.data as T,
+        // Only when the API sent one, so ordinary responses keep their shape.
+        ...(response.data.pagination
+          ? { pagination: response.data.pagination }
+          : {}),
       };
     }
 

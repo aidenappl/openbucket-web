@@ -174,8 +174,14 @@ the fix; this is the index.
   `a/b/` created it at the root. Prefixes are normalised (no leading `/`, one trailing `/`) by
   `normalizePrefix` — `GET /folders` does **not** normalise, and `?folder=a/b` listed `b` inside itself.
 - **Bulk HEAD and bulk ACL take at most 100 keys** ("batch size exceeds maximum of 100").
-  `reqFetchBulkObjectHead`/`reqPutBulkObjectACL` chunk. Bulk HEAD returns results **in request
+  `reqFetchBulkObjectHead`/`reqPutBulkObjectACL` chunk, and run 4 chunks at a time
+  (`mapLimited`) — a 10,000-object folder is 100 batches. Bulk HEAD returns results **in request
   order** with `null` gaps — match by index, never by ETag (identical files share one).
+- **Listings are capped at 10,000 and say so.** `GET /objects` / `GET /folders` add
+  `pagination: {truncated, limit}`; `fetchApi` passes it through as `ApiSuccess.pagination`, and
+  the explorer shows a "only the first N" warning (`useBucketData().truncatedAt`). Until October
+  2026 listings actually stopped at **1,000** with no signal — openbucket-go never returned a
+  continuation token (fixed in openbucket-go#29) — so `atlas/hotels/` showed 994 of 2,993 folders.
 - **Downloads stream through the API** (`GET /core/v1/{id}/object`, `reqDownloadObject`). The
   storage CDNs send **no CORS headers**, so `fetch()` of a presigned URL is blocked — the old
   Download button did nothing for every file. Files over 200 MB open a presigned URL instead (the
@@ -190,10 +196,9 @@ the fix; this is the index.
   folder-marker key — "is a directory"), so the folder menu has no Rename; folder **delete**
   (multi-object delete) can answer 200 while objects stay listed (files removed, metadata rows
   kept), so the explorer re-lists after a folder delete and says so if anything remains.
-- **Presigned URLs are capped at 24 h, and over-cap requests silently become 1 h**
-  (`HandlePresign` resets anything above 86400 to 3600 instead of clamping). The share dialog only
-  offers 15 min / 1 h / 1 day and shows the expiry the API reports (`data.expiration`), never the
-  one requested — a "7 days" option produced 1-hour links labelled 7-day.
+- **Presigned URLs are capped at 24 h.** Over-cap requests are clamped to 24 h (until
+  openbucket-api#16 they silently became 1 h). The share dialog offers 15 min / 1 h / 1 day and
+  shows the expiry the API reports (`data.expiration`), never the one requested.
 - **Rename/move can't overwrite.** openbucket-go's CopyObject refuses an existing destination
   (`ObjectAlreadyExists`, surfaced as 500 "Unknown error"), unlike S3. Move-with-replace deletes
   the target first, then renames; the source is untouched until the rename succeeds.
