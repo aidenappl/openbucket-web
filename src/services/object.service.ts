@@ -28,6 +28,31 @@ interface PutObjectOptions {
 // blank the ACL column for any folder holding more than 100 objects.
 const BULK_BATCH_SIZE = 100;
 
+// Bulk calls run this many batches at a time. A 10,000-object folder is 100
+// HEAD batches; firing them all at once swamped the API and the browser's
+// connection pool.
+const BULK_CONCURRENCY = 4;
+
+/** Map with at most `limit` promises in flight; results keep input order. */
+const mapLimited = async <T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> => {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker),
+  );
+  return out;
+};
+
 const chunk = <T>(items: T[], size: number): T[][] => {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size)
@@ -202,14 +227,15 @@ const reqFetchBulkObjectHead = async (
 ): Promise<ApiResponse<(ObjectHead | null)[]>> => {
   const id = getSessionId();
   if (id === null) return noSession();
-  const batches = await Promise.all(
-    chunk(keys, BULK_BATCH_SIZE).map((batch) =>
+  const batches = await mapLimited(
+    chunk(keys, BULK_BATCH_SIZE),
+    BULK_CONCURRENCY,
+    (batch) =>
       fetchApi<(ObjectHead | null)[]>({
         url: `/core/v1/${id}/object/head?bulk`,
         method: "POST",
         data: { keys: batch },
       }),
-    ),
   );
   const failed = batches.find((b) => !b.success);
   if (failed && !failed.success) return failed;
@@ -227,14 +253,15 @@ const reqPutBulkObjectACL = async (
 ): Promise<ApiResponse<BulkACLResult[]>> => {
   const id = getSessionId();
   if (id === null) return noSession();
-  const batches = await Promise.all(
-    chunk(keys, BULK_BATCH_SIZE).map((batch) =>
+  const batches = await mapLimited(
+    chunk(keys, BULK_BATCH_SIZE),
+    BULK_CONCURRENCY,
+    (batch) =>
       fetchApi<BulkACLResult[]>({
         url: `/core/v1/${id}/object/acl?bulk`,
         method: "POST",
         data: { keys: batch, acl: acl.toLowerCase().trim() },
       }),
-    ),
   );
   const failed = batches.find((b) => !b.success);
   if (failed && !failed.success) return failed;
