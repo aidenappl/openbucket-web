@@ -114,12 +114,14 @@ const Explorer = () => {
   const { isLoggedIn, isLoading: authLoading } = useAuthContext();
   const { hasAPI } = usePermissions();
   const { format, setFormat } = useViewFormat();
-  const { folders, objects, error, loadBucketData } = useBucketData();
+  const prefix = normalizePrefix(searchParams.get("folder"));
+  const { folders, objects, error, refreshing, loadBucketData } = useBucketData(
+    session?.id ?? null,
+    prefix,
+  );
   const upload = useUploader();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-
-  const prefix = normalizePrefix(searchParams.get("folder"));
   const [query, setQuery] = useState("");
 
   // Modal state
@@ -137,12 +139,11 @@ const Explorer = () => {
     clashes: string[];
   } | null>(null);
 
-  const reload = useCallback(
-    (quiet = false) => {
-      if (session) loadBucketData(prefix, { quiet });
-    },
-    [session, prefix, loadBucketData],
-  );
+  // Always a background refresh: whatever is on screen (cached or current)
+  // stays until the fresh listing replaces it.
+  const reload = useCallback(() => {
+    loadBucketData();
+  }, [loadBucketData]);
 
   useEffect(() => {
     setQuery("");
@@ -236,7 +237,7 @@ const Explorer = () => {
         setOverwrite({ files, clashes });
         return;
       }
-      upload(files, prefix, () => reload(true));
+      upload(files, prefix, () => reload());
     },
     [session, objects, upload, prefix, reload],
   );
@@ -251,7 +252,7 @@ const Explorer = () => {
     }
     toast.success(`Folder “${name}” created`);
     setCreateOpen(false);
-    reload(true);
+    reload();
   };
 
   const openDelete = async (keys: string[]) => {
@@ -323,7 +324,7 @@ const Explorer = () => {
     }
     setDeleteKeys(null);
     selection.clear();
-    reload(true);
+    reload();
   };
 
   const confirmAcl = async (acl: string) => {
@@ -343,7 +344,7 @@ const Explorer = () => {
         `Access updated for ${aclKeys.length} object${aclKeys.length === 1 ? "" : "s"}`,
       );
     setAclKeys(null);
-    reload(true);
+    reload();
   };
 
   const confirmRename = async (newKey: string) => {
@@ -360,7 +361,7 @@ const Explorer = () => {
     toast.success(`Renamed to “${baseName(newKey)}”`);
     setRenameKey(null);
     selection.clear();
-    reload(true);
+    reload();
   };
 
   const downloadSelected = async () => {
@@ -625,12 +626,17 @@ const Explorer = () => {
             size="sm"
             variant="ghost"
             onClick={() => reload()}
-            aria-label="Refresh"
-            title="Refresh"
+            aria-label={refreshing ? "Refreshing" : "Refresh"}
+            title={refreshing ? "Refreshing…" : "Refresh"}
           >
+            {/* Spins during background revalidation too — the only sign a
+                cached listing is being replaced. */}
             <FontAwesomeIcon
               icon={faArrowsRotate}
-              className={cn("h-3.5 w-3.5", loading && "animate-spin")}
+              className={cn(
+                "h-3.5 w-3.5",
+                (loading || refreshing) && "animate-spin",
+              )}
             />
           </Button>
           <div
@@ -1063,7 +1069,7 @@ const Explorer = () => {
                   upload(
                     overwrite.files.filter((f) => !skip.has(f.name)),
                     prefix,
-                    () => reload(true),
+                    () => reload(),
                   );
                   setOverwrite(null);
                 }}
@@ -1074,8 +1080,7 @@ const Explorer = () => {
             <Button
               variant="warning"
               onClick={() => {
-                if (overwrite)
-                  upload(overwrite.files, prefix, () => reload(true));
+                if (overwrite) upload(overwrite.files, prefix, () => reload());
                 setOverwrite(null);
               }}
             >

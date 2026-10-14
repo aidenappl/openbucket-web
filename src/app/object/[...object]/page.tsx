@@ -31,9 +31,25 @@ import {
   parentPrefix,
   publicObjectUrl,
 } from "@/tools/objectUrl.tools";
+import { ViewCache } from "@/tools/viewCache.tools";
 
 // The API's anonymous-read grantee; shown as the Access row, not as a grant.
 const ALL_USERS_URI = "http://openbucket/groups/global/AllUsers";
+
+type ObjectView = {
+  object: ObjectHead;
+  acl: ObjectACLResponse | null;
+  previewUrl: string | null;
+  etag: string;
+  /** When previewUrl was signed (ms). Presigned URLs last 3600s. */
+  previewAt: number;
+};
+
+// Keyed `${sessionId}:${key}`.
+const objectViews = new ViewCache<ObjectView>();
+
+// Reuse a cached preview URL for up to 45 of its 60 minutes.
+const PREVIEW_REUSE_MS = 45 * 60 * 1000;
 
 const ObjectPage = () => {
   const router = useRouter();
@@ -70,36 +86,117 @@ const ObjectPage = () => {
     if (hasAPI === false) router.replace("/sessions");
   }, [hasAPI, router]);
 
-  const loadAcl = useCallback(async () => {
-    const res = await reqFetchObjectACL(fullPath);
-    if (res.success) {
-      setAcl({
-        ...res.data,
-        Grants: (res.data.Grants ?? []).filter(
-          (g) => g.Grantee.URI !== ALL_USERS_URI,
-        ),
-      });
-    }
-  }, [fullPath]);
+  // `stillCurrent` drops a response that arrives after the user moved on.
+  const loadAcl = useCallback(
+    async (stillCurrent?: () => boolean) => {
+      const res = await reqFetchObjectACL(fullPath);
+      if (stillCurrent && !stillCurrent()) return;
+      if (res.success) {
+        setAcl({
+          ...res.data,
+          Grants: (res.data.Grants ?? []).filter(
+            (g) => g.Grantee.URI !== ALL_USERS_URI,
+          ),
+        });
+      }
+    },
+    [fullPath],
+  );
+
+  // Stale-while-revalidate, like the explorer: a revisited object renders its
+  // last copy at once and refreshes in the background.
+  //
+  // ⚠️ `shownKey` says which object the state belongs to. Until load() has
+  // run for a new path, render from the cache (or the skeleton) instead of the
+  // previous object's state — the title comes from the URL, so state alone
+  // paired the new name with the old object's details for a frame, and the
+  // cache-write effect below filed the old object under the new key.
+  const cacheKey = session ? `${session.id}:${fullPath}` : null;
+  const [shownKey, setShownKey] = useState<string | null>(null);
+  const requestRef = useRef(0);
+  const previewSignedAt = useRef(0);
 
   const load = useCallback(async () => {
-    setIsLoading(true);
+    if (!cacheKey) return;
+    const req = ++requestRef.current;
+    const cached = objectViews.get(cacheKey);
+    setShownKey(cacheKey);
     setNotFound(false);
-    setPreviewUrl(null);
-    const res = await reqFetchObjectHead(fullPath);
-    if (!res.success) {
-      setObject(null);
+    if (cached) {
+      setObject(cached.object);
+      setAcl(cached.acl);
+      setPreviewUrl(cached.previewUrl);
+      previewSignedAt.current = cached.previewAt;
       setIsLoading(false);
-      if (res.status === 404) setNotFound(true);
-      else toast.error(res.error_message || "Couldn't load this object");
+    } else {
+      setObject(null);
+      setAcl(null);
+      setPreviewUrl(null);
+      setIsLoading(true);
+    }
+
+    const res = await reqFetchObjectHead(fullPath);
+    if (req !== requestRef.current) return;
+    if (!res.success) {
+      setIsLoading(false);
+      if (res.status === 404) {
+        objectViews.delete(cacheKey);
+        setObject(null);
+        setNotFound(true);
+      } else {
+        toast.error(
+          cached
+            ? "Couldn't refresh this object — showing the last loaded copy"
+            : res.error_message || "Couldn't load this object",
+        );
+        if (!cached) setObject(null);
+      }
       return;
     }
     setObject(res.data);
     setIsLoading(false);
-    loadAcl();
+    loadAcl(() => req === requestRef.current);
+
+    // A new presigned URL changes the <img>/<video> src and re-downloads the
+    // preview, so keep the cached one while it has plenty of life left.
+    if (
+      cached?.previewUrl &&
+      cached.etag === res.data.ETag &&
+      Date.now() - cached.previewAt < PREVIEW_REUSE_MS
+    ) {
+      return;
+    }
     const presign = await reqFetchObjectPresign(fullPath);
-    if (presign.success) setPreviewUrl(presign.data.url);
-  }, [fullPath, loadAcl]);
+    if (req !== requestRef.current) return;
+    if (presign.success) {
+      previewSignedAt.current = Date.now();
+      setPreviewUrl(presign.data.url);
+    }
+  }, [fullPath, cacheKey, loadAcl]);
+
+  // Keep the cache in step with what's on screen, including local edits
+  // (an access change) between loads.
+  useEffect(() => {
+    if (!cacheKey || shownKey !== cacheKey || !object || isLoading) return;
+    objectViews.set(cacheKey, {
+      object,
+      acl,
+      previewUrl,
+      etag: object.ETag,
+      previewAt: previewSignedAt.current,
+    });
+  }, [cacheKey, shownKey, object, acl, previewUrl, isLoading]);
+
+  const ready = shownKey === cacheKey;
+  const fallback = !ready && cacheKey ? objectViews.get(cacheKey) : undefined;
+  const view = ready
+    ? { object, acl, previewUrl, isLoading }
+    : {
+        object: fallback?.object ?? null,
+        acl: fallback?.acl ?? null,
+        previewUrl: fallback?.previewUrl ?? null,
+        isLoading: !fallback,
+      };
 
   useEffect(() => {
     if (session && openedUnder.current === session.id) load();
@@ -136,6 +233,7 @@ const ObjectPage = () => {
       return;
     }
     toast.success(`Saved as ${baseName(newPath)}`);
+    if (cacheKey) objectViews.delete(cacheKey);
     setModal(null);
     router.replace(objectHref(newPath));
   };
@@ -149,6 +247,7 @@ const ObjectPage = () => {
       return;
     }
     toast.success(`Deleted ${baseName(fullPath)}`);
+    if (cacheKey) objectViews.delete(cacheKey);
     setModal(null);
     // Not router.back(): this page is often opened from a shared link, and
     // "back" would leave the app entirely.
@@ -167,13 +266,13 @@ const ObjectPage = () => {
   return (
     <div className="pb-16">
       <ObjectInspectPanel
-        object={object}
-        objectACL={acl}
+        object={view.object}
+        objectACL={view.acl}
         fullPath={fullPath}
-        previewUrl={previewUrl}
+        previewUrl={view.previewUrl}
         publicUrl={publicObjectUrl(session, fullPath)}
-        isLoading={isLoading}
-        notFound={notFound}
+        isLoading={view.isLoading}
+        notFound={ready && notFound}
         onRename={() => setModal("rename")}
         onMove={() => setModal("move")}
         onChangeAccess={() => setModal("access")}
@@ -182,11 +281,11 @@ const ObjectPage = () => {
             toast.error("Couldn't open this object");
         }}
         onDownload={async () => {
-          if (!(await downloadObject(fullPath, object?.ContentLength)))
+          if (!(await downloadObject(fullPath, view.object?.ContentLength)))
             toast.error("Download failed");
         }}
         onCopyLink={() =>
-          copyObjectLink(session, fullPath, object?.Metadata?.Acl)
+          copyObjectLink(session, fullPath, view.object?.Metadata?.Acl)
         }
         onDelete={() => setModal("delete")}
       />
@@ -194,7 +293,7 @@ const ObjectPage = () => {
         isOpen={modal === "access"}
         onClose={() => setModal(null)}
         onConfirm={handleAccess}
-        currentAcl={object?.Metadata?.Acl || "private"}
+        currentAcl={view.object?.Metadata?.Acl || "private"}
         isLoading={busy}
       />
       <DeleteConfirmationModal
