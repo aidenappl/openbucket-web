@@ -8,7 +8,11 @@ vi.mock("@/services/object.service", () => ({
   reqFetchBulkObjectHead: vi.fn(),
 }));
 
-import { newestPerKey, prefetchListing } from "@/hooks/useBucketData";
+import {
+  appendPage,
+  newestPerKey,
+  prefetchListing,
+} from "@/hooks/useBucketData";
 import { S3ObjectMetadata } from "@/types";
 
 const ok = {
@@ -72,5 +76,46 @@ describe("newestPerKey", () => {
   it("returns the same array when nothing repeats", () => {
     const list = [obj("a", "1"), obj("b", "2")];
     expect(newestPerKey(list)).toBe(list);
+  });
+});
+
+describe("appendPage", () => {
+  const o = (Key: string) =>
+    ({
+      Key,
+      LastModified: "2026-01-01",
+      Size: 1,
+      ETag: "e",
+    }) as unknown as S3ObjectMetadata;
+  const page = (folders: string[], keys: string[], next?: string) =>
+    ({
+      success: true,
+      status: 200,
+      message: "ok",
+      data: { folders, objects: keys.map(o) },
+      pagination: { truncated: !!next, limit: 10000, next_cursor: next },
+    }) as const;
+
+  it("appends, de-duplicates, and keeps the cursor while more remain", () => {
+    const base = {
+      folders: ["a/"],
+      objects: [o("x")],
+      nextCursor: "c1",
+      truncatedAt: 10000,
+    };
+    const got = appendPage(base, page(["a/", "b/"], ["x", "y"], "c2"));
+    expect(got.folders).toEqual(["a/", "b/"]);
+    expect(got.objects.map((x) => x.Key)).toEqual(["x", "y"]);
+    expect(got.nextCursor).toBe("c2");
+    expect(got.truncatedAt).toBe(4);
+  });
+
+  it("clears the cap once the last page arrives", () => {
+    const got = appendPage(
+      { folders: [], objects: [o("x")], nextCursor: "c1", truncatedAt: 1 },
+      page([], ["y"]),
+    );
+    expect(got.nextCursor).toBeUndefined();
+    expect(got.truncatedAt).toBeUndefined();
   });
 });

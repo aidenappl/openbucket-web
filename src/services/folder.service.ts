@@ -51,11 +51,12 @@ const reqFetchFolders = async (
 const reqListContents = async (
   sessionId: number,
   prefix: string,
+  cursor?: string,
 ): Promise<ApiResponse<FolderContents>> =>
   fetchApi<FolderContents>({
     url: `/core/v1/${sessionId}/contents`,
     method: "GET",
-    params: { prefix },
+    params: cursor ? { prefix, cursor } : { prefix },
   });
 
 /**

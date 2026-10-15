@@ -66,6 +66,8 @@ type ApiSuccess<T> = {
 type ListTruncation = {
   truncated: boolean;
   limit: number;
+  /** GET /contents only: pass back as `cursor` for the next entries. */
+  next_cursor?: string;
 };
 
 /** GET /contents: one folder level from a single listing. */

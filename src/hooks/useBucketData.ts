@@ -22,6 +22,8 @@ type Listing = {
    * first `limit` entries are here and the UI must say so.
    */
   truncatedAt?: number;
+  /** Continues a truncated listing (GET /contents?cursor=); see loadMore. */
+  nextCursor?: string;
   /** When the listing arrived (ms epoch). Heads may be newer. */
   fetchedAt?: number;
 };
@@ -96,7 +98,32 @@ const toListing = (
         : o;
     }),
     truncatedAt: res.pagination?.truncated ? res.pagination.limit : undefined,
+    nextCursor: res.pagination?.next_cursor || undefined,
     fetchedAt: Date.now(),
+  };
+};
+
+/** `listing` plus the next page in `res` (folders/objects de-duplicated). */
+export const appendPage = (
+  listing: Listing,
+  res: ApiResponse<FolderContents> & { success: true },
+): Listing => {
+  const folders = [
+    ...new Set([...listing.folders, ...(res.data?.folders ?? [])]),
+  ];
+  const known = new Set(listing.objects.map((o) => o.Key));
+  const added = newestPerKey(res.data?.objects ?? []).filter(
+    (o) => !known.has(o.Key),
+  );
+  const nextCursor = res.pagination?.next_cursor || undefined;
+  return {
+    ...listing,
+    folders,
+    objects: [...listing.objects, ...added],
+    nextCursor,
+    truncatedAt: nextCursor
+      ? folders.length + listing.objects.length + added.length
+      : undefined,
   };
 };
 
@@ -225,12 +252,63 @@ export const useBucketData = (sessionId: number | null, prefix: string) => {
     [sessionId, prefix],
   );
 
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  /**
+   * Appends the next 10,000 entries of a capped folder (GET /contents with
+   * the listing's cursor), then their heads. A refresh (loadBucketData)
+   * starts again from the first page.
+   */
+  const loadMore = useCallback(async () => {
+    if (sessionId === null) return;
+    const k = keyFor(sessionId, prefix);
+    const base = listings.get(k);
+    if (!base?.nextCursor || loadingMore) return;
+    const req = requestRef.current;
+    setLoadingMore(true);
+    const res = await reqListContents(
+      sessionId,
+      normalize(prefix),
+      base.nextCursor,
+    );
+    setLoadingMore(false);
+    if (req !== requestRef.current) return;
+    if (!res.success) {
+      setState((s) => ({
+        ...s,
+        key: k,
+        error: res.error_message || res.error || "Couldn't load more",
+      }));
+      return;
+    }
+    const merged = appendPage(base, res);
+    listings.set(k, merged);
+    setState((s) => ({ ...s, key: k, data: merged, error: null }));
+
+    const fresh = merged.objects.slice(base.objects.length);
+    if (fresh.length === 0) return;
+    const heads = await reqFetchBulkObjectHead(fresh.map((o) => o.Key));
+    if (req !== requestRef.current || !heads.success) return;
+    const offset = base.objects.length;
+    const withHeads: Listing = {
+      ...merged,
+      objects: merged.objects.map((o, i) =>
+        i < offset ? o : { ...o, head: heads.data[i - offset] ?? null },
+      ),
+    };
+    listings.set(k, withHeads);
+    setState((s) => (s.key === k ? { ...s, data: withHeads } : s));
+  }, [sessionId, prefix, loadingMore]);
+
   return {
     folders: current.data?.folders ?? null,
     objects: current.data?.objects ?? null,
     error: current.error,
     refreshing: current.refreshing,
     truncatedAt: current.data?.truncatedAt,
+    canLoadMore: Boolean(current.data?.nextCursor),
+    loadingMore,
+    loadMore,
     loadBucketData,
   };
 };
