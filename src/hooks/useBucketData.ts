@@ -27,7 +27,15 @@ type Listing = {
 };
 
 // Persisted: a reload or a new tab paints the last-known folder immediately.
-const listings = new ViewCache<Listing>({ persistKey: "listings" });
+// v2: v1 copies could hold repeated keys (see newestPerKey); they're dropped.
+const listings = new ViewCache<Listing>({ persistKey: "listings-v2" });
+if (typeof window !== "undefined") {
+  try {
+    window.localStorage.removeItem("ob-view-cache:listings");
+  } catch {
+    // Storage unavailable: nothing to drop.
+  }
+}
 
 /** A listing this young is shown as-is on arrival, not fetched again. */
 const FRESH_MS = 10_000;
@@ -53,6 +61,24 @@ const listContents = (sessionId: number, prefix: string) => {
 };
 
 /**
+ * One object per key — the most recently modified.
+ *
+ * ⚠️ openbucket-go stored a new metadata row on every overwrite (no unique
+ * key), so listings can repeat a key (atlas hotels/250/ listed 15 files as
+ * 40 rows). Repeated React keys left orphaned rows on screen across folder
+ * navigation — dead checkboxes and empty menus. Keep this even once storage
+ * is fixed: rows are keyed by object key.
+ */
+export const newestPerKey = (objects: S3ObjectMetadata[]) => {
+  const byKey = new Map<string, S3ObjectMetadata>();
+  for (const o of objects) {
+    const seen = byKey.get(o.Key);
+    if (!seen || o.LastModified > seen.LastModified) byKey.set(o.Key, o);
+  }
+  return byKey.size === objects.length ? objects : [...byKey.values()];
+};
+
+/**
  * A fresh listing from `res`, carrying cached heads over for unchanged objects
  * (same key + ETag) so the Access column doesn't drop back to placeholders.
  */
@@ -62,8 +88,8 @@ const toListing = (
 ): Listing => {
   const previous = new Map((cached?.objects ?? []).map((o) => [o.Key, o]));
   return {
-    folders: res.data?.folders ?? [],
-    objects: (res.data?.objects ?? []).map((o) => {
+    folders: [...new Set(res.data?.folders ?? [])],
+    objects: newestPerKey(res.data?.objects ?? []).map((o) => {
       const prev = previous.get(o.Key);
       return prev && prev.ETag === o.ETag && prev.head !== undefined
         ? { ...o, head: prev.head }

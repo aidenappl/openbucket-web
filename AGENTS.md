@@ -236,6 +236,19 @@ and move drop the object's entry. Two rules keep it honest:
   reuses a listing younger than `FRESH_MS` (10 s) instead of listing again — Refresh and every
   mutation still force a fetch. Big folders render in batches (`useProgressiveCount`: 120 rows,
   then 200 per idle frame); mounting atlas `hotels/`'s 3,020 rows at once froze the page ~800 ms.
+- **Folder navigation is `history.pushState`, never `router.push` or a plain `<Link>` click.**
+  The folder is a search param and the explorer renders client-side, but Next's router fetched a
+  server render (`?_rsc=`, ~360 ms) before even changing the URL. Folder links keep a real `href`
+  (new tab works) with `prefetch={false}` and `folderLinkClick`; `useSearchParams` and Back/Forward
+  follow native pushState.
+- **Rows are memoised components** (`components/ExplorerRows.tsx`: `FolderRow`, `ObjectRow`,
+  `GridItem`) that read handlers from a ref (`RowActions`) at event time, and `Menu` takes
+  `items` as a function so menus are built only when opened. Inline rows re-rendered on every
+  batch — filling `hotels/` was seconds of growing long tasks. Keep row props primitive/stable.
+- **One row per key** (`newestPerKey` in `useBucketData`). openbucket-go stored a new metadata
+  row on every overwrite, so listings could repeat a key; repeated React keys left orphaned rows
+  on screen across navigation (dead checkboxes, empty menus). The persisted cache is
+  `listings-v2` for the same reason.
 - A cached preview URL is reused for 45 of its 60 minutes (new presigns change the `<img>` src and
   re-download the preview); cached heads are carried over for unchanged objects (same key + ETag).
 

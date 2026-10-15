@@ -25,7 +25,12 @@ export type MenuItem =
   | "separator";
 
 interface MenuProps {
-  items: MenuItem[];
+  /**
+   * The entries, or a function returning them — called only when the menu
+   * opens, so a long list of rows doesn't build thousands of item arrays (and
+   * the items see the latest state).
+   */
+  items: MenuItem[] | (() => MenuItem[]);
   /** Accessible name for the trigger, e.g. "Actions for report.pdf". */
   label: string;
   trigger?: ReactNode;
@@ -40,8 +45,18 @@ const MENU_WIDTH = 192;
  * there is clipped by the scroll container. Arrow keys move, Escape closes and
  * returns focus to the trigger.
  */
-export function Menu({ items, label, trigger, className }: MenuProps) {
+export function Menu({
+  items: itemsProp,
+  label,
+  trigger,
+  className,
+}: MenuProps) {
   const [open, setOpen] = useState(false);
+  const items: MenuItem[] = !open
+    ? []
+    : typeof itemsProp === "function"
+      ? itemsProp()
+      : itemsProp;
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
