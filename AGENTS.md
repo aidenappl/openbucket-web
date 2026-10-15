@@ -182,7 +182,9 @@ the fix; this is the index.
   API listed the same prefix twice. Keep new folder views on `/contents`.
 - **Listings are capped at 10,000 and say so.** `GET /contents` / `/objects` / `/folders` add
   `pagination: {truncated, limit}`; `fetchApi` passes it through as `ApiSuccess.pagination`, and
-  the explorer shows a "only the first N" warning (`useBucketData().truncatedAt`). Until October
+  the explorer shows a "only the first N" warning (`useBucketData().truncatedAt`) with **Load the
+  next 10,000** (`loadMore`: `GET /contents?cursor=` with `pagination.next_cursor`, appended via
+  `appendPage`, then heads for the new objects). A refresh starts again from the first page. Until October
   2026 listings actually stopped at **1,000** with no signal — openbucket-go never returned a
   continuation token (fixed in openbucket-go#29) — so `atlas/hotels/` showed 994 of 2,993 folders.
 - **Downloads stream through the API** (`GET /core/v1/{id}/object`, `reqDownloadObject`). The

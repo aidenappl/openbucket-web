@@ -116,8 +116,17 @@ const Explorer = () => {
   const { hasAPI } = usePermissions();
   const { format, setFormat } = useViewFormat();
   const prefix = normalizePrefix(searchParams.get("folder"));
-  const { folders, objects, error, refreshing, truncatedAt, loadBucketData } =
-    useBucketData(session?.id ?? null, prefix);
+  const {
+    folders,
+    objects,
+    error,
+    refreshing,
+    truncatedAt,
+    canLoadMore,
+    loadingMore,
+    loadMore,
+    loadBucketData,
+  } = useBucketData(session?.id ?? null, prefix);
   const upload = useUploader();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -860,9 +869,23 @@ const Explorer = () => {
 
       {truncatedAt && (
         <Alert variant="warning" className="mb-3">
-          This folder holds more than {truncatedAt.toLocaleString()} items. Only
-          the first {truncatedAt.toLocaleString()} folders and files are listed,
-          so filtering, sorting and Select all cover those only.
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              This folder holds more than {truncatedAt.toLocaleString()} items.
+              Only the first {truncatedAt.toLocaleString()} folders and files
+              are listed, so filtering, sorting and Select all cover those only.
+            </span>
+            {canLoadMore && (
+              <Button
+                size="sm"
+                variant="secondary"
+                loading={loadingMore}
+                onClick={() => loadMore()}
+              >
+                Load the next 10,000
+              </Button>
+            )}
+          </div>
         </Alert>
       )}
 
