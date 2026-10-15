@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronRight, faFolder } from "@fortawesome/pro-solid-svg-icons";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { reqFetchFolders } from "@/services/folder.service";
-import { reqFetchObjects } from "@/services/object.service";
+import { reqListContents } from "@/services/folder.service";
+import { selectCurrentSession } from "@/store/slices/sessionSlice";
 import { baseName, parentPrefix } from "@/tools/objectUrl.tools";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,7 @@ export function MoveToFolderModal({
   onConfirm,
   isMoving = false,
 }: MoveToFolderModalProps) {
+  const sessionId = useSelector(selectCurrentSession)?.id ?? null;
   const [at, setAt] = useState(startPrefix);
   const [folders, setFolders] = useState<string[] | null>(null);
   const [existing, setExisting] = useState<Set<string>>(new Set());
@@ -55,20 +57,23 @@ export function MoveToFolderModal({
     let cancelled = false;
     setFolders(null);
     setError(null);
-    Promise.all([reqFetchFolders(at), reqFetchObjects(at)]).then(([f, o]) => {
+    if (sessionId === null) return;
+    reqListContents(sessionId, at).then((res) => {
       if (cancelled) return;
-      if (!f.success || !o.success) {
+      if (!res.success) {
         setError("Couldn't list this folder");
         setFolders([]);
         return;
       }
-      setFolders(f.data ?? []);
-      setExisting(new Set((o.data ?? []).map((x) => baseName(x.Key))));
+      setFolders(res.data?.folders ?? []);
+      setExisting(
+        new Set((res.data?.objects ?? []).map((x) => baseName(x.Key))),
+      );
     });
     return () => {
       cancelled = true;
     };
-  }, [open, at]);
+  }, [open, at, sessionId]);
 
   const sameFolder =
     keys.length > 0 && keys.every((k) => parentPrefix(k) === at);

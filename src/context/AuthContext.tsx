@@ -3,11 +3,18 @@
 import { createContext, useContext, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { usePathname } from "next/navigation";
-import { setUser, clearUser, selectUser, selectIsLoggedIn, selectIsLoading } from "@/store/slices/authSlice";
+import {
+  setUser,
+  clearUser,
+  selectUser,
+  selectIsLoggedIn,
+  selectIsLoading,
+} from "@/store/slices/authSlice";
 import { reqGetSelf, reqLogout } from "@/services/auth.service";
 import { finishSignOut, redirectToLogin as goToLogin } from "@/tools/sso.tools";
 import { reqGetSessions } from "@/services/session.service";
 import { setSessions } from "@/store/slices/sessionSlice";
+import { clearPersistedViews } from "@/tools/viewCache.tools";
 import { User } from "@/types";
 
 interface AuthContextValue {
@@ -53,7 +60,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // openbucket_session cookie, which JS cannot see, and SSO sign-in sets no
       // ob-logged-in marker — gating on that marker sent every freshly
       // signed-in SSO user straight back to /login.
-      const res = await reqGetSelf();
+      // Sessions are fetched alongside, not after: the explorer can't list
+      // anything until it knows the session, and the two calls used to run
+      // back to back (~650 ms before the first listing could start). A
+      // pending user's 403 here is simply ignored.
+      const [res, sessionRes] = await Promise.all([
+        reqGetSelf(),
+        reqGetSessions(),
+      ]);
       if (res.success) {
         dispatch(setUser(res.data));
 
@@ -65,13 +79,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // Load sessions after auth
-        const sessionRes = await reqGetSessions();
         if (sessionRes.success) {
           dispatch(setSessions(sessionRes.data));
         }
       } else {
         dispatch(clearUser());
+        // Persisted listings belong to whoever was signed in.
+        clearPersistedViews();
         redirectToLogin();
       }
     };
@@ -82,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     const res = await reqLogout();
     dispatch(clearUser());
+    clearPersistedViews();
     finishSignOut(res.success ? res.data?.redirect_url : null);
   }, [dispatch]);
 

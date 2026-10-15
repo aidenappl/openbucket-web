@@ -1,5 +1,5 @@
 import { fetchApi } from "@/tools/axios.tools";
-import { ApiResponse, FolderObject } from "@/types";
+import { ApiResponse, FolderContents, FolderObject } from "@/types";
 import { getStore } from "@/store/StoreProvider";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
 
@@ -39,6 +39,24 @@ const reqFetchFolders = async (
     params: { prefix },
   });
 };
+
+/**
+ * One folder level — sub-folders and objects — from a single listing
+ * (GET /contents). Takes the session id rather than reading the store: a
+ * hover prefetch must list the session it was started for.
+ *
+ * Replaces calling reqFetchFolders + reqFetchObjects per folder, which made
+ * the API list the same prefix twice.
+ */
+const reqListContents = async (
+  sessionId: number,
+  prefix: string,
+): Promise<ApiResponse<FolderContents>> =>
+  fetchApi<FolderContents>({
+    url: `/core/v1/${sessionId}/contents`,
+    method: "GET",
+    params: { prefix },
+  });
 
 /**
  * Every object under a folder, recursively (GET /folder). Used to tell the user
@@ -90,6 +108,7 @@ export {
   reqDeleteFolder,
   reqPostFolder,
   reqFetchFolders,
+  reqListContents,
   reqFetchFolderContents,
   reqRenameFolder,
 };

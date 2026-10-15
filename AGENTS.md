@@ -78,7 +78,7 @@ src/
   lib/utils.ts                # cn() — dependency-free class joiner
   context/                    # AuthContext (session + role gating), ThemeContext (light/dark/system)
   hooks/                      # useBucketData, useSelection, useSort, useUploader, useDismiss,
-                              # usePermissions, useViewFormat
+                              # usePermissions, useViewFormat, useProgressiveCount
   services/                   # one {entity}.service.ts per domain (see Service map)
   store/                      # Redux Toolkit — index.ts, hooks.ts, StoreProvider.tsx
     slices/                   # authSlice, sessionSlice, uploadSlice
@@ -160,7 +160,7 @@ Every function is prefixed **`req`** and returns `ApiResponse<T>`. Services decl
 | `auth.service.ts` | `reqLogin`, `reqRefresh`, `reqLogout`, `reqGetSelf`, `reqUpdateSelf`, `reqGetSSOConfig` |
 | `session.service.ts` | `reqGetSessions`, `reqPostSession`, `reqDeleteSession`, `reqProbeSession` |
 | `bucket.service.ts` | `reqFetchBucketHead` |
-| `folder.service.ts` | `reqFetchFolders`, `reqFetchFolderContents`, `reqPostFolder`, `reqRenameFolder`, `reqDeleteFolder` |
+| `folder.service.ts` | `reqListContents` (one level: folders + objects, takes the session id), `reqFetchFolders`, `reqFetchFolderContents`, `reqPostFolder`, `reqRenameFolder`, `reqDeleteFolder` |
 | `object.service.ts` | `reqFetchObjects`, `reqFetchObjectHead`, `reqFetchBulkObjectHead`, `reqFetchObjectACL`, `reqPutObjectACL`, `reqPutBulkObjectACL`, `reqFetchObjectPresign`, `reqDownloadObject`, `reqPutRenameObject`, `reqPutObjectWithProgress`, `reqDeleteObject` |
 | `admin.service.ts` | Users: `reqAdminListUsers`, `reqAdminCreateUser`, `reqAdminUpdateUser`, `reqAdminDeleteUser` · Instances: `reqAdminListInstances`, `reqAdminCreateInstance`, `reqAdminUpdateInstance`, `reqAdminDeleteInstance` · Proxy: `reqProxyListCredentials`, `reqProxyCreateCredential`, `reqProxyDeleteCredential`, `reqProxyListBuckets`, `reqProxyGetBucket`, `reqProxyCreateBucket`, `reqProxyDeleteBucket`, `reqProxyGetBucketStats`, `reqProxyUpdateBucketACL`, `reqProxyListGrants`, `reqProxyCreateGrant`, `reqProxyDeleteGrant` · API tokens: `reqAdminListApiTokens`, `reqAdminCreateApiToken`, `reqAdminRevokeApiToken` · SSO: `reqAdminGetSSOConfig`, `reqAdminUpdateSSOConfig` |
 
@@ -177,7 +177,10 @@ the fix; this is the index.
   `reqFetchBulkObjectHead`/`reqPutBulkObjectACL` chunk, and run 4 chunks at a time
   (`mapLimited`) — a 10,000-object folder is 100 batches. Bulk HEAD returns results **in request
   order** with `null` gaps — match by index, never by ETag (identical files share one).
-- **Listings are capped at 10,000 and say so.** `GET /objects` / `GET /folders` add
+- **One listing per folder: `GET /contents`** (`reqListContents`) returns `{folders, objects}`.
+  The explorer and the move dialog used to call `/folders` and `/objects` for every folder — the
+  API listed the same prefix twice. Keep new folder views on `/contents`.
+- **Listings are capped at 10,000 and say so.** `GET /contents` / `/objects` / `/folders` add
   `pagination: {truncated, limit}`; `fetchApi` passes it through as `ApiSuccess.pagination`, and
   the explorer shows a "only the first N" warning (`useBucketData().truncatedAt`). Until October
   2026 listings actually stopped at **1,000** with no signal — openbucket-go never returned a
@@ -217,7 +220,10 @@ empty bucket view.
 
 **Views are stale-while-revalidate.** Folder listings (`useBucketData`) and object views (the
 object page) are cached in memory per tab (`tools/viewCache.tools.ts`, 100 entries, keyed
-`${sessionId}:${prefix|key}`). A revisit renders the cached copy on the first frame and refreshes in
+`${sessionId}:${prefix|key}`). **Folder listings are also persisted** to localStorage (newest 30,
+≤2 MB, debounced; `ob-view-cache:*`), so a reload or new tab paints the last-known folder at once.
+`clearPersistedViews()` runs on sign-out and on a failed auth check — persisted listings must never
+outlive the signed-in user; anything new that persists view data goes through `ViewCache`. A revisit renders the cached copy on the first frame and refreshes in
 the background — the explorer's Refresh icon spins while it does; only a first visit shows
 skeletons. Mutations call the same refresh, so the cache is rewritten after every change; delete
 and move drop the object's entry. Two rules keep it honest:
@@ -225,11 +231,17 @@ and move drop the object's entry. Two rules keep it honest:
   The URL changes before any effect runs, so state-only views painted the previous folder's rows
   (or object's details) under the new title for a frame, and the object cache-write effect filed
   the old object under the new key.
+- **Navigation is near-instant on purpose:** hovering or focusing a folder link calls
+  `prefetchListing` (one request per folder in flight, shared with the real load), and navigating
+  reuses a listing younger than `FRESH_MS` (10 s) instead of listing again — Refresh and every
+  mutation still force a fetch. Big folders render in batches (`useProgressiveCount`: 120 rows,
+  then 200 per idle frame); mounting atlas `hotels/`'s 3,020 rows at once froze the page ~800 ms.
 - A cached preview URL is reused for 45 of its 60 minutes (new presigns change the `<img>` src and
   re-download the preview); cached heads are carried over for unchanged objects (same key + ETag).
 
 **Auth model — cookies issued by the API:**
-- `AuthContext` is the gate. On mount it **always** calls `reqGetSelf` (an SSO session is the
+- `AuthContext` is the gate. On mount it **always** calls `reqGetSelf` (with `reqGetSessions` in
+  parallel — they used to run back to back, delaying the first listing ~350 ms) (an SSO session is the
   HttpOnly `openbucket_session` cookie, invisible to JS, and SSO sets no `ob-logged-in` marker —
   gating on that marker bounced every freshly signed-in SSO user back to `/login`); on failure it
   redirects to `/login?return_to=<path>`.
