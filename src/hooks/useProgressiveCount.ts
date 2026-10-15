@@ -18,15 +18,19 @@ const STEP = 200;
  */
 export const useProgressiveCount = (total: number, resetKey: string) => {
   const [state, setState] = useState({ key: resetKey, count: FIRST });
+  // ⚠️ Reset during render as soon as the folder changes. Resetting only when
+  // growing left a big folder's count in state while a small one (no growth
+  // needed) was open, so returning to the big folder mounted all its rows in
+  // one ~900 ms task.
+  if (state.key !== resetKey) setState({ key: resetKey, count: FIRST });
   const count = state.key === resetKey ? state.count : FIRST;
 
   useEffect(() => {
     if (count >= total) return;
     const grow = () =>
-      setState((s) => ({
-        key: resetKey,
-        count: (s.key === resetKey ? s.count : FIRST) + STEP,
-      }));
+      setState((s) =>
+        s.key === resetKey ? { key: resetKey, count: s.count + STEP } : s,
+      );
     if (typeof window.requestIdleCallback === "function") {
       const id = window.requestIdleCallback(grow, { timeout: 100 });
       return () => window.cancelIdleCallback(id);

@@ -8,7 +8,8 @@ vi.mock("@/services/object.service", () => ({
   reqFetchBulkObjectHead: vi.fn(),
 }));
 
-import { prefetchListing } from "@/hooks/useBucketData";
+import { newestPerKey, prefetchListing } from "@/hooks/useBucketData";
+import { S3ObjectMetadata } from "@/types";
 
 const ok = {
   success: true,
@@ -48,5 +49,28 @@ describe("prefetchListing", () => {
   it("does nothing without a session", () => {
     prefetchListing(null, "a/");
     expect(mockListContents).not.toHaveBeenCalled();
+  });
+});
+
+describe("newestPerKey", () => {
+  const obj = (Key: string, LastModified: string, Size = 1) =>
+    ({ Key, LastModified, Size, ETag: "e" }) as unknown as S3ObjectMetadata;
+
+  it("keeps one object per key, the most recently modified", () => {
+    const got = newestPerKey([
+      obj("a.jpg", "2025-12-22T18:34:16Z", 288998),
+      obj("b.jpg", "2025-12-24T04:56:07Z"),
+      obj("a.jpg", "2025-12-24T05:04:33Z", 207029),
+      obj("a.jpg", "2025-12-24T04:56:07Z", 207029),
+    ]);
+    expect(got.map((o) => [o.Key, o.Size])).toEqual([
+      ["a.jpg", 207029],
+      ["b.jpg", 1],
+    ]);
+  });
+
+  it("returns the same array when nothing repeats", () => {
+    const list = [obj("a", "1"), obj("b", "2")];
+    expect(newestPerKey(list)).toBe(list);
   });
 });

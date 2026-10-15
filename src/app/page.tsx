@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
@@ -56,7 +63,7 @@ import { reqPutRenameObject } from "@/services/object.service";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchInput } from "@/components/ui/search-input";
-import { Menu, MenuItem } from "@/components/ui/menu";
+import { MenuItem } from "@/components/ui/menu";
 import { Alert } from "@/components/ui/alert";
 import {
   EmptyState,
@@ -76,16 +83,20 @@ import ChangeAccessModal from "@/components/ChangeAccessModal";
 import CreateFolderModal from "@/components/CreateFolderModal";
 import RenameModal from "@/components/RenameModal";
 import { Modal } from "@/components/ui/modal";
-import { ObjectThumb, iconForKey } from "@/components/ObjectThumb";
+import {
+  FolderRow,
+  GridItem,
+  ObjectRow,
+  RowActions,
+  folderLinkClick,
+} from "@/components/ExplorerRows";
 import { formatBytes } from "@/tools/formatBytes.tools";
-import { formatDate } from "@/tools/formatDate.tools";
 import { endpointHost } from "@/tools/url.tools";
 import {
   baseName,
   copyObjectLink,
   downloadObject,
   explorerHref,
-  isPublicAcl,
   normalizePrefix,
   objectHref,
   openObject,
@@ -94,32 +105,6 @@ import {
 import { cn } from "@/lib/utils";
 
 type SortKey = "name" | "size" | "modified";
-
-const AclTag = ({ object }: { object: ListedObject }) => {
-  if (object.head === undefined)
-    return (
-      <span className="inline-block h-3 w-14 animate-pulse rounded bg-surface-elevated" />
-    );
-  const acl = object.head?.Metadata?.Acl;
-  if (!acl) return <span className="text-muted">—</span>;
-  const pub = isPublicAcl(acl);
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 text-xs font-medium",
-        pub ? "text-healthy" : "text-secondary",
-      )}
-    >
-      <span
-        className={cn(
-          "h-1.5 w-1.5 rounded-full",
-          pub ? "bg-healthy" : "bg-border-emphasis",
-        )}
-      />
-      {pub ? "Public" : "Private"}
-    </span>
-  );
-};
 
 const Explorer = () => {
   const router = useRouter();
@@ -245,10 +230,16 @@ const Explorer = () => {
   // ── Navigation ────────────────────────────────────────────────────────────
   // push, not replace: the old explorer replaced history, so the browser's Back
   // button left the app instead of going up a folder.
-  const goTo = useCallback(
-    (p: string) => router.push(explorerHref(p), { scroll: false }),
-    [router],
-  );
+  //
+  // ⚠️ history.pushState, not router.push. The folder is only a search param
+  // and the explorer renders entirely client-side, but router.push (and a
+  // plain <Link> click) first fetched a server render of the page (`?_rsc=`,
+  // ~360 ms) and only then changed the URL — every folder click waited on it,
+  // even with the listing cached. Next keeps useSearchParams in sync with
+  // native pushState (and Back/Forward) without a request.
+  const goTo = useCallback((p: string) => {
+    window.history.pushState(null, "", explorerHref(p));
+  }, []);
 
   const crumbs = useMemo(() => {
     const parts = prefix.split("/").filter(Boolean);
@@ -550,6 +541,25 @@ const Explorer = () => {
       : []),
   ];
 
+  // Rows read their handlers from here at event time (see ExplorerRows), so
+  // they can stay memoised while the explorer re-renders.
+  const rowActions = useRef<RowActions>({
+    folderMenu: () => [],
+    objectMenu: () => [],
+    toggle: () => {},
+    open: () => {},
+    prefetch: () => {},
+  });
+  useLayoutEffect(() => {
+    rowActions.current = {
+      folderMenu,
+      objectMenu,
+      toggle: selection.toggle,
+      open: goTo,
+      prefetch,
+    };
+  });
+
   // ── Keyboard: "/" focuses search, Esc clears selection, ⌘/Ctrl+A selects all ──
   const anyModal =
     createOpen ||
@@ -629,6 +639,8 @@ const Explorer = () => {
                 <li>
                   <Link
                     href={explorerHref("")}
+                    prefetch={false}
+                    onClick={folderLinkClick(rowActions, "")}
                     className="rounded px-1 -mx-1 hover:text-primary hover:underline"
                   >
                     {session.nickname || session.bucket}
@@ -646,6 +658,8 @@ const Explorer = () => {
                     ) : (
                       <Link
                         href={explorerHref(c.prefix)}
+                        prefetch={false}
+                        onClick={folderLinkClick(rowActions, c.prefix)}
                         onMouseEnter={() => prefetch(c.prefix)}
                         className="rounded px-1 -mx-1 hover:text-primary hover:underline"
                       >
@@ -934,6 +948,13 @@ const Explorer = () => {
                             ? crumbs[crumbs.length - 2].prefix
                             : "",
                         )}
+                        prefetch={false}
+                        onClick={folderLinkClick(
+                          rowActions,
+                          crumbs.length > 1
+                            ? crumbs[crumbs.length - 2].prefix
+                            : "",
+                        )}
                         className="flex items-center gap-2.5 hover:text-primary"
                       >
                         <FontAwesomeIcon
@@ -951,97 +972,20 @@ const Explorer = () => {
                   </TableRow>
                 )}
                 {shownFolders.map((f) => (
-                  <TableRow key={f} selected={selection.selected.has(f)}>
-                    <TableCell className="pr-0">
-                      <Checkbox
-                        aria-label={`Select folder ${baseName(f)}`}
-                        checked={selection.selected.has(f)}
-                        onChange={(_, shift) => selection.toggle(f, shift)}
-                      />
-                    </TableCell>
-                    <TableCell className="max-w-0 w-full">
-                      <Link
-                        href={explorerHref(f)}
-                        onMouseEnter={() => prefetch(f)}
-                        onFocus={() => prefetch(f)}
-                        className="flex min-w-0 items-center gap-2.5 font-medium hover:underline"
-                      >
-                        <FontAwesomeIcon
-                          icon={iconForKey(f)}
-                          className="h-3.5 w-3.5 shrink-0 text-info"
-                        />
-                        <span className="truncate">{baseName(f)}</span>
-                      </Link>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell text-muted">
-                      —
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-muted">
-                      —
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell text-muted">
-                      —
-                    </TableCell>
-                    <TableCell className="py-1.5 text-right">
-                      <Menu
-                        label={`Actions for folder ${baseName(f)}`}
-                        items={folderMenu(f)}
-                      />
-                    </TableCell>
-                  </TableRow>
+                  <FolderRow
+                    key={f}
+                    folder={f}
+                    selected={selection.selected.has(f)}
+                    actions={rowActions}
+                  />
                 ))}
                 {shownObjects.map((o) => (
-                  <TableRow
+                  <ObjectRow
                     key={o.Key}
+                    object={o}
                     selected={selection.selected.has(o.Key)}
-                  >
-                    <TableCell className="pr-0">
-                      <Checkbox
-                        aria-label={`Select ${baseName(o.Key)}`}
-                        checked={selection.selected.has(o.Key)}
-                        onChange={(_, shift) => selection.toggle(o.Key, shift)}
-                      />
-                    </TableCell>
-                    <TableCell className="max-w-0 w-full">
-                      <Link
-                        href={objectHref(o.Key)}
-                        className="flex min-w-0 items-center gap-2.5 hover:underline"
-                        title={baseName(o.Key)}
-                      >
-                        <FontAwesomeIcon
-                          icon={iconForKey(o.Key, o.head?.ContentType)}
-                          className="h-3.5 w-3.5 shrink-0 text-muted"
-                        />
-                        <span className="truncate">{baseName(o.Key)}</span>
-                      </Link>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell text-secondary tabular-nums">
-                      {formatBytes(o.Size)}
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <AclTag object={o} />
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell text-secondary">
-                      <time
-                        dateTime={o.LastModified}
-                        title={formatDate(o.LastModified)}
-                      >
-                        {formatDate(o.LastModified, {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                      </time>
-                    </TableCell>
-                    <TableCell className="py-1.5 text-right">
-                      <Menu
-                        label={`Actions for ${baseName(o.Key)}`}
-                        items={objectMenu(o)}
-                      />
-                    </TableCell>
-                  </TableRow>
+                    actions={rowActions}
+                  />
                 ))}
               </>
             )}
@@ -1074,83 +1018,15 @@ const Explorer = () => {
           ) : (
             <ul className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
               {[...shownFolders, ...shownObjects.map((o) => o.Key)].map(
-                (key) => {
-                  const isFolder = key.endsWith("/");
-                  const o = objectByKey.get(key);
-                  const sel = selection.selected.has(key);
-                  return (
-                    <li
-                      key={key}
-                      className={cn(
-                        "group relative overflow-hidden rounded-lg border bg-surface transition-colors",
-                        sel
-                          ? "border-accent ring-1 ring-accent"
-                          : "border-border hover:border-border-emphasis",
-                      )}
-                    >
-                      <Link
-                        href={isFolder ? explorerHref(key) : objectHref(key)}
-                        onMouseEnter={
-                          isFolder ? () => prefetch(key) : undefined
-                        }
-                        onFocus={isFolder ? () => prefetch(key) : undefined}
-                        className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                      >
-                        {isFolder ? (
-                          <div className="flex aspect-[4/3] items-center justify-center bg-surface-alt">
-                            <FontAwesomeIcon
-                              icon={iconForKey(key)}
-                              className="h-10 w-10 text-info"
-                            />
-                          </div>
-                        ) : (
-                          <ObjectThumb
-                            objectKey={key}
-                            contentType={o?.head?.ContentType}
-                            className="aspect-[4/3]"
-                          />
-                        )}
-                        <div className="px-3 py-2 pr-10">
-                          <p
-                            className="truncate text-sm font-medium text-primary"
-                            title={baseName(key)}
-                          >
-                            {baseName(key)}
-                          </p>
-                          <p className="truncate text-xs text-muted">
-                            {isFolder ? "Folder" : o ? formatBytes(o.Size) : ""}
-                          </p>
-                        </div>
-                      </Link>
-                      <div
-                        className={cn(
-                          "absolute left-2 top-2 rounded-lg bg-surface/90 transition-opacity",
-                          sel
-                            ? "opacity-100"
-                            : "opacity-0 group-hover:opacity-100 focus-within:opacity-100",
-                        )}
-                      >
-                        <div className="p-3">
-                          <Checkbox
-                            aria-label={`Select ${isFolder ? "folder " : ""}${baseName(key)}`}
-                            checked={sel}
-                            onChange={(_, shift) =>
-                              selection.toggle(key, shift)
-                            }
-                          />
-                        </div>
-                      </div>
-                      <div className="absolute bottom-1.5 right-1.5">
-                        <Menu
-                          label={`Actions for ${isFolder ? "folder " : ""}${baseName(key)}`}
-                          items={
-                            isFolder ? folderMenu(key) : o ? objectMenu(o) : []
-                          }
-                        />
-                      </div>
-                    </li>
-                  );
-                },
+                (key) => (
+                  <GridItem
+                    key={key}
+                    itemKey={key}
+                    object={objectByKey.get(key)}
+                    selected={selection.selected.has(key)}
+                    actions={rowActions}
+                  />
+                ),
               )}
             </ul>
           )}
