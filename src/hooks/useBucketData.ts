@@ -1,10 +1,12 @@
 import { useCallback, useRef, useState } from "react";
-import { ObjectHead, S3ObjectMetadata } from "@/types";
-import { reqFetchFolders } from "@/services/folder.service";
 import {
-  reqFetchBulkObjectHead,
-  reqFetchObjects,
-} from "@/services/object.service";
+  ApiResponse,
+  FolderContents,
+  ObjectHead,
+  S3ObjectMetadata,
+} from "@/types";
+import { reqListContents } from "@/services/folder.service";
+import { reqFetchBulkObjectHead } from "@/services/object.service";
 import { ViewCache } from "@/tools/viewCache.tools";
 
 export type ListedObject = S3ObjectMetadata & {
@@ -16,26 +18,93 @@ type Listing = {
   folders: string[];
   objects: ListedObject[];
   /**
-   * Set when the API capped either list (`pagination.truncated`): only the
-   * first `limit` folders / objects are here and the UI must say so.
+   * Set when the API capped the listing (`pagination.truncated`): only the
+   * first `limit` entries are here and the UI must say so.
    */
   truncatedAt?: number;
+  /** When the listing arrived (ms epoch). Heads may be newer. */
+  fetchedAt?: number;
 };
 
-const listings = new ViewCache<Listing>();
+// Persisted: a reload or a new tab paints the last-known folder immediately.
+const listings = new ViewCache<Listing>({ persistKey: "listings" });
+
+/** A listing this young is shown as-is on arrival, not fetched again. */
+const FRESH_MS = 10_000;
 
 const keyFor = (sessionId: number | null, prefix: string) =>
   `${sessionId ?? "none"}:${prefix === "/" ? "" : prefix}`;
 
+const normalize = (prefix: string) => (prefix === "/" ? "" : prefix);
+
+// One request per folder at a time, shared by navigation and hover prefetch.
+const inflight = new Map<string, Promise<ApiResponse<FolderContents>>>();
+
+const listContents = (sessionId: number, prefix: string) => {
+  const k = keyFor(sessionId, prefix);
+  let p = inflight.get(k);
+  if (!p) {
+    p = reqListContents(sessionId, normalize(prefix)).finally(() =>
+      inflight.delete(k),
+    );
+    inflight.set(k, p);
+  }
+  return p;
+};
+
 /**
- * Loads one prefix of the active session: its sub-folders, its objects, then
- * each object's HEAD (for the ACL and content type).
+ * A fresh listing from `res`, carrying cached heads over for unchanged objects
+ * (same key + ETag) so the Access column doesn't drop back to placeholders.
+ */
+const toListing = (
+  res: ApiResponse<FolderContents> & { success: true },
+  cached: Listing | undefined,
+): Listing => {
+  const previous = new Map((cached?.objects ?? []).map((o) => [o.Key, o]));
+  return {
+    folders: res.data?.folders ?? [],
+    objects: (res.data?.objects ?? []).map((o) => {
+      const prev = previous.get(o.Key);
+      return prev && prev.ETag === o.ETag && prev.head !== undefined
+        ? { ...o, head: prev.head }
+        : o;
+    }),
+    truncatedAt: res.pagination?.truncated ? res.pagination.limit : undefined,
+    fetchedAt: Date.now(),
+  };
+};
+
+/**
+ * Warms the cache for a folder the user is about to open (hover/focus on its
+ * link), so the click renders at once. Skips folders already fresh or in
+ * flight; heads are left to the real visit.
+ */
+export const prefetchListing = (sessionId: number | null, prefix: string) => {
+  if (sessionId === null) return;
+  const k = keyFor(sessionId, prefix);
+  const cached = listings.get(k);
+  if (
+    inflight.has(k) ||
+    (cached?.fetchedAt && Date.now() - cached.fetchedAt < FRESH_MS)
+  )
+    return;
+  listContents(sessionId, prefix).then((res) => {
+    if (res.success) listings.set(k, toListing(res, listings.get(k)));
+  });
+};
+
+/**
+ * Loads one prefix of the active session: its sub-folders and objects (one
+ * GET /contents), then each object's HEAD (for the ACL and content type).
  *
- * Stale-while-revalidate: a prefix seen before renders from the cache straight
- * away and `refreshing` is true while the fresh copy loads; only a first visit
- * shows the skeleton (`folders`/`objects` null). Cached heads are carried over
- * for unchanged objects (same key + ETag) so the Access column doesn't drop
- * back to placeholders mid-refresh.
+ * Stale-while-revalidate: a prefix seen before — this tab, a hover prefetch,
+ * or a previous visit (the cache is persisted) — renders from the cache
+ * straight away and `refreshing` is true while the fresh copy loads; only a
+ * first visit shows the skeleton (`folders`/`objects` null).
+ *
+ * `loadBucketData({ maxAge })` (navigation) reuses a listing younger than
+ * maxAge instead of refetching it; `loadBucketData()` (after a change)
+ * always refetches.
  *
  * ⚠️ What's shown is resolved DURING RENDER from (session, prefix): this hook's
  * state if it belongs to that key, else the cache, else nothing. Holding the
@@ -68,81 +137,67 @@ export const useBucketData = (sessionId: number | null, prefix: string) => {
           refreshing: false,
         };
 
-  const loadBucketData = useCallback(async () => {
-    if (sessionId === null) return;
-    const req = ++requestRef.current;
-    const k = keyFor(sessionId, prefix);
-    const normalized = prefix === "/" ? "" : prefix;
-    const cached = listings.get(k);
-    const patch = (next: Partial<typeof state>) =>
-      setState((s) => ({
-        ...(s.key === k
-          ? s
-          : { key: k, data: cached ?? null, error: null, refreshing: false }),
-        ...next,
-      }));
+  const loadBucketData = useCallback(
+    async (opts: { maxAge?: number } = {}) => {
+      if (sessionId === null) return;
+      const req = ++requestRef.current;
+      const k = keyFor(sessionId, prefix);
+      const cached = listings.get(k);
+      const patch = (next: Partial<typeof state>) =>
+        setState((s) => ({
+          ...(s.key === k
+            ? s
+            : { key: k, data: cached ?? null, error: null, refreshing: false }),
+          ...next,
+        }));
 
-    patch({ refreshing: true, error: null });
+      let listing: Listing;
+      const age = cached?.fetchedAt ? Date.now() - cached.fetchedAt : Infinity;
+      if (cached && opts.maxAge !== undefined && age < opts.maxAge) {
+        listing = cached;
+        patch({ data: cached, error: null });
+      } else {
+        patch({ refreshing: true, error: null });
+        const res = await listContents(sessionId, prefix);
+        if (req !== requestRef.current) return;
+        if (!res.success) {
+          const message =
+            res.error_message || res.error || "Failed to load this folder";
+          patch({
+            refreshing: false,
+            error: cached
+              ? `${message} — showing the last loaded copy`
+              : message,
+            data: cached ?? { folders: [], objects: [] },
+          });
+          return;
+        }
+        listing = toListing(res, listings.get(k));
+        listings.set(k, listing);
+      }
 
-    const [foldersRes, objectsRes] = await Promise.all([
-      reqFetchFolders(normalized),
-      reqFetchObjects(normalized),
-    ]);
-    if (req !== requestRef.current) return;
+      const needHeads = listing.objects.some((o) => o.head === undefined);
+      patch({ data: listing, refreshing: needHeads });
+      if (!needHeads) return;
 
-    if (!foldersRes.success || !objectsRes.success) {
-      const failed = !foldersRes.success
-        ? foldersRes
-        : !objectsRes.success
-          ? objectsRes
-          : null;
-      const message =
-        failed && !failed.success
-          ? failed.error_message || failed.error
-          : "Failed to load this folder";
-      patch({
-        refreshing: false,
-        error: cached ? `${message} — showing the last loaded copy` : message,
-        data: cached ?? { folders: [], objects: [] },
-      });
-      return;
-    }
-
-    const previous = new Map((cached?.objects ?? []).map((o) => [o.Key, o]));
-    const list: ListedObject[] = (objectsRes.data ?? []).map((o) => {
-      const prev = previous.get(o.Key);
-      return prev && prev.ETag === o.ETag && prev.head !== undefined
-        ? { ...o, head: prev.head }
-        : o;
-    });
-    const capped = [foldersRes, objectsRes].find(
-      (r) => r.success && r.pagination?.truncated,
-    );
-    const fresh: Listing = {
-      folders: foldersRes.data ?? [],
-      objects: list,
-      truncatedAt:
-        capped && capped.success ? capped.pagination?.limit : undefined,
-    };
-    listings.set(k, fresh);
-    patch({ data: fresh, refreshing: list.length > 0 });
-    if (list.length === 0) return;
-
-    const heads = await reqFetchBulkObjectHead(list.map((o) => o.Key));
-    if (req !== requestRef.current) return;
-    // Matched by index: the API returns heads in request order. On a failed
-    // bulk call, keep any carried-over heads rather than blanking them.
-    const withHeads: Listing = {
-      ...fresh,
-      folders: fresh.folders,
-      objects: list.map((o, i) => ({
-        ...o,
-        head: heads.success ? (heads.data[i] ?? null) : (o.head ?? null),
-      })),
-    };
-    listings.set(k, withHeads);
-    patch({ data: withHeads, refreshing: false });
-  }, [sessionId, prefix]);
+      const heads = await reqFetchBulkObjectHead(
+        listing.objects.map((o) => o.Key),
+      );
+      if (req !== requestRef.current) return;
+      // Matched by index: the API returns heads in request order. On a failed
+      // bulk call, keep any carried-over heads rather than blanking them.
+      const withHeads: Listing = {
+        ...listing,
+        objects: listing.objects.map((o, i) => ({
+          ...o,
+          head: heads.success ? (heads.data[i] ?? null) : (o.head ?? null),
+        })),
+      };
+      listings.set(k, withHeads);
+      patch({ data: withHeads, refreshing: false });
+    },
+    [sessionId, prefix],
+  );
 
   return {
     folders: current.data?.folders ?? null,
@@ -153,3 +208,5 @@ export const useBucketData = (sessionId: number | null, prefix: string) => {
     loadBucketData,
   };
 };
+
+export { FRESH_MS };

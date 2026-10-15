@@ -58,7 +58,7 @@ type ApiSuccess<T> = {
   status: number;
   message: string;
   data: T;
-  /** Present on capped listings (GET /objects, /folders). */
+  /** Present on capped listings (GET /contents, /objects, /folders). */
   pagination?: ListTruncation;
 };
 
@@ -66,6 +66,12 @@ type ApiSuccess<T> = {
 type ListTruncation = {
   truncated: boolean;
   limit: number;
+};
+
+/** GET /contents: one folder level from a single listing. */
+type FolderContents = {
+  folders: string[];
+  objects: S3ObjectMetadata[];
 };
 
 // Generic error response
@@ -180,4 +186,5 @@ export type {
   ApiSuccess,
   ApiError,
   ListTruncation,
+  FolderContents,
 };

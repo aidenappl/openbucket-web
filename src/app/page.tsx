@@ -30,7 +30,13 @@ import { entriesFromFiles, UploadEntry } from "@/hooks/useUploader";
 import { selectCurrentSession } from "@/store/slices/sessionSlice";
 import { useAuthContext } from "@/context/AuthContext";
 import { useCanWrite, usePermissions } from "@/hooks/usePermissions";
-import { ListedObject, useBucketData } from "@/hooks/useBucketData";
+import {
+  FRESH_MS,
+  ListedObject,
+  prefetchListing,
+  useBucketData,
+} from "@/hooks/useBucketData";
+import { useProgressiveCount } from "@/hooks/useProgressiveCount";
 import { useSelection } from "@/hooks/useSelection";
 import { useSort } from "@/hooks/useSort";
 import { useViewFormat } from "@/hooks/useViewFormat";
@@ -157,9 +163,11 @@ const Explorer = () => {
     loadBucketData();
   }, [loadBucketData]);
 
+  // Navigation reuses a listing fetched in the last few seconds (e.g. by the
+  // hover prefetch) instead of listing the folder again.
   useEffect(() => {
     setQuery("");
-    reload();
+    loadBucketData({ maxAge: FRESH_MS });
     // session.id, not session: a re-fetched sessions list hands back a new object
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.id, prefix]);
@@ -207,6 +215,19 @@ const Explorer = () => {
     [sortedFolders, sortedObjects],
   );
   const selection = useSelection(allKeys);
+
+  // Big folders render in batches (see useProgressiveCount).
+  const rendered = useProgressiveCount(
+    allKeys.length,
+    `${session?.id ?? ""}:${prefix}`,
+  );
+  const shownFolders = sortedFolders.slice(0, rendered);
+  const shownObjects = sortedObjects.slice(
+    0,
+    Math.max(0, rendered - sortedFolders.length),
+  );
+  const prefetch = (folder: string) =>
+    prefetchListing(session?.id ?? null, folder);
   const objectByKey = useMemo(
     () => new Map((objects ?? []).map((o) => [o.Key, o])),
     [objects],
@@ -625,6 +646,7 @@ const Explorer = () => {
                     ) : (
                       <Link
                         href={explorerHref(c.prefix)}
+                        onMouseEnter={() => prefetch(c.prefix)}
                         className="rounded px-1 -mx-1 hover:text-primary hover:underline"
                       >
                         {c.name}
@@ -928,7 +950,7 @@ const Explorer = () => {
                     <TableCell />
                   </TableRow>
                 )}
-                {sortedFolders.map((f) => (
+                {shownFolders.map((f) => (
                   <TableRow key={f} selected={selection.selected.has(f)}>
                     <TableCell className="pr-0">
                       <Checkbox
@@ -940,6 +962,8 @@ const Explorer = () => {
                     <TableCell className="max-w-0 w-full">
                       <Link
                         href={explorerHref(f)}
+                        onMouseEnter={() => prefetch(f)}
+                        onFocus={() => prefetch(f)}
                         className="flex min-w-0 items-center gap-2.5 font-medium hover:underline"
                       >
                         <FontAwesomeIcon
@@ -966,7 +990,7 @@ const Explorer = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-                {sortedObjects.map((o) => (
+                {shownObjects.map((o) => (
                   <TableRow
                     key={o.Key}
                     selected={selection.selected.has(o.Key)}
@@ -1049,7 +1073,7 @@ const Explorer = () => {
             </div>
           ) : (
             <ul className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
-              {[...sortedFolders, ...sortedObjects.map((o) => o.Key)].map(
+              {[...shownFolders, ...shownObjects.map((o) => o.Key)].map(
                 (key) => {
                   const isFolder = key.endsWith("/");
                   const o = objectByKey.get(key);
@@ -1066,6 +1090,10 @@ const Explorer = () => {
                     >
                       <Link
                         href={isFolder ? explorerHref(key) : objectHref(key)}
+                        onMouseEnter={
+                          isFolder ? () => prefetch(key) : undefined
+                        }
+                        onFocus={isFolder ? () => prefetch(key) : undefined}
                         className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                       >
                         {isFolder ? (
