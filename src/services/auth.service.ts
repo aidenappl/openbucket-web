@@ -44,6 +44,12 @@ export type UpdateSelfPayload = {
   name?: string;
   /** 8–128 characters (tools.ValidatePassword). Local accounts only. */
   password?: string;
+  /**
+   * Required with `password` (openbucket-api#11). A wrong one is 400
+   * "current password is incorrect". A successful change signs out every
+   * other session; this browser gets fresh cookies.
+   */
+  current_password?: string;
 };
 
 const reqUpdateSelf = async (

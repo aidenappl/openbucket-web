@@ -139,7 +139,7 @@ were deleted in the same change. Don't reintroduce PascalCase duplicates of `ui/
 | `/` | `page.tsx` | Explorer — `?folder=<prefix>` (pushed, so Back goes up a folder). List (sortable, filter with `/`) or grid (lazy image thumbnails); multi-select with Shift ranges and ⌘/Ctrl+A; bulk access/download/move/delete; per-row menu (details, open, download, copy link, share link…, access, rename, move to…, delete); upload files or a folder (button or whole-window drop; folders keep their structure) with overwrite prompt; new folder in the current prefix. Move uses a folder-browser dialog and skips name clashes unless Replace is ticked |
 | `/object/[...object]` | `object/[...object]/page.tsx` | Single object — download, open, copy link (public URL or 24h signed), access, rename, move, delete; details incl. public URL, grants, metadata; preview |
 | `/sessions` | `sessions/page.tsx` | Bucket sessions — create/edit/remove, filter, active marker; new/edited sessions are probed (folder list) so bad keys are reported at once |
-| `/account` | `account/page.tsx` | Own profile — display name; password for local accounts (`PUT /auth/self`) |
+| `/account` | `account/page.tsx` | Own profile — display name; password for local accounts (`PUT /auth/self` with `current_password`, required since openbucket-api#11; a change signs out other sessions) |
 | `/login` | `login/page.tsx` | Local email/password **+** SSO button. See Login layout below |
 | `/pending` | `pending/page.tsx` | Landing for `role: "pending"` — account awaiting approval |
 | `/unauthorized` | `unauthorized/page.tsx` | Landing on `error_code 4003` |

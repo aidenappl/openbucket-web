@@ -22,7 +22,7 @@ export default function AccountPage() {
   const { user, isLoading, logout } = useAuthContext();
   const [name, setName] = useState("");
   const [savingName, setSavingName] = useState(false);
-  const [pw, setPw] = useState({ next: "", confirm: "" });
+  const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
   const [pwTouched, setPwTouched] = useState(false);
   const [savingPw, setSavingPw] = useState(false);
 
@@ -59,17 +59,20 @@ export default function AccountPage() {
   const savePassword = async (e: FormEvent) => {
     e.preventDefault();
     setPwTouched(true);
-    if (pwError || confirmError || !pw.confirm) return;
+    if (pwError || confirmError || !pw.confirm || !pw.current) return;
     setSavingPw(true);
-    const res = await reqUpdateSelf({ password: pw.next });
+    const res = await reqUpdateSelf({
+      password: pw.next,
+      current_password: pw.current,
+    });
     setSavingPw(false);
     if (!res.success) {
       toast.error(res.error_message || "Couldn't change your password");
       return;
     }
-    setPw({ next: "", confirm: "" });
+    setPw({ current: "", next: "", confirm: "" });
     setPwTouched(false);
-    toast.success("Password changed");
+    toast.success("Password changed. Other sessions were signed out.");
   };
 
   return (
@@ -137,6 +140,14 @@ export default function AccountPage() {
               autoComplete="off"
             >
               <Input
+                label="Current password"
+                type="password"
+                autoComplete="current-password"
+                value={pw.current}
+                onChange={(e) => setPw({ ...pw, current: e.target.value })}
+                error={pwTouched && !pw.current ? "Required" : undefined}
+              />
+              <Input
                 label="New password"
                 type="password"
                 autoComplete="new-password"
@@ -161,7 +172,7 @@ export default function AccountPage() {
                 <Button
                   type="submit"
                   loading={savingPw}
-                  disabled={!pw.next || !pw.confirm}
+                  disabled={!pw.current || !pw.next || !pw.confirm}
                 >
                   Change password
                 </Button>
