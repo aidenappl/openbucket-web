@@ -197,16 +197,17 @@ the fix; this is the index.
   `<endpoint>/<bucket>/<key>`. Building `https://${endpoint}` produced `https://https://…`.
 - **`GET /folder` is snake_case** (`key`, `size`, `last_modified` — `aws.Object`), unlike every
   other listing (PascalCase S3 shapes).
-- **Known openbucket-go bugs the UI works around:** folder **rename** fails (CopyObject can't copy a
-  folder-marker key — "is a directory"), so the folder menu has no Rename; folder **delete**
-  (multi-object delete) can answer 200 while objects stay listed (files removed, metadata rows
-  kept), so the explorer re-lists after a folder delete and says so if anything remains.
+- **Folder delete is re-checked:** the explorer re-lists after a folder delete and says so if
+  anything remains (openbucket-go once answered 200 while leaving the contents, fixed in
+  openbucket-go#20/#21). **Folder rename** is back in the folder menu since openbucket-go#38 (folder
+  markers couldn't be copied) and openbucket-api#33 (409 instead of merging into an existing folder).
 - **Presigned URLs are capped at 24 h.** Over-cap requests are clamped to 24 h (until
   openbucket-api#16 they silently became 1 h). The share dialog offers 15 min / 1 h / 1 day and
   shows the expiry the API reports (`data.expiration`), never the one requested.
-- **Rename/move can't overwrite.** openbucket-go's CopyObject refuses an existing destination
-  (`ObjectAlreadyExists`, surfaced as 500 "Unknown error"), unlike S3. Move-with-replace deletes
-  the target first, then renames; the source is untouched until the rename succeeds.
+- **Rename/move never overwrites by accident.** `PUT /object/rename` answers 409 when the name is
+  taken unless `overwrite=true` (`reqPutRenameObject(old, new, overwrite)`); folder renames never
+  merge. Move-with-replace passes `overwrite` — it used to delete the target first (storage refused
+  to overwrite), which lost the target if the move then failed.
 - **Upload keys may contain `/`.** Folder uploads send `key=<relative path>` with the current
   `prefix`; the API only rejects `..`, a leading `/` and NUL. Folder markers aren't created, so a
   folder exists while it has objects and vanishes when emptied. Uploads run 4 at a time
