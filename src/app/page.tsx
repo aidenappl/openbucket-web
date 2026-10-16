@@ -425,9 +425,9 @@ const Explorer = () => {
   };
 
   // Move objects into `dest`, keeping names. The destination is re-listed here
-  // (not trusted from the dialog) because a rename onto an existing key
-  // overwrites it; clashes are skipped unless `replace`. Folders aren't
-  // movable — that needs openbucket-go#22.
+  // (not trusted from the dialog) to report clashes: they are skipped unless
+  // `replace`, which moves with `overwrite` (the API refuses an existing
+  // destination otherwise). Folders aren't movable from this dialog.
   const confirmMove = async (dest: string, replace: boolean) => {
     if (!moveKeys) return;
     setMoving(true);
@@ -445,18 +445,9 @@ const Explorer = () => {
       while (next < todo.length) {
         const k = todo[next++];
         const target = dest + baseName(k);
-        // openbucket-go's CopyObject refuses an existing destination
-        // (ObjectAlreadyExists → 500 "Unknown error"), unlike S3. Replacing
-        // means removing the target first; the source stays untouched until
-        // the move itself succeeds.
-        if (taken.has(baseName(k))) {
-          const del = await reqDeleteObject(target);
-          if (!del.success) {
-            failed += 1;
-            continue;
-          }
-        }
-        const res = await reqPutRenameObject(k, target);
+        // Replacing used to mean deleting the target first (storage refused
+        // to overwrite) — which lost the target if the move then failed.
+        const res = await reqPutRenameObject(k, target, taken.has(baseName(k)));
         if (!res.success) failed += 1;
       }
     };
@@ -480,15 +471,18 @@ const Explorer = () => {
     reload();
   };
 
-  // No folder Rename yet: openbucket-api's PUT /folder works, but openbucket-go
-  // can't CopyObject a folder-marker key ("read …: is a directory") and leaves a
-  // half-made destination behind, so every rename fails. RenameModal already
-  // handles folder keys — add the item back once the storage server is fixed.
+  // Folder Rename needs openbucket-go#38 (it couldn't copy folder markers) and
+  // openbucket-api#33 (409 instead of merging into an existing folder).
   const folderMenu = (f: string): MenuItem[] => [
     { label: "Open", icon: faFolderOpen, onSelect: () => goTo(f) },
     ...(canWrite
       ? ([
           "separator",
+          {
+            label: "Rename",
+            icon: faPen,
+            onSelect: () => setRenameKey(f),
+          },
           {
             label: "Delete",
             icon: faTrash,

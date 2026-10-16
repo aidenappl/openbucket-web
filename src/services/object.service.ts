@@ -192,16 +192,23 @@ const reqDownloadObject = async (
   }
 };
 
+/**
+ * Moves an object. An existing `newPath` is a 409 ("an object named … already
+ * exists") unless `overwrite` — never replaced by accident (openbucket-api#33).
+ */
 const reqPutRenameObject = async (
   oldPath: string,
   newPath: string,
+  overwrite = false,
 ): Promise<ApiResponse<null>> => {
   const id = getSessionId();
   if (id === null) return noSession();
   return fetchApi<null>({
     url: `/core/v1/${id}/object/rename`,
     method: "PUT",
-    params: { key: oldPath, newKey: newPath },
+    params: overwrite
+      ? { key: oldPath, newKey: newPath, overwrite: "true" }
+      : { key: oldPath, newKey: newPath },
   });
 };
 
