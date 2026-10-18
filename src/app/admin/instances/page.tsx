@@ -87,8 +87,10 @@ export default function InstancesPage() {
 
   const current = instances.find((i) => i.id === expanded?.id) ?? null;
 
-  const loadDetail = useCallback(async (inst: Instance) => {
-    setDetailLoading(true);
+  // silent refreshes keep the panel mounted — swapping it for a spinner would
+  // unmount CredentialsPanel and lose the just-minted secret before it's shown.
+  const loadDetail = useCallback(async (inst: Instance, silent = false) => {
+    if (!silent) setDetailLoading(true);
     setDetailError(null);
     const [c, b] = await Promise.all([
       reqProxyListCredentials(inst.id),
@@ -343,7 +345,7 @@ export default function InstancesPage() {
                       <CredentialsPanel
                         instance={inst}
                         credentials={credentials}
-                        onChanged={() => loadDetail(inst)}
+                        onChanged={() => loadDetail(inst, true)}
                         onUseForSessions={(cred) => {
                           setPreset(cred);
                           setExpanded({ id: inst.id, view: "buckets" });
@@ -365,7 +367,7 @@ export default function InstancesPage() {
                         stats={stats}
                         credentials={credentials}
                         existingSessions={existingSessions}
-                        onChanged={() => loadDetail(inst)}
+                        onChanged={() => loadDetail(inst, true)}
                         onAddSessions={(names) =>
                           setSessionTarget({ instance: inst, buckets: names })
                         }
