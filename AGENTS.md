@@ -335,6 +335,16 @@ misleading **npmjs.com E401** — the error names the wrong registry, so it read
 outage. Source your `.env` first. In CI the same value arrives via Keyring and is passed to the
 Docker build as a `--mount=type=secret`.
 
+### Local dev ports, worktrees and Vantage
+
+`npm run dev:ssl` listens on `PORT` when it is set (default 3010) and, when the clone has no mkcert
+certificates of its own (a git worktree), uses the shared pair in `DEV_CERTS_DIR` or
+`~/.local/share/dev-certs` (`dev.pem` / `dev-key.pem`, covering `*.local.trailblaze.to` and
+`*.local.appleby.cloud`). `vantage.config.yaml` lists the prod and local URLs: a Vantage session opened
+with `env: "local"` (the default) starts this worktree's dev server on a free port, symlinking `.env`
+from the main checkout and running `npm ci` first if needed, so several agents can run the app from
+different worktrees at once; `env: "prod"` tophats https://openbucket.appleby.cloud.
+
 ## 8. Ecosystem & related repos
 
 | Repo | Relationship |
